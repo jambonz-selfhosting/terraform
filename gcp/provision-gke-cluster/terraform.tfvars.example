@@ -1,0 +1,27 @@
+# Example Terraform Variables
+# Copy this file to terraform.tfvars and customize the values
+# terraform.tfvars is gitignored and won't be committed to version control
+
+# Basic Configuration
+project_id   = "your-gcp-project-id"
+region       = "us-east1"
+cluster_name = "voip-gke-cluster"
+
+# Network Configuration
+network_name       = "voip-network"
+system_subnet_cidr = "10.0.1.0/24"
+sip_subnet_cidr    = "10.0.2.0/24"
+rtp_subnet_cidr    = "10.0.3.0/24"
+pods_cidr          = "10.1.0.0/16"
+services_cidr      = "10.2.0.0/16"
+
+# System Node Pool Configuration
+system_machine_type = "e2-standard-2"
+
+# SIP Node Pool Configuration
+sip_machine_type = "e2-standard-2"
+sip_node_count   = 1
+
+# RTP Node Pool Configuration
+rtp_machine_type = "e2-standard-2"
+rtp_node_count   = 1
