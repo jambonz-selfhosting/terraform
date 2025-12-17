@@ -1,0 +1,82 @@
+# Example Terraform variables for jambonz mini deployment on Exoscale
+# Copy this file to terraform.tfvars and fill in your values
+
+# ------------------------------------------------------------------------------
+# EXOSCALE CREDENTIALS
+# These can also be set via environment variables:
+#   export EXOSCALE_API_KEY="your-key"
+#   export EXOSCALE_API_SECRET="your-secret"
+# ------------------------------------------------------------------------------
+
+exoscale_api_key    = "EXO..."
+exoscale_api_secret = "..."
+
+# ------------------------------------------------------------------------------
+# DEPLOYMENT CONFIGURATION
+# ------------------------------------------------------------------------------
+
+# Exoscale zone - see https://www.exoscale.com/datacenters/
+# Options: ch-gva-2, ch-dk-2, de-fra-1, de-muc-1, at-vie-1, at-vie-2, bg-sof-1
+zone = "ch-gva-2"
+
+# Prefix for resource names
+name_prefix = "jambonz"
+
+# Environment label
+environment = "production"
+
+# ------------------------------------------------------------------------------
+# INSTANCE CONFIGURATION
+# ------------------------------------------------------------------------------
+
+# Name of your jambonz template in Exoscale
+# You'll need to create this template first (similar to an AMI)
+template_name = "jambonz-mini-debian-12"
+
+# Instance type - see https://www.exoscale.com/pricing/
+# Recommended: standard.medium or larger for production
+instance_type = "standard.medium"
+
+# Disk size in GB
+disk_size = 50
+
+# ------------------------------------------------------------------------------
+# SSH CONFIGURATION
+# Use EITHER ssh_key_name (existing key) OR ssh_public_key (create new key)
+# ------------------------------------------------------------------------------
+
+# Option 1: Name of existing SSH key in Exoscale
+ssh_key_name = "my-ssh-key"
+
+# Option 2: SSH public key content (creates new key)
+# ssh_public_key = "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAAB... user@host"
+
+# ------------------------------------------------------------------------------
+# NETWORK ACCESS CONTROLS
+# Use x.x.x.x/32 for a single IP, or 0.0.0.0/0 for any IP (less secure)
+# ------------------------------------------------------------------------------
+
+# SSH access - IMPORTANT: Restrict this for security
+allowed_ssh_cidr = "203.0.113.50/32"
+
+# HTTP/HTTPS access
+allowed_http_cidr = "0.0.0.0/0"
+
+# SIP access (UDP/TCP 5060, TLS 5061, WSS 8443)
+allowed_sip_cidr = "0.0.0.0/0"
+
+# RTP media access (UDP 40000-60000)
+allowed_rtp_cidr = "0.0.0.0/0"
+
+# ------------------------------------------------------------------------------
+# JAMBONZ CONFIGURATION
+# ------------------------------------------------------------------------------
+
+# DNS name for the jambonz portal
+# You'll need to create DNS A records pointing to the server IP for:
+#   - jambonz.example.com
+#   - api.jambonz.example.com
+#   - grafana.jambonz.example.com
+#   - homer.jambonz.example.com
+#   - sip.jambonz.example.com
+url_portal = "jambonz.example.com"
