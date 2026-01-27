@@ -36,8 +36,9 @@ output "admin_user" {
 }
 
 output "admin_password" {
-  description = "Initial password for jambonz portal (you will be forced to change it on first login)"
-  value       = "admin"
+  description = "Initial password for jambonz portal (instance ID - you will be forced to change it on first login)"
+  value       = exoscale_compute_instance.jambonz.id
+  sensitive   = true
 }
 
 output "ssh_connection" {

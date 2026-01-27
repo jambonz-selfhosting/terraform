@@ -1,6 +1,6 @@
 #cloud-config
-# Cloud-init configuration for jambonz mini on Exoscale
-# This is the equivalent of the AWS CloudFormation UserData script
+# Cloud-init configuration for jambonz mini on Azure
+# This is the equivalent of the Exoscale cloud-init script
 
 package_update: false
 package_upgrade: false
@@ -16,21 +16,7 @@ write_files:
       JWT_SECRET="${jwt_secret}"
       INSTANCE_NAME="${instance_name}"
 
-      echo "Starting jambonz configuration for Exoscale deployment"
-
-      # Copy SSH keys from debian user to jambonz user
-      # Exoscale injects SSH keys into the debian user by default
-      echo "Copying SSH keys to jambonz user..."
-      if [ -f /home/debian/.ssh/authorized_keys ]; then
-          mkdir -p /home/jambonz/.ssh
-          cp /home/debian/.ssh/authorized_keys /home/jambonz/.ssh/
-          chown -R jambonz:jambonz /home/jambonz/.ssh
-          chmod 700 /home/jambonz/.ssh
-          chmod 600 /home/jambonz/.ssh/authorized_keys
-          echo "SSH keys copied to jambonz"
-      else
-          echo "Warning: No SSH keys found for debian user"
-      fi
+      echo "Starting jambonz configuration for Azure deployment"
 
       # Update /etc/hosts file to include hostname
       echo "update /etc/hosts file to include hostname: $(hostname)"
@@ -78,13 +64,13 @@ write_files:
       echo "rtpengine module and iptables rule installed. Restarting rtpengine service."
       systemctl restart rtpengine || true
 
-      # Get instance metadata - Exoscale uses a different metadata service
+      # Get instance metadata - Azure Instance Metadata Service (IMDS)
       sleep 10
 
-      # Exoscale metadata service
-      PRIVATE_IPV4=$(curl -s http://169.254.169.254/latest/meta-data/local-ipv4 2>/dev/null || hostname -I | awk '{print $1}')
-      PUBLIC_IPV4=$(curl -s http://169.254.169.254/latest/meta-data/public-ipv4 2>/dev/null || curl -s https://api.ipify.org)
-      INSTANCE_ID=$(curl -s http://169.254.169.254/latest/meta-data/instance-id 2>/dev/null || hostname)
+      # Azure metadata service
+      PRIVATE_IPV4=$(curl -s -H Metadata:true --noproxy "*" "http://169.254.169.254/metadata/instance/network/interface/0/ipv4/ipAddress/0/privateIpAddress?api-version=2021-02-01&format=text" 2>/dev/null || hostname -I | awk '{print $1}')
+      PUBLIC_IPV4=$(curl -s -H Metadata:true --noproxy "*" "http://169.254.169.254/metadata/instance/network/interface/0/ipv4/ipAddress/0/publicIpAddress?api-version=2021-02-01&format=text" 2>/dev/null || curl -s https://api.ipify.org)
+      INSTANCE_ID=$(curl -s -H Metadata:true --noproxy "*" "http://169.254.169.254/metadata/instance/compute/vmId?api-version=2021-02-01&format=text" 2>/dev/null || hostname)
 
       echo "Private IP: $PRIVATE_IPV4"
       echo "Public IP: $PUBLIC_IPV4"

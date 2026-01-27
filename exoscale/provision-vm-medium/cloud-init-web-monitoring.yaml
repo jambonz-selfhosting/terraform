@@ -1,0 +1,171 @@
+#cloud-config
+# Cloud-init for Jambonz Web/Monitoring Server on Exoscale
+
+# Merge SSH keys into existing jambonz user
+# Note: jambonz user already exists in the template, we're just adding SSH keys
+users:
+  - name: jambonz
+    ssh_authorized_keys:
+      - "${ssh_public_key}"
+
+# Configure network interfaces (both public and private)
+network:
+  version: 2
+  ethernets:
+    eth0:
+      dhcp4: true
+    eth1:
+      dhcp4: true
+
+write_files:
+  - path: /tmp/configure-jambonz.sh
+    permissions: '0755'
+    content: |
+      #!/bin/bash -xe
+      # Configuration script for jambonz Web/Monitoring server
+
+      # Variables from Terraform
+      MYSQL_HOST="${mysql_host}"
+      MYSQL_PORT="${mysql_port}"
+      MYSQL_USER="${mysql_user}"
+      MYSQL_PASSWORD="${mysql_password}"
+      MYSQL_DATABASE="${mysql_database}"
+      REDIS_HOST="${redis_host}"
+      REDIS_PORT="${redis_port}"
+      JWT_SECRET="${jwt_secret}"
+      URL_PORTAL="${url_portal}"
+      VPC_CIDR="${vpc_cidr}"
+      DEPLOY_RECORDING_CLUSTER="${deploy_recording_cluster}"
+      APIBAN_KEY="${apiban_key}"
+
+      echo "Starting jambonz Web/Monitoring server configuration for Exoscale"
+
+      # Always use jambonz user for apps
+      USER=jambonz
+      HOME=/home/jambonz
+
+      # Get instance metadata from Exoscale Metadata Service
+      echo "Getting instance metadata..."
+      # Get private IP from eth1 (private network interface)
+      PRIVATE_IP=$(ip -4 addr show eth1 | grep -oP '(?<=inet\s)\d+(\.\d+){3}' || echo "172.20.0.1")
+      INSTANCE_ID=$(curl -s http://169.254.169.254/latest/meta-data/instance-id 2>/dev/null || hostname)
+      PUBLIC_IP=$(curl -s https://api.ipify.org)
+
+      echo "Public IP: $PUBLIC_IP"
+      echo "Private IP: $PRIVATE_IP (eth1)"
+      echo "Instance ID: $INSTANCE_ID"
+
+      # Wait for database to be ready
+      echo "Waiting for MySQL to be ready..."
+      until mysql -h $MYSQL_HOST --port=$MYSQL_PORT -u $MYSQL_USER -p$MYSQL_PASSWORD -e "SELECT 1" &>/dev/null; do
+        echo "MySQL not ready, waiting..."
+        sleep 5
+      done
+
+      echo "Seeding database..."
+      DEFAULT_ACCOUNT_SID=$(uuidgen)
+      DEFAULT_TOKEN=$(uuidgen)
+
+      # Seed database
+      cd $HOME/apps/api-server/db
+      sed -i "s/9351f46a-678c-43f5-b8a6-d4eb58d131af/$DEFAULT_ACCOUNT_SID/g" seed-production-database-open-source.sql
+      sed -i "s/38700987-c7a4-4685-a5bb-af378f9734de/$DEFAULT_TOKEN/g" seed-production-database-open-source.sql
+      mysql -h $MYSQL_HOST --port=$MYSQL_PORT -u $MYSQL_USER -D $MYSQL_DATABASE -p$MYSQL_PASSWORD < jambones-sql.sql || true
+      sed -i "s/public-apps.jambonz.cloud/public-apps.$URL_PORTAL/g" seed-production-database-open-source.sql
+      mysql -h $MYSQL_HOST --port=$MYSQL_PORT -u $MYSQL_USER -D $MYSQL_DATABASE -p$MYSQL_PASSWORD < seed-production-database-open-source.sql || true
+
+      # Reset admin password
+      JAMBONES_ADMIN_INITIAL_PASSWORD=$INSTANCE_ID \
+      JAMBONES_MYSQL_HOST=$MYSQL_HOST \
+      JAMBONES_MYSQL_PORT=$MYSQL_PORT \
+      JAMBONES_MYSQL_USER=$MYSQL_USER \
+      JAMBONES_MYSQL_PASSWORD=$MYSQL_PASSWORD \
+      JAMBONES_MYSQL_DATABASE=$MYSQL_DATABASE \
+      $HOME/apps/api-server/db/reset_admin_password.js || true
+
+      # Add system information
+      mysql -h $MYSQL_HOST --port=$MYSQL_PORT -u $MYSQL_USER -D $MYSQL_DATABASE -p$MYSQL_PASSWORD -e "INSERT INTO system_information (domain_name, sip_domain_name, monitoring_domain_name) VALUES ('$URL_PORTAL', 'sip.$URL_PORTAL', 'grafana.$URL_PORTAL')" || true
+
+      # Configure webapp
+      echo "Configuring webapp..."
+      echo "VITE_API_BASE_URL=http://$URL_PORTAL/api/v1" > $HOME/apps/webapp/.env
+      API_BASE_URL="http://$URL_PORTAL/api/v1"
+      TAG="<script>window.JAMBONZ = { API_BASE_URL: '$API_BASE_URL'};</script>"
+      sed -i "\\@</head>@i\\ $TAG" $HOME/apps/webapp/dist/index.html || true
+
+      # Write PM2 ecosystem config
+      echo "Writing ecosystem.config.js..."
+      cat << 'EOFECO' > $HOME/apps/ecosystem.config.js
+      module.exports = {
+        apps : [
+        {
+          name: 'api-server',
+          cwd: '/home/jambonz/apps/api-server',
+          script: 'app.js',
+          out_file: '/home/jambonz/.pm2/logs/api-server.log',
+          err_file: '/home/jambonz/.pm2/logs/api-server.log',
+          combine_logs: true,
+          instance_var: 'INSTANCE_ID',
+          exec_mode: 'cluster',
+          instances: 0,
+          autorestart: true,
+          watch: false,
+          max_memory_restart: '2G',
+          env: {
+            JAMBONES_LOGLEVEL: 'info',
+            JWT_SECRET: 'JWT_SECRET_PLACEHOLDER',
+            AUTHENTICATION_KEY: 'JWT_SECRET_PLACEHOLDER',
+            JAMBONES_MYSQL_HOST: 'MYSQL_HOST_PORT_PLACEHOLDER',
+            JAMBONES_MYSQL_USER: 'MYSQL_USER_PLACEHOLDER',
+            JAMBONES_MYSQL_PASSWORD: 'MYSQL_PASSWORD_PLACEHOLDER',
+            JAMBONES_MYSQL_DATABASE: 'MYSQL_DATABASE_PLACEHOLDER',
+            JAMBONES_MYSQL_CONNECTION_LIMIT: 10,
+            JAMBONES_REDIS_HOST: 'REDIS_HOST_PLACEHOLDER',
+            JAMBONES_REDIS_PORT: REDIS_PORT_PLACEHOLDER,
+            JAMBONE_API_VERSION: 'v1',
+            JAMBONES_TIME_SERIES_HOST: '127.0.0.1',
+            ENABLE_METRICS: 1,
+            STATS_HOST: '127.0.0.1',
+            STATS_PORT: 8125,
+            STATS_PROTOCOL: 'tcp',
+            STATS_TELEGRAF: 1,
+            STATS_SAMPLE_RATE: 1,
+            HTTP_PORT: 3000,
+            JAEGER_BASE_URL: 'http://127.0.0.1:16686',
+            HOMER_BASE_URL: 'http://127.0.0.1:9080',
+            HOMER_USERNAME: 'admin',
+            HOMER_PASSWORD: 'sipcapture',
+            GRAFANA_BASE_URL: 'http://127.0.0.1:3010'
+          }
+        }]
+      };
+      EOFECO
+
+      # Replace placeholders
+      sed -i "s/JWT_SECRET_PLACEHOLDER/$JWT_SECRET/g" $HOME/apps/ecosystem.config.js
+      sed -i "s/MYSQL_HOST_PORT_PLACEHOLDER/$MYSQL_HOST:$MYSQL_PORT/g" $HOME/apps/ecosystem.config.js
+      sed -i "s/MYSQL_USER_PLACEHOLDER/$MYSQL_USER/g" $HOME/apps/ecosystem.config.js
+      sed -i "s/MYSQL_PASSWORD_PLACEHOLDER/$MYSQL_PASSWORD/g" $HOME/apps/ecosystem.config.js
+      sed -i "s/MYSQL_DATABASE_PLACEHOLDER/$MYSQL_DATABASE/g" $HOME/apps/ecosystem.config.js
+      sed -i "s/REDIS_HOST_PLACEHOLDER/$REDIS_HOST/g" $HOME/apps/ecosystem.config.js
+      sed -i "s/REDIS_PORT_PLACEHOLDER/$REDIS_PORT/g" $HOME/apps/ecosystem.config.js
+
+      # Configure nginx
+      echo "Configuring nginx..."
+      sed -i "s/PLACEHOLDER_DOMAIN/$URL_PORTAL/g" /etc/nginx/sites-available/jambonz || true
+
+      # Start services
+      echo "Starting services..."
+      systemctl restart nginx
+
+      # Start PM2 apps
+      su - $USER -c "pm2 delete all || true"
+      su - $USER -c "pm2 start $HOME/apps/ecosystem.config.js"
+      su - $USER -c "pm2 save"
+
+      echo "Web/Monitoring server configuration complete!"
+
+runcmd:
+  - /tmp/configure-jambonz.sh
+
+final_message: "Jambonz Web/Monitoring server is ready!"

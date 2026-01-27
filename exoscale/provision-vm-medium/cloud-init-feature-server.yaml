@@ -1,0 +1,178 @@
+#cloud-config
+# Cloud-init for Jambonz Feature Server on Exoscale
+
+# Copy SSH keys from default user to jambonz user
+bootcmd:
+  - |
+    set -e
+    # Wait for default user home directory
+    while [ ! -d /home/debian/.ssh ]; do sleep 1; done
+    # Copy SSH keys to jambonz user
+    if [ -d /home/debian/.ssh ] && [ -d /home/jambonz ]; then
+      cp -r /home/debian/.ssh /home/jambonz/ || true
+      chown -R jambonz:jambonz /home/jambonz/.ssh || true
+      chmod 700 /home/jambonz/.ssh || true
+      chmod 600 /home/jambonz/.ssh/authorized_keys || true
+    fi
+
+# Configure network interfaces (both public and private)
+network:
+  version: 2
+  ethernets:
+    eth0:
+      dhcp4: true
+    eth1:
+      dhcp4: true
+
+write_files:
+  - path: /tmp/configure-feature-server.sh
+    permissions: '0755'
+    content: |
+      #!/bin/bash -xe
+      # Configuration script for jambonz Feature Server
+
+      # Variables from Terraform
+      MYSQL_HOST="${mysql_host}"
+      MYSQL_PORT="${mysql_port}"
+      MYSQL_USER="${mysql_user}"
+      MYSQL_PASSWORD="${mysql_password}"
+      MYSQL_DATABASE="${mysql_database}"
+      REDIS_HOST="${redis_host}"
+      REDIS_PORT="${redis_port}"
+      JWT_SECRET="${jwt_secret}"
+      URL_PORTAL="${url_portal}"
+      VPC_CIDR="${vpc_cidr}"
+      SCALE_IN_TIMEOUT="${scale_in_timeout_seconds}"
+
+      echo "Starting jambonz Feature Server configuration for Exoscale"
+
+      USER=jambonz
+      HOME=/home/jambonz
+
+      # Get instance metadata
+      echo "Getting instance metadata..."
+      # Get private IP from eth1 (private network interface)
+      PRIVATE_IP=$(ip -4 addr show eth1 | grep -oP '(?<=inet\s)\d+(\.\d+){3}' || echo "172.20.0.1")
+      INSTANCE_ID=$(curl -s http://169.254.169.254/latest/meta-data/instance-id 2>/dev/null || hostname)
+
+      echo "Private IP: $PRIVATE_IP (eth1)"
+      echo "Instance ID: $INSTANCE_ID"
+
+      # Wait for databases to be ready
+      echo "Waiting for Redis to be ready..."
+      until redis-cli -h $REDIS_HOST -p $REDIS_PORT PING &>/dev/null; do
+        echo "Redis not ready, waiting..."
+        sleep 5
+      done
+
+      # Configure FreeSWITCH
+      echo "Configuring FreeSWITCH..."
+      cat > /etc/systemd/system/freeswitch.service.d/override.conf << EOF
+      [Service]
+      Environment="JAMBONES_MYSQL_HOST=$MYSQL_HOST:$MYSQL_PORT"
+      Environment="JAMBONES_MYSQL_USER=$MYSQL_USER"
+      Environment="JAMBONES_MYSQL_PASSWORD=$MYSQL_PASSWORD"
+      Environment="JAMBONES_MYSQL_DATABASE=$MYSQL_DATABASE"
+      Environment="JAMBONES_REDIS_HOST=$REDIS_HOST"
+      Environment="JAMBONES_REDIS_PORT=$REDIS_PORT"
+      Environment="LOCAL_IP=$PRIVATE_IP"
+      EOF
+
+      systemctl daemon-reload
+      systemctl restart freeswitch
+
+      # Write PM2 ecosystem config
+      echo "Writing ecosystem.config.js..."
+      cat << 'EOFECO' > $HOME/apps/ecosystem.config.js
+      module.exports = {
+        apps : [
+        {
+          name: 'feature-server',
+          cwd: '/home/jambonz/apps/feature-server',
+          script: 'app.js',
+          out_file: '/home/jambonz/.pm2/logs/feature-server.log',
+          err_file: '/home/jambonz/.pm2/logs/feature-server.log',
+          combine_logs: true,
+          autorestart: true,
+          watch: false,
+          max_memory_restart: '1G',
+          env: {
+            JAMBONES_LOGLEVEL: 'info',
+            JAMBONES_MYSQL_HOST: 'MYSQL_HOST_PLACEHOLDER',
+            JAMBONES_MYSQL_USER: 'MYSQL_USER_PLACEHOLDER',
+            JAMBONES_MYSQL_PASSWORD: 'MYSQL_PASSWORD_PLACEHOLDER',
+            JAMBONES_MYSQL_DATABASE: 'MYSQL_DATABASE_PLACEHOLDER',
+            JAMBONES_MYSQL_CONNECTION_LIMIT: 10,
+            JAMBONES_REDIS_HOST: 'REDIS_HOST_PLACEHOLDER',
+            JAMBONES_REDIS_PORT: REDIS_PORT_PLACEHOLDER,
+            JAMBONES_TIME_SERIES_HOST: '127.0.0.1',
+            DRACHTIO_HOST: '127.0.0.1',
+            DRACHTIO_PORT: 9022,
+            DRACHTIO_SECRET: 'cymru',
+            JAMBONES_FREESWITCH: '127.0.0.1:8021:JambonzR0ck$',
+            JAMBONES_NETWORK_CIDR: 'VPC_CIDR_PLACEHOLDER',
+            HTTP_PORT: 3000
+          }
+        }]
+      };
+      EOFECO
+
+      # Replace placeholders
+      sed -i "s/MYSQL_HOST_PLACEHOLDER/$MYSQL_HOST:$MYSQL_PORT/g" $HOME/apps/ecosystem.config.js
+      sed -i "s/MYSQL_USER_PLACEHOLDER/$MYSQL_USER/g" $HOME/apps/ecosystem.config.js
+      sed -i "s/MYSQL_PASSWORD_PLACEHOLDER/$MYSQL_PASSWORD/g" $HOME/apps/ecosystem.config.js
+      sed -i "s/MYSQL_DATABASE_PLACEHOLDER/$MYSQL_DATABASE/g" $HOME/apps/ecosystem.config.js
+      sed -i "s/REDIS_HOST_PLACEHOLDER/$REDIS_HOST/g" $HOME/apps/ecosystem.config.js
+      sed -i "s/REDIS_PORT_PLACEHOLDER/$REDIS_PORT/g" $HOME/apps/ecosystem.config.js
+      sed -i "s/VPC_CIDR_PLACEHOLDER/$VPC_CIDR/g" $HOME/apps/ecosystem.config.js
+
+      # Start PM2 apps
+      su - $USER -c "pm2 delete all || true"
+      su - $USER -c "pm2 start $HOME/apps/ecosystem.config.js"
+      su - $USER -c "pm2 save"
+
+      # Set up graceful scale-in script
+      echo "Setting up graceful scale-in..."
+      cat > $HOME/apps/scripts/drain-feature-server.sh << 'EOFDRAIN'
+      #!/bin/bash
+      # Graceful scale-in script for feature servers
+
+      REDIS_HOST="REDIS_HOST_PLACEHOLDER"
+      REDIS_PORT=REDIS_PORT_PLACEHOLDER
+      INSTANCE_ID=$(curl -s http://169.254.169.254/latest/meta-data/instance-id 2>/dev/null || hostname)
+      TIMEOUT=SCALE_IN_TIMEOUT_PLACEHOLDER
+
+      # Check if drain signal exists in Redis
+      DRAIN_SIGNAL=$(redis-cli -h $REDIS_HOST -p $REDIS_PORT GET "drain:$INSTANCE_ID" 2>/dev/null)
+
+      if [ "$DRAIN_SIGNAL" == "1" ]; then
+        echo "Drain signal detected for $INSTANCE_ID. Initiating graceful shutdown..."
+
+        # Stop accepting new calls (send SIGUSR1 to feature-server)
+        pkill -SIGUSR1 -f "feature-server/app.js"
+
+        # Wait for active calls to complete (up to TIMEOUT seconds)
+        echo "Waiting up to $TIMEOUT seconds for active calls to complete..."
+        sleep $TIMEOUT
+
+        # Terminate the instance via Exoscale API
+        echo "Terminating instance $INSTANCE_ID..."
+        # Note: This requires Exoscale CLI to be configured with appropriate credentials
+        exoscale compute instance delete $INSTANCE_ID --zone ch-gva-2 --force || true
+      fi
+      EOFDRAIN
+
+      sed -i "s/REDIS_HOST_PLACEHOLDER/$REDIS_HOST/g" $HOME/apps/scripts/drain-feature-server.sh
+      sed -i "s/REDIS_PORT_PLACEHOLDER/$REDIS_PORT/g" $HOME/apps/scripts/drain-feature-server.sh
+      sed -i "s/SCALE_IN_TIMEOUT_PLACEHOLDER/$SCALE_IN_TIMEOUT/g" $HOME/apps/scripts/drain-feature-server.sh
+      chmod +x $HOME/apps/scripts/drain-feature-server.sh
+
+      # Add cron job to check for drain signal every 30 seconds
+      (crontab -u $USER -l 2>/dev/null; echo "* * * * * $HOME/apps/scripts/drain-feature-server.sh") | crontab -u $USER -
+
+      echo "Feature Server configuration complete!"
+
+runcmd:
+  - /tmp/configure-feature-server.sh
+
+final_message: "Jambonz Feature Server is ready!"

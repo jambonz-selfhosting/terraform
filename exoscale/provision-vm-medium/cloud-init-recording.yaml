@@ -1,0 +1,111 @@
+#cloud-config
+# Cloud-init for Jambonz Recording Server on Exoscale
+
+# Copy SSH keys from default user to jambonz user
+bootcmd:
+  - |
+    set -e
+    # Wait for default user home directory
+    while [ ! -d /home/debian/.ssh ]; do sleep 1; done
+    # Copy SSH keys to jambonz user
+    if [ -d /home/debian/.ssh ] && [ -d /home/jambonz ]; then
+      cp -r /home/debian/.ssh /home/jambonz/ || true
+      chown -R jambonz:jambonz /home/jambonz/.ssh || true
+      chmod 700 /home/jambonz/.ssh || true
+      chmod 600 /home/jambonz/.ssh/authorized_keys || true
+    fi
+
+# Configure network interfaces (both public and private)
+network:
+  version: 2
+  ethernets:
+    eth0:
+      dhcp4: true
+    eth1:
+      dhcp4: true
+
+write_files:
+  - path: /tmp/configure-recording.sh
+    permissions: '0755'
+    content: |
+      #!/bin/bash -xe
+      # Configuration script for jambonz Recording Server
+
+      # Variables from Terraform
+      MYSQL_HOST="${mysql_host}"
+      MYSQL_PORT="${mysql_port}"
+      MYSQL_USER="${mysql_user}"
+      MYSQL_PASSWORD="${mysql_password}"
+      MYSQL_DATABASE="${mysql_database}"
+      REDIS_HOST="${redis_host}"
+      REDIS_PORT="${redis_port}"
+      JWT_SECRET="${jwt_secret}"
+      URL_PORTAL="${url_portal}"
+      VPC_CIDR="${vpc_cidr}"
+
+      echo "Starting jambonz Recording Server configuration for Exoscale"
+
+      USER=jambonz
+      HOME=/home/jambonz
+
+      # Get instance metadata
+      echo "Getting instance metadata..."
+      # Get private IP from eth1 (private network interface)
+      PRIVATE_IP=$(ip -4 addr show eth1 | grep -oP '(?<=inet\s)\d+(\.\d+){3}' || echo "172.20.0.1")
+      INSTANCE_ID=$(curl -s http://169.254.169.254/latest/meta-data/instance-id 2>/dev/null || hostname)
+
+      echo "Private IP: $PRIVATE_IP (eth1)"
+      echo "Instance ID: $INSTANCE_ID"
+
+      # Wait for databases to be ready
+      echo "Waiting for MySQL to be ready..."
+      until mysql -h $MYSQL_HOST --port=$MYSQL_PORT -u $MYSQL_USER -p$MYSQL_PASSWORD -e "SELECT 1" &>/dev/null; do
+        echo "MySQL not ready, waiting..."
+        sleep 5
+      done
+
+      # Write PM2 ecosystem config for recording server
+      echo "Writing ecosystem.config.js..."
+      cat << 'EOFECO' > $HOME/apps/ecosystem.config.js
+      module.exports = {
+        apps : [
+        {
+          name: 'upload-recordings',
+          cwd: '/home/jambonz/apps/upload-recordings',
+          script: 'app.js',
+          out_file: '/home/jambonz/.pm2/logs/upload-recordings.log',
+          err_file: '/home/jambonz/.pm2/logs/upload-recordings.log',
+          combine_logs: true,
+          autorestart: true,
+          watch: false,
+          max_memory_restart: '1G',
+          env: {
+            JAMBONES_LOGLEVEL: 'info',
+            JAMBONES_MYSQL_HOST: 'MYSQL_HOST_PLACEHOLDER',
+            JAMBONES_MYSQL_USER: 'MYSQL_USER_PLACEHOLDER',
+            JAMBONES_MYSQL_PASSWORD: 'MYSQL_PASSWORD_PLACEHOLDER',
+            JAMBONES_MYSQL_DATABASE: 'MYSQL_DATABASE_PLACEHOLDER',
+            JAMBONES_MYSQL_CONNECTION_LIMIT: 10,
+            HTTP_PORT: 3000
+          }
+        }]
+      };
+      EOFECO
+
+      # Replace placeholders
+      sed -i "s/MYSQL_HOST_PLACEHOLDER/$MYSQL_HOST:$MYSQL_PORT/g" $HOME/apps/ecosystem.config.js
+      sed -i "s/MYSQL_USER_PLACEHOLDER/$MYSQL_USER/g" $HOME/apps/ecosystem.config.js
+      sed -i "s/MYSQL_PASSWORD_PLACEHOLDER/$MYSQL_PASSWORD/g" $HOME/apps/ecosystem.config.js
+      sed -i "s/MYSQL_DATABASE_PLACEHOLDER/$MYSQL_DATABASE/g" $HOME/apps/ecosystem.config.js
+
+      # Start PM2 apps
+      su - $USER -c "pm2 delete all || true"
+      su - $USER -c "pm2 start $HOME/apps/ecosystem.config.js"
+      su - $USER -c "pm2 save"
+
+      echo "Recording Server configuration complete!"
+
+runcmd:
+  - /tmp/configure-recording.sh
+
+final_message: "Jambonz Recording Server is ready!"

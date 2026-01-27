@@ -1,0 +1,153 @@
+# Example Terraform variables for jambonz medium cluster deployment on Azure
+# Copy this file to terraform.tfvars and fill in your values
+
+# ------------------------------------------------------------------------------
+# AZURE CREDENTIALS
+# These can also be set via environment variables:
+#   export ARM_SUBSCRIPTION_ID="your-subscription-id"
+#   export ARM_TENANT_ID="your-tenant-id"
+# Or use Azure CLI: az login
+# ------------------------------------------------------------------------------
+
+subscription_id = "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+tenant_id       = "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+
+# ------------------------------------------------------------------------------
+# DEPLOYMENT CONFIGURATION
+# ------------------------------------------------------------------------------
+
+# Azure region - see https://azure.microsoft.com/en-us/global-infrastructure/locations/
+location = "eastus"
+
+# Prefix for resource names (lowercase alphanumeric, 2-10 chars)
+name_prefix = "jambonz"
+
+# Environment label
+environment = "production"
+
+# ------------------------------------------------------------------------------
+# NETWORK CONFIGURATION
+# ------------------------------------------------------------------------------
+
+# VNet and subnet CIDRs
+vpc_cidr            = "172.20.0.0/16"
+public_subnet_cidr  = "172.20.10.0/24"
+public_subnet_cidr2 = "172.20.11.0/24"
+mysql_subnet_cidr   = "172.20.20.0/24"
+
+# ------------------------------------------------------------------------------
+# NETWORK ACCESS CONTROLS
+# Use x.x.x.x/32 for a single IP, or 0.0.0.0/0 for any IP (less secure)
+# ------------------------------------------------------------------------------
+
+# SSH access - IMPORTANT: Restrict this for security
+allowed_ssh_cidr = "203.0.113.50/32"
+
+# HTTP/HTTPS access
+allowed_http_cidr = "0.0.0.0/0"
+
+# SIP/RTP access to SBC
+allowed_sbc_cidr = "0.0.0.0/0"
+
+# ------------------------------------------------------------------------------
+# IMAGE CONFIGURATION
+# Images must be built with Packer and available in your subscription
+# ------------------------------------------------------------------------------
+
+# Resource group containing your Packer-built images
+image_resource_group = "packer-images-rg"
+
+# Image names (use EITHER image_name OR image_id for each)
+sbc_image_name            = "jambonz-sbc-debian-12"
+feature_server_image_name = "jambonz-feature-server-debian-12"
+web_monitoring_image_name = "jambonz-web-monitoring-debian-12"
+recording_image_name      = "jambonz-recording-debian-12"
+
+# Or use full image resource IDs (takes precedence over names)
+# sbc_image_id            = "/subscriptions/xxx/resourceGroups/xxx/providers/Microsoft.Compute/images/jambonz-sbc"
+# feature_server_image_id = "/subscriptions/xxx/resourceGroups/xxx/providers/Microsoft.Compute/images/jambonz-fs"
+# web_monitoring_image_id = "/subscriptions/xxx/resourceGroups/xxx/providers/Microsoft.Compute/images/jambonz-web"
+# recording_image_id      = "/subscriptions/xxx/resourceGroups/xxx/providers/Microsoft.Compute/images/jambonz-recording"
+
+# ------------------------------------------------------------------------------
+# VM SIZE CONFIGURATION
+# See https://docs.microsoft.com/en-us/azure/virtual-machines/sizes
+# ------------------------------------------------------------------------------
+
+sbc_vm_size            = "Standard_F4s_v2"
+feature_server_vm_size = "Standard_F4s_v2"
+web_monitoring_vm_size = "Standard_F4s_v2"
+recording_vm_size      = "Standard_D2s_v3"
+
+# Disk size for Web/Monitoring server (100-1024 GB)
+web_monitoring_disk_size = 200
+
+# ------------------------------------------------------------------------------
+# SCALE SET CONFIGURATION
+# ------------------------------------------------------------------------------
+
+sbc_desired_capacity = 1
+sbc_min_capacity     = 1
+sbc_max_capacity     = 4
+
+feature_server_desired_capacity = 1
+feature_server_min_capacity     = 1
+feature_server_max_capacity     = 4
+
+recording_desired_capacity = 1
+recording_min_capacity     = 1
+recording_max_capacity     = 8
+
+# ------------------------------------------------------------------------------
+# SSH CONFIGURATION
+# ------------------------------------------------------------------------------
+
+# SSH public key content (required)
+ssh_public_key = "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAAB... user@host"
+
+# ------------------------------------------------------------------------------
+# DATABASE CONFIGURATION
+# Note: Azure restricts MySQL admin usernames - cannot use admin, root,
+# administrator, azure_superuser, azure_pg_admin, etc.
+# Default is "jambonz" which works with Azure restrictions.
+# ------------------------------------------------------------------------------
+
+# mysql_username = "jambonz"  # Default, only override if needed
+# mysql_password = "YourSecurePassword"  # Leave empty to auto-generate
+
+# MySQL SKU - see https://docs.microsoft.com/en-us/azure/mysql/flexible-server/concepts-service-tiers-storage
+# Burstable: B_Standard_B1s, B_Standard_B1ms, B_Standard_B2s, B_Standard_B2ms
+# General Purpose: GP_Standard_D2ds_v4, GP_Standard_D4ds_v4, etc.
+# Memory Optimized: MO_Standard_E2ds_v4, MO_Standard_E4ds_v4, etc.
+mysql_sku_name = "B_Standard_B2s"
+
+# ------------------------------------------------------------------------------
+# REDIS CONFIGURATION
+# ------------------------------------------------------------------------------
+
+# Redis SKU: Basic, Standard, Premium
+redis_sku_name = "Standard"
+redis_family   = "C"
+redis_capacity = 1
+
+# ------------------------------------------------------------------------------
+# JAMBONZ CONFIGURATION
+# ------------------------------------------------------------------------------
+
+# DNS name for the jambonz portal
+# You'll need to create DNS A records pointing to the server IPs for:
+#   - jambonz.example.com         -> web_monitoring_public_ip
+#   - api.jambonz.example.com     -> web_monitoring_public_ip
+#   - grafana.jambonz.example.com -> web_monitoring_public_ip
+#   - homer.jambonz.example.com   -> web_monitoring_public_ip
+#   - sip.jambonz.example.com     -> sbc_public_ip
+url_portal = "jambonz.example.com"
+
+# Enable PCAP capture for SIP traffic
+enable_pcaps = true
+
+# Deploy the recording server cluster
+deploy_recording_cluster = true
+
+# Database query caching (0 = disabled)
+db_caching_tts = 0

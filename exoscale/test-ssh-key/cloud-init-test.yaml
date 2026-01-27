@@ -1,0 +1,13 @@
+#cloud-config
+# Simple test for SSH key injection
+
+# Create jambonz user and add SSH keys
+users:
+  - name: jambonz
+    sudo: ALL=(ALL) NOPASSWD:ALL
+    shell: /bin/bash
+    ssh_authorized_keys:
+      - "${ssh_public_key}"
+
+runcmd:
+  - echo "SSH key test cloud-init complete" > /tmp/cloud-init-done

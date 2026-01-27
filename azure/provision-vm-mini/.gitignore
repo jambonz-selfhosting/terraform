@@ -16,12 +16,6 @@ terraform.tfvars
 crash.log
 crash.*.log
 
-# Terraform log files
-terraform-*.log
-
-# Kubeconfig files (generated, contain secrets)
-kubeconfig
-
 # Override files
 override.tf
 override.tf.json
@@ -31,14 +25,3 @@ override.tf.json
 # CLI configuration files
 .terraformrc
 terraform.rc
-
-# Testing framework artifacts
-testing/config.yaml
-testing/*.log
-testing/.test-state-*.yaml
-testing/__pycache__/
-testing/lib/__pycache__/
-
-.vscode 
-
-CLAUDE.md

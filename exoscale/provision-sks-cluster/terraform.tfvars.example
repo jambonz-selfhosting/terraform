@@ -1,0 +1,44 @@
+# =============================================================================
+# Exoscale SKS Cluster Configuration Example
+# Copy this file to terraform.tfvars and customize as needed
+# =============================================================================
+
+# Exoscale API Credentials
+# Option 1: Set here (uncomment below)
+# Option 2: Use environment variables EXOSCALE_API_KEY and EXOSCALE_API_SECRET
+#
+# exoscale_api_key    = "EXOxxxxxxxxxxxxxxxxxxxxxxxx"
+# exoscale_api_secret = "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+
+# Basic Configuration
+name_prefix  = "jambonz"
+cluster_name = "voip-sks-cluster"
+zone         = "ch-gva-2"  # Options: ch-gva-2, ch-dk-2, de-fra-1, de-muc-1, at-vie-1, at-vie-2, bg-sof-1
+
+# Cluster Configuration
+service_level = "pro"     # "starter" (free) or "pro" (HA, recommended for production)
+cni           = "calico"  # "calico", "cilium", or "" for none
+auto_upgrade  = true
+
+# System Node Pool (general workloads, Kubernetes system components)
+system_instance_type = "standard.medium"
+system_node_count    = 2
+system_disk_size     = 50
+
+# SIP Node Pool (SIP signaling - drachtio-server)
+sip_instance_type = "standard.medium"
+sip_node_count    = 1
+sip_disk_size     = 50
+
+# RTP Node Pool (RTP media - rtpengine, freeswitch)
+rtp_instance_type = "standard.medium"
+rtp_node_count    = 1
+rtp_disk_size     = 50
+
+# Security Configuration
+# Restrict SSH access to your IP/network for production
+allowed_ssh_cidr  = "0.0.0.0/0"   # Change to your IP, e.g., "203.0.113.0/24"
+allowed_http_cidr = "0.0.0.0/0"   # Change to restrict web access if needed
+
+# Kubeconfig TTL (default: 30 days = 2592000 seconds)
+kubeconfig_ttl_seconds = 2592000

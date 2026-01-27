@@ -1,0 +1,104 @@
+# Terraform variables for jambonz medium cluster deployment on GCP
+
+# ------------------------------------------------------------------------------
+# GCP PROJECT CONFIGURATION
+# ------------------------------------------------------------------------------
+
+project_id = "your-gcp-project-id"
+region     = "us-west1"
+zone       = "us-west1-a"
+
+# ------------------------------------------------------------------------------
+# DEPLOYMENT CONFIGURATION
+# ------------------------------------------------------------------------------
+
+name_prefix = "jambonz"
+environment = "production"
+
+# ------------------------------------------------------------------------------
+# NETWORK CONFIGURATION
+# ------------------------------------------------------------------------------
+
+vpc_cidr           = "172.20.0.0/16"
+public_subnet_cidr = "172.20.10.0/24"
+
+# ------------------------------------------------------------------------------
+# NETWORK ACCESS CONTROLS
+# ------------------------------------------------------------------------------
+
+allowed_ssh_cidr  = ["0.0.0.0/0"]
+allowed_http_cidr = ["0.0.0.0/0"]
+allowed_sbc_cidr  = ["0.0.0.0/0"]
+
+# ------------------------------------------------------------------------------
+# IMAGE CONFIGURATION
+# ------------------------------------------------------------------------------
+
+# Images built with Packer - use self-links or image names
+# Example: "projects/your-project/global/images/jambonz-fs-main-debian-12-20251229"
+feature_server_image = "projects/your-project/global/images/jambonz-fs-image"
+sbc_image            = "projects/your-project/global/images/jambonz-sbc-image"
+web_monitoring_image = "projects/your-project/global/images/jambonz-web-monitoring-image"
+recording_image      = "projects/your-project/global/images/jambonz-recording-image"
+
+# ------------------------------------------------------------------------------
+# MACHINE TYPE CONFIGURATION
+# ------------------------------------------------------------------------------
+
+sbc_machine_type            = "e2-standard-4"
+feature_server_machine_type = "e2-standard-4"
+web_monitoring_machine_type = "e2-standard-4"
+recording_machine_type      = "e2-standard-2"
+
+web_monitoring_disk_size = 200
+
+# ------------------------------------------------------------------------------
+# SBC CONFIGURATION
+# ------------------------------------------------------------------------------
+
+sbc_count = 1
+
+# ------------------------------------------------------------------------------
+# MANAGED INSTANCE GROUP CONFIGURATION
+# ------------------------------------------------------------------------------
+
+feature_server_target_size  = 1
+feature_server_min_replicas = 1
+feature_server_max_replicas = 3
+
+recording_target_size  = 1
+recording_min_replicas = 1
+recording_max_replicas = 3
+
+# Graceful scale-in timeout (max 900 seconds / 15 minutes)
+scale_in_timeout_seconds = 900
+
+# ------------------------------------------------------------------------------
+# SSH CONFIGURATION
+# ------------------------------------------------------------------------------
+
+ssh_user       = "jambonz"
+ssh_public_key = "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQ... your-key-here"
+
+# ------------------------------------------------------------------------------
+# DATABASE CONFIGURATION
+# ------------------------------------------------------------------------------
+
+mysql_tier      = "db-custom-2-4096"
+mysql_disk_size = 20
+
+# ------------------------------------------------------------------------------
+# REDIS CONFIGURATION (Memorystore)
+# No AUTH, no TLS - simple configuration
+# ------------------------------------------------------------------------------
+
+redis_memory_size_gb = 1
+redis_tier           = "BASIC"
+
+# ------------------------------------------------------------------------------
+# JAMBONZ CONFIGURATION
+# ------------------------------------------------------------------------------
+
+url_portal               = "gcp.jambonz.io"
+enable_pcaps             = true
+deploy_recording_cluster = true

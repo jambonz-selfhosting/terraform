@@ -1,0 +1,220 @@
+# Server type definitions for Jambonz deployments
+# Defines expected systemd services and PM2 processes for each server type
+
+server_types:
+  # SBC (Session Border Controller) - Handles SIP/RTP signaling
+  sbc:
+    description: "Session Border Controller for SIP/RTP traffic"
+    systemd_services:
+      - drachtio
+      - rtpengine
+      - telegraf
+    pm2_processes:
+      - inbound
+      - outbound
+      - sbc-call-router
+      # Optional sidecars (don't fail if missing)
+      - sbc-rtpengine-sidecar
+      - sbc-sip-sidecar
+
+  # Feature Server - Handles call features and media processing
+  feature-server:
+    description: "Feature Server for call processing"
+    systemd_services:
+      - drachtio
+      - freeswitch
+      - telegraf
+    pm2_processes:
+      - feature-server
+
+  # Web/Monitoring Server (medium deployment - combined)
+  web-monitoring:
+    description: "Web portal, API, and monitoring services (combined)"
+    systemd_services:
+      - cassandra
+      - heplify-server
+      - jaeger-query
+      - jaeger-collector
+      - grafana-server
+      - influxdb
+      - telegraf
+    pm2_processes:
+      - webapp
+      - api-server
+      - public-apps
+
+  # Web Server (large deployment - separate from monitoring)
+  web:
+    description: "Web portal and API services only"
+    systemd_services:
+      - telegraf
+    pm2_processes:
+      - webapp
+      - api-server
+      - public-apps
+
+  # Monitoring Server (large deployment - separate from web)
+  monitoring:
+    description: "Monitoring and observability services only"
+    systemd_services:
+      - cassandra
+      - heplify-server
+      - jaeger-query
+      - jaeger-collector
+      - grafana-server
+      - influxdb
+      - telegraf
+    pm2_processes: []
+
+  # Recording Server - Handles call recording
+  recording:
+    description: "Recording Server for call recording"
+    systemd_services:
+      - upload_recordings
+      - telegraf
+    pm2_processes: []  # No PM2 on recording servers
+
+  # SIP Server (Large deployment - SIP signaling only)
+  sip:
+    description: "SIP Server for signaling only (large deployment)"
+    systemd_services:
+      - drachtio
+      - telegraf
+    pm2_processes:
+      - inbound
+      - outbound
+      - sbc-call-router
+
+  # RTP Server (Large deployment - RTP media only)
+  rtp:
+    description: "RTP Server for media only (large deployment)"
+    systemd_services:
+      - drachtio
+      - rtpengine
+      - telegraf
+    pm2_processes:
+      - sbc-rtpengine-sidecar
+      - sbc-sip-sidecar
+
+# Deployment configurations
+# Maps deployment sizes to server types
+deployments:
+  # Medium deployment - all-in-one for small/medium scale
+  medium:
+    web_monitoring_server:
+      type: web-monitoring
+      count: 1
+    sbc_servers:
+      type: sbc
+      count: 1-5
+      scalable: true
+    feature_servers:
+      type: feature-server
+      count: 1-10
+      scalable: true
+      managed_instance_group: true
+    recording_servers:
+      type: recording
+      count: 1-5
+      scalable: true
+      managed_instance_group: true
+      optional: true
+
+  # Large deployment - separate web and monitoring, split SIP/RTP
+  large:
+    web_server:
+      type: web
+      count: 1-2
+    monitoring_server:
+      type: monitoring
+      count: 1
+    sip_servers:
+      type: sip
+      count: 2-20
+      scalable: true
+    rtp_servers:
+      type: rtp
+      count: 2-20
+      scalable: true
+    feature_servers:
+      type: feature-server
+      count: 2-50
+      scalable: true
+      managed_instance_group: true
+    recording_servers:
+      type: recording
+      count: 1-10
+      scalable: true
+      managed_instance_group: true
+      optional: true
+
+# Service checking behavior
+service_checks:
+  # How to check systemd services
+  systemd:
+    command: "systemctl is-active {service}"
+    expected_output: "active"
+    timeout: 10
+
+  # How to check PM2 processes
+  pm2:
+    command: "pm2 list"
+    check_online: true
+    timeout: 30
+
+  # Startup script/cloud-init checks by provider
+  startup_scripts:
+    gcp:
+      service: "google-startup-scripts.service"
+      command: "sudo systemctl status google-startup-scripts.service --no-pager"
+      success_indicator: "Main PID:"
+    azure:
+      command: "sudo cloud-init status"
+      success_indicator: "status: done"
+    exoscale:
+      command: "sudo cloud-init status"
+      success_indicator: "status: done"
+    aws:
+      command: "sudo cloud-init status"
+      success_indicator: "status: done"
+
+# Optional services that won't cause failures if missing
+optional_services:
+  systemd:
+    - telegraf  # Metrics collection - optional for testing
+  pm2:
+    - sbc-rtpengine-sidecar  # Sidecar processes
+    - sbc-sip-sidecar
+
+# Service aliases - alternative names for the same service
+service_aliases:
+  # Systemd service aliases
+  systemd:
+    drachtio:
+      - drachtio-server
+      - drachtio.service
+    rtpengine:
+      - rtpengine.service
+      - ngcp-rtpengine-daemon
+    freeswitch:
+      - freeswitch.service
+    grafana-server:
+      - grafana
+      - grafana.service
+    cassandra:
+      - cassandra.service
+    influxdb:
+      - influxdb.service
+      - influxd
+
+  # PM2 process aliases
+  pm2:
+    api-server:
+      - api
+      - jambonz-api-server
+    feature-server:
+      - fs
+      - jambonz-feature-server
+    recording-server:
+      - recording
+      - jambonz-recording-server

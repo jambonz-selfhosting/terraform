@@ -1,0 +1,54 @@
+# Jambonz Terraform Testing Configuration
+# Copy this file to config.yaml and customize for your environment
+# Use ${VAR_NAME} for environment variable substitution
+
+# SSH configuration
+ssh:
+  user: jambonz
+  key_path: ~/.ssh/id_rsa  # Path to your SSH private key
+  strict_host_key_checking: false  # Set to true for production
+  timeout: 300  # SSH command timeout in seconds
+
+# Terraform/Cloud Provider Credentials
+# These will be set as environment variables before running terraform
+terraform:
+  #exoscale:
+  #  api_key: ${EXOSCALE_API_KEY}
+  #  api_secret: ${EXOSCALE_API_SECRET}
+  # azure:
+  #   subscription_id: ${AZURE_SUBSCRIPTION_ID}
+  #   tenant_id: ${AZURE_TENANT_ID}
+  #   client_id: ${AZURE_CLIENT_ID}
+  #   client_secret: ${AZURE_CLIENT_SECRET}
+  # gcp:
+  #   credentials_file: ${GOOGLE_APPLICATION_CREDENTIALS}
+  #   project: ${GCP_PROJECT_ID}
+  # aws:
+  #   access_key_id: ${AWS_ACCESS_KEY_ID}
+  #   secret_access_key: ${AWS_SECRET_ACCESS_KEY}
+  #   region: ${AWS_DEFAULT_REGION}
+
+# Testing behavior
+testing:
+  log_file: ./test-cloud-init.log  # Log file path (relative or absolute)
+  abort_on_failure: true  # Stop on first error
+  dns_propagation_wait: 60  # Seconds to wait after DNS changes (future phases)
+  certbot_timeout: 180  # Certbot timeout in seconds (future phases)
+  webapp_build_timeout: 300  # Webapp build timeout (future phases)
+
+# DNS configuration (Phase 2+)
+# dns:
+#   provider: dnsmadeeasy
+#   api_key: ${DNSMADEEASY_API_KEY}
+#   secret: ${DNSMADEEASY_SECRET}
+#   base_domain: jambonz.io
+
+# Certbot configuration (Phase 3+)
+# certbot:
+#   email: your-email@example.com
+
+# Jambonz API test data (Phase 6+)
+# jambonz_test_data:
+#   carrier:
+#     name: "Test Carrier"
+#     e164_leading_plus: true

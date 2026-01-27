@@ -1,0 +1,184 @@
+# =============================================================================
+# Jambonz Medium Cluster on Exoscale - Example Configuration
+# =============================================================================
+# Copy this file to terraform.tfvars and customize for your deployment
+
+# =============================================================================
+# REQUIRED VARIABLES
+# =============================================================================
+
+# Resource naming prefix (used for all resource names)
+name_prefix = "jambonz-medium"
+
+# Exoscale zone for deployment
+# Options: ch-gva-2, ch-dk-2, de-fra-1, de-muc-1, at-vie-1, at-vie-2, bg-sof-1
+zone = "ch-gva-2"
+
+# Domain name for the portal (DNS A records will need to be created)
+url_portal = "jambonz.example.com"
+
+# Custom Exoscale template IDs (must be created via Packer before deployment)
+# Use: exo compute template list --zone ch-gva-2 --visibility private
+# to get the template IDs (UUIDs)
+template_web_monitoring = "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"  # jambonz-web-monitoring template ID
+template_sbc            = "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"  # jambonz-sbc template ID
+template_feature_server = "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"  # jambonz-feature-server template ID
+template_recording      = "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"  # jambonz-recording template ID
+
+# =============================================================================
+# SSH KEY CONFIGURATION (choose one method)
+# =============================================================================
+
+# Method 1: Provide your SSH public key directly
+ssh_public_key = "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQC... your-email@example.com"
+
+# Method 2: Use an existing Exoscale SSH key name (comment out ssh_public_key above)
+# ssh_key_name = "my-exoscale-key"
+
+# =============================================================================
+# MINIMAL COST CONFIGURATION (Testing/Development)
+# =============================================================================
+# Recommended for testing with 1 SBC and 1 Feature Server
+# Estimated cost: ~€100-150/month (varies by region and usage)
+
+## Instance Counts
+#sbc_count                = 1      # 1 SBC server
+#feature_server_count     = 1      # 1 Feature Server
+#recording_server_count   = 1      # Not used when deploy_recording_cluster=false
+#deploy_recording_cluster = false  # Disable recording to save costs
+
+## Database Plans (Hobbyist tier - lowest cost)
+#mysql_plan  = "hobbyist-2"  # ~€42/month (note: both use hobbyist-2)
+#valkey_plan = "hobbyist-2"  # ~€35/month
+
+## Instance Types (Standard Medium - 2 vCPU, 4GB RAM)
+#instance_type_web       = "standard.medium"
+#instance_type_sbc       = "standard.medium"
+#instance_type_feature   = "standard.medium"
+#instance_type_recording = "standard.medium"
+
+## Disk Sizes (Minimal)
+#disk_size_web       = 200  # GB
+#disk_size_sbc       = 100  # GB
+#disk_size_feature   = 100  # GB
+#disk_size_recording = 100  # GB
+
+# =============================================================================
+# PRODUCTION CONFIGURATION (High Availability)
+# =============================================================================
+# Recommended for production with redundancy and performance
+# Estimated cost: ~€500-800/month (varies by region and usage)
+
+## Instance Counts
+sbc_count                = 2      # 2 SBC servers for redundancy
+feature_server_count     = 4      # 4 Feature Servers for load distribution
+recording_server_count   = 2      # 2 Recording servers
+deploy_recording_cluster = true   # Enable recording cluster
+
+## Database Plans (Business tier - 99.99% SLA, HA)
+mysql_plan  = "business-8"   # 8GB RAM, high performance
+valkey_plan = "business-4"   # 4GB RAM, high performance
+
+## Instance Types (Standard Large - 4 vCPU, 8GB RAM)
+instance_type_web       = "standard.large"
+instance_type_sbc       = "standard.large"
+instance_type_feature   = "standard.large"
+instance_type_recording = "standard.medium"
+
+## Disk Sizes
+disk_size_web       = 200  # GB
+disk_size_sbc       = 100  # GB per SBC
+disk_size_feature   = 100  # GB per Feature Server
+disk_size_recording = 100  # GB per Recording Server
+
+# =============================================================================
+# NETWORK CONFIGURATION
+# =============================================================================
+
+# Private network CIDR (default: 172.20.0.0/16)
+vpc_cidr = "172.20.0.0/16"
+
+# =============================================================================
+# SECURITY CONFIGURATION
+# =============================================================================
+
+# CIDR blocks for access control (use 0.0.0.0/0 for open access)
+# IMPORTANT: Restrict these to your IP ranges for production!
+
+allowed_ssh_cidr  = "0.0.0.0/0"  # SSH access to all servers
+allowed_sbc_cidr  = "0.0.0.0/0"  # SIP/RTP traffic to SBC servers
+allowed_http_cidr = "0.0.0.0/0"  # HTTP/HTTPS to web/monitoring
+
+# For production, use specific IP ranges:
+# allowed_ssh_cidr  = "203.0.113.0/24"    # Your office IP range
+# allowed_sbc_cidr  = "198.51.100.0/24"   # Your SIP provider IP range
+# allowed_http_cidr = "203.0.113.0/24"    # Your office/VPN IP range
+
+# =============================================================================
+# DATABASE CREDENTIALS
+# =============================================================================
+
+# MySQL username (default: admin)
+mysql_username = "admin"
+
+# MySQL password (leave empty for auto-generation - recommended)
+# mysql_password = ""  # Auto-generated if not provided
+
+# =============================================================================
+# OPTIONAL FEATURES
+# =============================================================================
+
+# APiBan API key for fraud/spam IP blocking (optional)
+# Get a free key from https://apiban.org
+# apiban_key = "your-apiban-api-key"
+
+# Graceful scale-in timeout for Feature Servers (seconds)
+# Time to wait for active calls to complete before terminating instance
+scale_in_timeout_seconds = 900  # 15 minutes
+
+# =============================================================================
+# EXOSCALE API CREDENTIALS
+# =============================================================================
+# Exoscale API credentials should be provided via environment variables:
+#
+#   export EXOSCALE_API_KEY="your-api-key"
+#   export EXOSCALE_API_SECRET="your-api-secret"
+#
+# Or you can add them to this file (NOT recommended for production):
+#
+# exoscale_api_key    = "your-api-key"
+# exoscale_api_secret = "your-api-secret"
+
+# =============================================================================
+# NOTES
+# =============================================================================
+#
+# 1. CUSTOM TEMPLATES REQUIRED:
+#    Before running terraform apply, you must create four custom Exoscale
+#    templates using Packer:
+#    - jambonz-web-monitoring
+#    - jambonz-sbc
+#    - jambonz-feature-server
+#    - jambonz-recording
+#
+# 2. DNS CONFIGURATION:
+#    After deployment, create DNS A records pointing to the outputted IPs:
+#    - jambonz.example.com → Web/Monitoring IP
+#    - api.jambonz.example.com → Web/Monitoring IP
+#    - grafana.jambonz.example.com → Web/Monitoring IP
+#    - homer.jambonz.example.com → Web/Monitoring IP
+#    - sip.jambonz.example.com → First SBC IP
+#
+# 3. COST OPTIMIZATION:
+#    For testing, use the minimal configuration (commented out above).
+#    You can start with hobbyist DB plans and scale up as needed.
+#
+# 4. SSH ACCESS:
+#    - Web/Monitoring and SBC servers have public IPs
+#    - Feature and Recording servers have private IPs only
+#    - Use SBC as a jump/bastion server to access private servers:
+#      ssh -J jambonz@<sbc-ip> jambonz@<feature-server-private-ip>
+#
+# 5. SCALING:
+#    You can scale Feature Servers (1-10) and Recording Servers (1-10)
+#    by updating the counts in this file and running terraform apply.

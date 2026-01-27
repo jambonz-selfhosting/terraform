@@ -1,17 +1,17 @@
-# Variables for jambonz mini deployment on Exoscale
+# Variables for jambonz mini deployment on Azure
 
 # ------------------------------------------------------------------------------
-# EXOSCALE CREDENTIALS
+# AZURE CREDENTIALS
 # ------------------------------------------------------------------------------
 
-variable "exoscale_api_key" {
-  description = "Exoscale API key"
+variable "subscription_id" {
+  description = "Azure subscription ID"
   type        = string
   sensitive   = true
 }
 
-variable "exoscale_api_secret" {
-  description = "Exoscale API secret"
+variable "tenant_id" {
+  description = "Azure tenant ID"
   type        = string
   sensitive   = true
 }
@@ -20,22 +20,54 @@ variable "exoscale_api_secret" {
 # DEPLOYMENT CONFIGURATION
 # ------------------------------------------------------------------------------
 
-variable "zone" {
-  description = "Exoscale zone to deploy in"
+variable "location" {
+  description = "Azure region to deploy in"
   type        = string
-  default     = "ch-gva-2"
+  default     = "eastus"
 
   validation {
     condition = contains([
-      "ch-gva-2",
-      "ch-dk-2",
-      "de-fra-1",
-      "de-muc-1",
-      "at-vie-1",
-      "at-vie-2",
-      "bg-sof-1",
-    ], var.zone)
-    error_message = "Zone must be a valid Exoscale zone."
+      "eastus",
+      "eastus2",
+      "westus",
+      "westus2",
+      "westus3",
+      "centralus",
+      "northcentralus",
+      "southcentralus",
+      "westcentralus",
+      "canadacentral",
+      "canadaeast",
+      "brazilsouth",
+      "northeurope",
+      "westeurope",
+      "uksouth",
+      "ukwest",
+      "francecentral",
+      "francesouth",
+      "switzerlandnorth",
+      "switzerlandwest",
+      "germanywestcentral",
+      "norwayeast",
+      "swedencentral",
+      "eastasia",
+      "southeastasia",
+      "japaneast",
+      "japanwest",
+      "australiaeast",
+      "australiasoutheast",
+      "australiacentral",
+      "koreacentral",
+      "koreasouth",
+      "centralindia",
+      "southindia",
+      "westindia",
+      "uaenorth",
+      "uaecentral",
+      "southafricanorth",
+      "southafricawest",
+    ], var.location)
+    error_message = "Location must be a valid Azure region."
   }
 }
 
@@ -52,53 +84,72 @@ variable "environment" {
 }
 
 # ------------------------------------------------------------------------------
+# IMAGE CONFIGURATION
+# ------------------------------------------------------------------------------
+
+variable "image_name" {
+  description = "Name of the jambonz image in Azure. Used if image_id is not set."
+  type        = string
+  default     = ""
+}
+
+variable "image_resource_group" {
+  description = "Resource group containing the jambonz image. Required if using image_name."
+  type        = string
+  default     = ""
+}
+
+variable "image_id" {
+  description = "Full resource ID of the jambonz image in Azure. Takes precedence over image_name."
+  type        = string
+  default     = ""
+}
+
+# ------------------------------------------------------------------------------
 # INSTANCE CONFIGURATION
 # ------------------------------------------------------------------------------
 
-variable "template_name" {
-  description = "Name of the jambonz template (custom image) in Exoscale. Used if template_id is not set."
+variable "vm_size" {
+  description = "Azure VM size"
   type        = string
-  default     = ""
-}
-
-variable "template_id" {
-  description = "ID of the jambonz template (custom image) in Exoscale. Takes precedence over template_name."
-  type        = string
-  default     = ""
-}
-
-variable "instance_type" {
-  description = "Exoscale instance type"
-  type        = string
-  default     = "standard.medium"
+  default     = "Standard_D2s_v3"
 
   validation {
     condition = contains([
-      "standard.micro",
-      "standard.tiny",
-      "standard.small",
-      "standard.medium",
-      "standard.large",
-      "standard.extra-large",
-      "standard.huge",
-      "standard.mega",
-      "standard.titan",
-      "cpu.extra-large",
-      "cpu.huge",
-      "cpu.mega",
-    ], var.instance_type)
-    error_message = "Instance type must be a valid Exoscale instance type."
+      "Standard_B2s",
+      "Standard_B2ms",
+      "Standard_B4ms",
+      "Standard_D2s_v3",
+      "Standard_D4s_v3",
+      "Standard_D8s_v3",
+      "Standard_D2s_v4",
+      "Standard_D4s_v4",
+      "Standard_D8s_v4",
+      "Standard_D2s_v5",
+      "Standard_D4s_v5",
+      "Standard_D8s_v5",
+      "Standard_E2s_v3",
+      "Standard_E4s_v3",
+      "Standard_E2s_v4",
+      "Standard_E4s_v4",
+      "Standard_E2s_v5",
+      "Standard_E4s_v5",
+      "Standard_F2s_v2",
+      "Standard_F4s_v2",
+      "Standard_F8s_v2",
+    ], var.vm_size)
+    error_message = "VM size must be a valid Azure VM size."
   }
 }
 
 variable "disk_size" {
-  description = "Disk size in GB"
+  description = "OS disk size in GB"
   type        = number
-  default     = 100
+  default     = 50
 
   validation {
-    condition     = var.disk_size >= 10 && var.disk_size <= 400
-    error_message = "Disk size must be between 10 and 400 GB."
+    condition     = var.disk_size >= 30 && var.disk_size <= 1024
+    error_message = "Disk size must be between 30 and 1024 GB."
   }
 }
 
@@ -106,16 +157,9 @@ variable "disk_size" {
 # SSH CONFIGURATION
 # ------------------------------------------------------------------------------
 
-variable "ssh_key_name" {
-  description = "Name of an existing SSH key in Exoscale (use this OR ssh_public_key)"
-  type        = string
-  default     = ""
-}
-
 variable "ssh_public_key" {
-  description = "SSH public key content to create a new key (use this OR ssh_key_name)"
+  description = "SSH public key content for VM access"
   type        = string
-  default     = ""
 }
 
 # ------------------------------------------------------------------------------

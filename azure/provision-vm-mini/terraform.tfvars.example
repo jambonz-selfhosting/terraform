@@ -1,23 +1,24 @@
-# Example Terraform variables for jambonz mini deployment on Exoscale
+# Example Terraform variables for jambonz mini deployment on Azure
 # Copy this file to terraform.tfvars and fill in your values
 
 # ------------------------------------------------------------------------------
-# EXOSCALE CREDENTIALS
+# AZURE CREDENTIALS
 # These can also be set via environment variables:
-#   export EXOSCALE_API_KEY="your-key"
-#   export EXOSCALE_API_SECRET="your-secret"
+#   export ARM_SUBSCRIPTION_ID="your-subscription-id"
+#   export ARM_TENANT_ID="your-tenant-id"
+# Or use Azure CLI: az login
 # ------------------------------------------------------------------------------
 
-exoscale_api_key    = "EXO..."
-exoscale_api_secret = "..."
+subscription_id = "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+tenant_id       = "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
 
 # ------------------------------------------------------------------------------
 # DEPLOYMENT CONFIGURATION
 # ------------------------------------------------------------------------------
 
-# Exoscale zone - see https://www.exoscale.com/datacenters/
-# Options: ch-gva-2, ch-dk-2, de-fra-1, de-muc-1, at-vie-1, at-vie-2, bg-sof-1
-zone = "ch-gva-2"
+# Azure region - see https://azure.microsoft.com/en-us/global-infrastructure/locations/
+# Common options: eastus, eastus2, westus2, westeurope, northeurope, etc.
+location = "eastus"
 
 # Prefix for resource names
 name_prefix = "jambonz"
@@ -26,31 +27,34 @@ name_prefix = "jambonz"
 environment = "production"
 
 # ------------------------------------------------------------------------------
+# IMAGE CONFIGURATION
+# Use EITHER image_name + image_resource_group OR image_id
+# ------------------------------------------------------------------------------
+
+# Option 1: Reference image by name (requires image_resource_group)
+image_name           = "jambonz-mini-debian-12"
+image_resource_group = "packer-images-rg"
+
+# Option 2: Reference image by full resource ID (takes precedence)
+# image_id = "/subscriptions/xxx/resourceGroups/xxx/providers/Microsoft.Compute/images/jambonz-mini-debian-12"
+
+# ------------------------------------------------------------------------------
 # INSTANCE CONFIGURATION
 # ------------------------------------------------------------------------------
 
-# Jambonz template ID in Exoscale (UUID)
-# You'll need to create this template first using Packer
-# Use: exo compute template list --zone ch-gva-2 --visibility private
-template_id = "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+# VM size - see https://docs.microsoft.com/en-us/azure/virtual-machines/sizes
+# Recommended: Standard_D2s_v3 or larger for production
+vm_size = "Standard_D2s_v3"
 
-# Instance type - see https://www.exoscale.com/pricing/
-# Recommended: standard.medium or larger for production
-instance_type = "standard.medium"
-
-# Disk size in GB (default: 100)
-# disk_size = 100
+# OS disk size in GB
+disk_size = 50
 
 # ------------------------------------------------------------------------------
 # SSH CONFIGURATION
-# Use EITHER ssh_key_name (existing key) OR ssh_public_key (create new key)
 # ------------------------------------------------------------------------------
 
-# Option 1: Name of existing SSH key in Exoscale
-ssh_key_name = "my-ssh-key"
-
-# Option 2: SSH public key content (creates new key)
-# ssh_public_key = "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAAB... user@host"
+# SSH public key content (required)
+ssh_public_key = "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAAB... user@host"
 
 # ------------------------------------------------------------------------------
 # NETWORK ACCESS CONTROLS
@@ -58,7 +62,7 @@ ssh_key_name = "my-ssh-key"
 # ------------------------------------------------------------------------------
 
 # SSH access - IMPORTANT: Restrict this for security
-allowed_ssh_cidr = "0.0.0.0/0/32"
+allowed_ssh_cidr = "203.0.113.50/32"
 
 # HTTP/HTTPS access
 allowed_http_cidr = "0.0.0.0/0"
