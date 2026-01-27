@@ -209,10 +209,13 @@ resource "exoscale_compute_instance" "jambonz" {
   ]
 
   user_data = base64encode(templatefile("${path.module}/cloud-init.yaml", {
-    url_portal      = var.url_portal
-    jwt_secret      = random_password.jwt_secret.result
-    db_password     = random_password.db_password.result
-    instance_name   = "${var.name_prefix}-jambonz-mini"
+    url_portal           = var.url_portal
+    jwt_secret           = random_password.jwt_secret.result
+    db_password          = random_password.db_password.result
+    instance_name        = "${var.name_prefix}-jambonz-mini"
+    apiban_key           = var.apiban_key
+    apiban_client_id     = var.apiban_client_id
+    apiban_client_secret = var.apiban_client_secret
   }))
 
   labels = {

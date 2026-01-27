@@ -102,6 +102,38 @@ The deployment creates:
 | `feature_server_desired_capacity` | `1` | Initial Feature Server count |
 | `deploy_recording_cluster` | `true` | Deploy recording server cluster |
 | `enable_pcaps` | `true` | Enable SIP PCAP capture |
+| `apiban_key` | `""` | APIBan API key for single-key mode |
+| `apiban_client_id` | `""` | APIBan client ID for multi-key mode |
+| `apiban_client_secret` | `""` | APIBan client secret for multi-key mode |
+
+### APIBan Configuration (Optional)
+
+[APIBan](https://www.apiban.org/) provides a community-maintained blocklist of known VoIP fraud and spam IP addresses.
+
+#### Option 1: Single API Key (Simple)
+
+Best for: Single deployments or when one key per email is sufficient.
+
+1. Get a free API key at https://apiban.org/getkey.html
+2. Add to `terraform.tfvars`:
+   ```hcl
+   apiban_key = "your-api-key-here"
+   ```
+
+#### Option 2: Client Credentials (Multiple Keys)
+
+Best for: Multiple deployments needing unique keys per instance.
+
+1. Contact APIBan to obtain client credentials
+2. Add to `terraform.tfvars`:
+   ```hcl
+   apiban_client_id     = "your-client-id"
+   apiban_client_secret = "your-client-secret"
+   ```
+
+Each instance will automatically provision its own unique API key at boot time.
+
+**Note:** If both are provided, client credentials take precedence.
 
 ### Using Environment Variables
 

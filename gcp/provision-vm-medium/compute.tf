@@ -123,6 +123,9 @@ resource "google_compute_instance" "sbc" {
     web_monitoring_private_ip = google_compute_instance.web_monitoring.network_interface[0].network_ip
     vpc_cidr                  = var.vpc_cidr
     enable_pcaps              = var.enable_pcaps
+    apiban_key                = var.apiban_key
+    apiban_client_id          = var.apiban_client_id
+    apiban_client_secret      = var.apiban_client_secret
   })
 
   labels = {

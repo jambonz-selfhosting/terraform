@@ -113,18 +113,21 @@ resource "exoscale_compute_instance" "sbc" {
   ]
 
   user_data = templatefile("${path.module}/cloud-init-sbc.yaml", {
-    mysql_host     = data.exoscale_database_uri.mysql.host
-    mysql_port     = data.exoscale_database_uri.mysql.port
-    mysql_user     = data.exoscale_database_uri.mysql.username
-    mysql_password = data.exoscale_database_uri.mysql.password
-    mysql_database = data.exoscale_database_uri.mysql.db_name
-    redis_host     = data.exoscale_database_uri.valkey.host
-    redis_port     = data.exoscale_database_uri.valkey.port
-    jwt_secret     = random_password.encryption_secret.result
-    url_portal     = var.url_portal
-    vpc_cidr       = var.vpc_cidr
-    sbc_index      = count.index + 1
-    ssh_public_key = local.ssh_public_key
+    mysql_host           = data.exoscale_database_uri.mysql.host
+    mysql_port           = data.exoscale_database_uri.mysql.port
+    mysql_user           = data.exoscale_database_uri.mysql.username
+    mysql_password       = data.exoscale_database_uri.mysql.password
+    mysql_database       = data.exoscale_database_uri.mysql.db_name
+    redis_host           = data.exoscale_database_uri.valkey.host
+    redis_port           = data.exoscale_database_uri.valkey.port
+    jwt_secret           = random_password.encryption_secret.result
+    url_portal           = var.url_portal
+    vpc_cidr             = var.vpc_cidr
+    sbc_index            = count.index + 1
+    ssh_public_key       = local.ssh_public_key
+    apiban_key           = var.apiban_key
+    apiban_client_id     = var.apiban_client_id
+    apiban_client_secret = var.apiban_client_secret
   })
 
   labels = {

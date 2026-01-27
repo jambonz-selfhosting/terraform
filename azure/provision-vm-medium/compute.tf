@@ -226,6 +226,9 @@ resource "azurerm_linux_virtual_machine" "sbc" {
     vpc_cidr                  = var.vpc_cidr
     enable_pcaps              = var.enable_pcaps
     key_vault_name            = azurerm_key_vault.jambonz.name
+    apiban_key                = var.apiban_key
+    apiban_client_id          = var.apiban_client_id
+    apiban_client_secret      = var.apiban_client_secret
   }))
 
   depends_on = [
