@@ -149,14 +149,30 @@ write_files:
       su - $USER -c "pm2 start $HOME/apps/ecosystem.config.js"
       su - $USER -c "pm2 save"
 
-      # Configure apiban if key is provided
+      # Configure APIBan - supports two modes:
+      # 1. Client credentials mode: auto-provision unique key per instance (preferred)
+      # 2. Single key mode: use customer-provided key
       APIBAN_KEY="${apiban_key}"
-      if [ -n "$APIBAN_KEY" ] && [ -f /usr/local/bin/apiban/config.json ]; then
+      APIBAN_CLIENT_ID="${apiban_client_id}"
+      APIBAN_CLIENT_SECRET="${apiban_client_secret}"
+
+      if [ -n "$APIBAN_CLIENT_ID" ] && [ -n "$APIBAN_CLIENT_SECRET" ]; then
+          echo "Provisioning APIBan key via client credentials..."
+          APIBANKEY=$(curl -X POST -u "$APIBAN_CLIENT_ID:$APIBAN_CLIENT_SECRET" \
+              -d "{\"client\": \"$INSTANCE_ID\"}" \
+              -s https://apiban.org/sponsor/newkey | jq -r '.ApiKey' 2>/dev/null || echo "")
+          if [ -n "$APIBANKEY" ] && [ "$APIBANKEY" != "null" ] && [ -f /usr/local/bin/apiban/config.json ]; then
+              sudo sed -i -e "s/API-KEY-HERE/$APIBANKEY/g" /usr/local/bin/apiban/config.json
+              sudo /usr/local/bin/apiban/apiban-client-nftables FULL || true
+          else
+              echo "Failed to provision APIBan key via client credentials"
+          fi
+      elif [ -n "$APIBAN_KEY" ] && [ -f /usr/local/bin/apiban/config.json ]; then
           echo "Configuring APIBan with provided key..."
           sudo sed -i -e "s/API-KEY-HERE/$APIBAN_KEY/g" /usr/local/bin/apiban/config.json
           sudo /usr/local/bin/apiban/apiban-client-nftables FULL || true
       else
-          echo "Skipping APIBan configuration (no key provided)"
+          echo "Skipping APIBan configuration (no credentials provided)"
       fi
 
       echo "SBC-$SBC_INDEX server configuration complete!"

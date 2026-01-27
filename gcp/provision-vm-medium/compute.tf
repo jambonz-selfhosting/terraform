@@ -124,6 +124,8 @@ resource "google_compute_instance" "sbc" {
     vpc_cidr                  = var.vpc_cidr
     enable_pcaps              = var.enable_pcaps
     apiban_key                = var.apiban_key
+    apiban_client_id          = var.apiban_client_id
+    apiban_client_secret      = var.apiban_client_secret
   })
 
   labels = {

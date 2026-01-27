@@ -431,7 +431,21 @@ variable "url_portal" {
 }
 
 variable "apiban_key" {
-  description = "APIBan API key for VoIP fraud/spam protection (optional). Get a free key at https://apiban.org"
+  description = "APIBan API key for single-key mode (optional). Get a free key at https://apiban.org/getkey.html"
+  type        = string
+  default     = ""
+  sensitive   = true
+}
+
+variable "apiban_client_id" {
+  description = "APIBan client ID for multi-key mode (optional). Contact APIBan for client access."
+  type        = string
+  default     = ""
+  sensitive   = true
+}
+
+variable "apiban_client_secret" {
+  description = "APIBan client secret for multi-key mode (optional). Used with client_id to auto-provision keys per instance."
   type        = string
   default     = ""
   sensitive   = true
