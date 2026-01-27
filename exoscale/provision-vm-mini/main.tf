@@ -213,6 +213,7 @@ resource "exoscale_compute_instance" "jambonz" {
     jwt_secret      = random_password.jwt_secret.result
     db_password     = random_password.db_password.result
     instance_name   = "${var.name_prefix}-jambonz-mini"
+    apiban_key      = var.apiban_key
   }))
 
   labels = {

@@ -333,6 +333,13 @@ variable "url_portal" {
   }
 }
 
+variable "apiban_key" {
+  description = "APIBan API key for VoIP fraud/spam protection (optional). Get a free key at https://apiban.org"
+  type        = string
+  default     = ""
+  sensitive   = true
+}
+
 variable "enable_pcaps" {
   description = "Enable PCAP capture for SIP traffic"
   type        = bool

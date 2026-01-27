@@ -275,14 +275,14 @@ write_files:
       sudo -u $USER bash -c "pm2 save"
       sudo systemctl enable pm2-$USER.service
 
-      # Get an apiban key
-      echo "Installing apiban key"
-      if [ -f /usr/local/bin/apiban/config.json ]; then
-          APIBANKEY=$(curl -X POST -u jambonz:1a074994242182a9e0b67eae93978826 -d "{\"client\": \"$INSTANCE_ID\"}" -s https://apiban.org/sponsor/newkey | jq -r '.ApiKey' 2>/dev/null || echo "")
-          if [ -n "$APIBANKEY" ] && [ "$APIBANKEY" != "null" ]; then
-              sudo sed -i -e "s/API-KEY-HERE/$APIBANKEY/g" /usr/local/bin/apiban/config.json
-              sudo /usr/local/bin/apiban/apiban-client-nftables FULL || true
-          fi
+      # Configure apiban if key is provided
+      APIBAN_KEY="${apiban_key}"
+      if [ -n "$APIBAN_KEY" ] && [ -f /usr/local/bin/apiban/config.json ]; then
+          echo "Configuring APIBan with provided key..."
+          sudo sed -i -e "s/API-KEY-HERE/$APIBAN_KEY/g" /usr/local/bin/apiban/config.json
+          sudo /usr/local/bin/apiban/apiban-client-nftables FULL || true
+      else
+          echo "Skipping APIBan configuration (no key provided)"
       fi
 
       # Set up scheduled events polling for graceful termination

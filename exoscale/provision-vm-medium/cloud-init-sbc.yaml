@@ -149,6 +149,16 @@ write_files:
       su - $USER -c "pm2 start $HOME/apps/ecosystem.config.js"
       su - $USER -c "pm2 save"
 
+      # Configure apiban if key is provided
+      APIBAN_KEY="${apiban_key}"
+      if [ -n "$APIBAN_KEY" ] && [ -f /usr/local/bin/apiban/config.json ]; then
+          echo "Configuring APIBan with provided key..."
+          sudo sed -i -e "s/API-KEY-HERE/$APIBAN_KEY/g" /usr/local/bin/apiban/config.json
+          sudo /usr/local/bin/apiban/apiban-client-nftables FULL || true
+      else
+          echo "Skipping APIBan configuration (no key provided)"
+      fi
+
       echo "SBC-$SBC_INDEX server configuration complete!"
 
 runcmd:

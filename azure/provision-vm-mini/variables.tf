@@ -223,3 +223,14 @@ variable "url_portal" {
     error_message = "Must be a valid domain name."
   }
 }
+
+# ------------------------------------------------------------------------------
+# OPTIONAL SERVICES
+# ------------------------------------------------------------------------------
+
+variable "apiban_key" {
+  description = "APIBan API key for VoIP fraud/spam protection (optional). Get a free key at https://apiban.org"
+  type        = string
+  default     = ""
+  sensitive   = true
+}

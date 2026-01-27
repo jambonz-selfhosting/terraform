@@ -121,6 +121,20 @@ To manually trigger scale-in for testing:
 redis-cli -h <redis-host> SET "drain:<instance-name>" "$(date +%s)" EX 900
 ```
 
+### APIBan Configuration (Optional)
+
+[APIBan](https://www.apiban.org/) is a free service that provides a community-maintained blocklist of known VoIP fraud and spam IP addresses. When configured, jambonz will automatically block SIP traffic from these malicious sources.
+
+To enable APIBan protection:
+
+1. Get a free API key at https://apiban.org/getkey.html
+2. Add the key to your `terraform.tfvars`:
+   ```hcl
+   apiban_key = "your-api-key-here"
+   ```
+
+If no key is provided, APIBan protection is simply skipped during deployment.
+
 ## Outputs
 
 | Output | Description |

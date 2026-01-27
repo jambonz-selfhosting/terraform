@@ -125,6 +125,7 @@ resource "exoscale_compute_instance" "sbc" {
     vpc_cidr       = var.vpc_cidr
     sbc_index      = count.index + 1
     ssh_public_key = local.ssh_public_key
+    apiban_key     = var.apiban_key
   })
 
   labels = {
