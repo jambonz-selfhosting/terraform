@@ -58,6 +58,33 @@ resource "aws_eip" "nat" {
   depends_on = [aws_internet_gateway.main]
 }
 
+# =============================================================================
+# Elastic IPs for SIP and RTP Nodes
+# Used by ec2-eip-allocator to assign static IPs to VoIP nodes
+# =============================================================================
+
+resource "aws_eip" "sip" {
+  domain = "vpc"
+
+  tags = {
+    Name = "${local.cluster_name}-sip-eip"
+    role = "${local.cluster_name}-sip-node"
+  }
+
+  depends_on = [aws_internet_gateway.main]
+}
+
+resource "aws_eip" "rtp" {
+  domain = "vpc"
+
+  tags = {
+    Name = "${local.cluster_name}-rtp-eip"
+    role = "${local.cluster_name}-rtp-node"
+  }
+
+  depends_on = [aws_internet_gateway.main]
+}
+
 resource "aws_nat_gateway" "main" {
   allocation_id = aws_eip.nat.id
   subnet_id     = aws_subnet.sip_public[0].id  # Place NAT in first public subnet

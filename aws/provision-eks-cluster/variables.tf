@@ -22,7 +22,7 @@ variable "name_prefix" {
 variable "cluster_name" {
   description = "Name of the EKS cluster"
   type        = string
-  default     = "voip-eks-cluster"
+  default     = "eks"
 
   validation {
     condition     = can(regex("^[a-zA-Z][a-zA-Z0-9-]*$", var.cluster_name))
@@ -63,7 +63,7 @@ variable "availability_zone_count" {
 variable "system_instance_type" {
   description = "EC2 instance type for system node group"
   type        = string
-  default     = "t3.medium"
+  default     = "c6a.xlarge"
 }
 
 variable "system_node_count" {
@@ -107,7 +107,7 @@ variable "system_disk_size" {
 variable "sip_instance_type" {
   description = "EC2 instance type for SIP node group"
   type        = string
-  default     = "t3.medium"
+  default     = "c6a.xlarge"
 }
 
 variable "sip_node_count" {
@@ -151,7 +151,7 @@ variable "sip_disk_size" {
 variable "rtp_instance_type" {
   description = "EC2 instance type for RTP node group"
   type        = string
-  default     = "t3.medium"
+  default     = "c6a.xlarge"
 }
 
 variable "rtp_node_count" {

@@ -82,6 +82,30 @@ output "rtp_security_group_id" {
 }
 
 # =============================================================================
+# Elastic IP Outputs
+# =============================================================================
+
+output "sip_eip_public_ip" {
+  description = "Elastic IP address for SIP node"
+  value       = aws_eip.sip.public_ip
+}
+
+output "rtp_eip_public_ip" {
+  description = "Elastic IP address for RTP node"
+  value       = aws_eip.rtp.public_ip
+}
+
+output "sip_eip_allocation_id" {
+  description = "SIP EIP allocation ID"
+  value       = aws_eip.sip.allocation_id
+}
+
+output "rtp_eip_allocation_id" {
+  description = "RTP EIP allocation ID"
+  value       = aws_eip.rtp.allocation_id
+}
+
+# =============================================================================
 # IAM Outputs
 # =============================================================================
 
