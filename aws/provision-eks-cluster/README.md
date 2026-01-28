@@ -43,6 +43,36 @@ The cluster uses three specialized node pools:
 | **sip** | 5060 UDP/TCP, 5061, 8443 | SIP signaling, WebRTC |
 | **rtp** | 40000-60000 UDP, 2222-2223 UDP | RTP media, rtpengine ng protocol |
 
+### Elastic IPs for VoIP Nodes
+
+This configuration creates dedicated Elastic IPs for the SIP and RTP nodes:
+
+| EIP | Tag | Purpose |
+|-----|-----|---------|
+| `${cluster_name}-sip-eip` | `role: ${cluster_name}-sip-node` | Static IP for SIP signaling |
+| `${cluster_name}-rtp-eip` | `role: ${cluster_name}-rtp-node` | Static IP for RTP media |
+
+These EIPs are automatically associated with the SIP and RTP nodes when the jambonz helm chart is deployed. The `ec2-eip-allocator` init container in the SBC pods matches EIPs to nodes using the `role` tag.
+
+**Benefits of static EIPs:**
+- Consistent IP addresses for SIP trunks and carrier configurations
+- Survives node replacements and cluster upgrades
+- Required for many SIP providers that need IP whitelisting
+
+### IAM Policies
+
+The EKS node role includes an inline policy (`eip_allocator`) that allows the `ec2-eip-allocator` to assign Elastic IPs:
+
+| Permission | Purpose |
+|------------|---------|
+| `ec2:DescribeAddresses` | List available EIPs |
+| `ec2:AssociateAddress` | Assign EIP to node |
+| `ec2:DisassociateAddress` | Release EIP from node |
+| `ec2:DescribeInstances` | Get node instance info |
+| `ec2:DescribeNetworkInterfaces` | Get network interface info |
+
+This allows the EIP allocator to work using the node's IAM role (via IMDSv2) without requiring a separate AWS credentials secret.
+
 ## Prerequisites
 
 - AWS CLI configured with appropriate credentials
@@ -82,6 +112,37 @@ The cluster uses three specialized node pools:
    kubectl get nodes --show-labels
    kubectl describe nodes | grep -A3 Taints
    ```
+
+## Deploying jambonz
+
+After the EKS cluster is ready, deploy jambonz using the helm chart:
+
+1. **Install the helm chart:**
+   ```bash
+   helm install jambonz <path-to-helm-chart> \
+     -f <path-to-helm-chart>/values-aws.yaml \
+     --namespace jambonz \
+     --create-namespace
+   ```
+
+2. **Monitor the deployment:**
+   ```bash
+   kubectl get pods -n jambonz -w
+   ```
+
+3. **Verify EIP association:**
+
+   After the SBC pods start, the ec2-eip-allocator init container will assign the Elastic IPs to the nodes. Verify with:
+   ```bash
+   aws ec2 describe-addresses --region <region> \
+     --filters "Name=tag-key,Values=role" \
+     --query 'Addresses[*].{Name:Tags[?Key==`Name`].Value|[0],PublicIp:PublicIp,InstanceId:InstanceId}' \
+     --output table
+   ```
+
+4. **Access the jambonz portal:**
+
+   Get the ingress URL or configure DNS to point to your load balancer.
 
 ## VoIP Pod Configuration
 
@@ -136,14 +197,70 @@ After deployment, Terraform outputs:
 - `cluster_endpoint` - Kubernetes API endpoint
 - `configure_kubectl` - Command to configure kubectl
 - `vpc_id` - VPC identifier
+- `sip_eip_public_ip` - Elastic IP address for SIP node
+- `rtp_eip_public_ip` - Elastic IP address for RTP node
+- `sip_eip_allocation_id` - SIP EIP allocation ID
+- `rtp_eip_allocation_id` - RTP EIP allocation ID
 - Various subnet and security group IDs
 
 ## Cleanup
 
-To destroy all resources:
+Before destroying the cluster, you must clean up resources in the correct order.
 
+**1. Uninstall jambonz helm chart:**
+```bash
+helm uninstall jambonz -n jambonz
+```
+
+**2. Delete the namespace:**
+```bash
+kubectl delete namespace jambonz
+```
+
+**3. Delete any remaining Kubernetes LoadBalancer services:**
+```bash
+# Delete all LoadBalancer services (this removes the ELBs they created)
+kubectl delete svc --all-namespaces --field-selector spec.type=LoadBalancer
+
+# If using ingresses with ALB controller
+kubectl delete ingress --all-namespaces
+
+# Wait for AWS to clean up the load balancers and ENIs
+sleep 60
+```
+
+**4. Destroy the infrastructure:**
 ```bash
 terraform destroy
+```
+
+**If `terraform destroy` hangs:**
+
+This usually means orphaned load balancers or network interfaces still exist. To find them:
+
+```bash
+# List classic ELBs
+aws elb describe-load-balancers --region <region> --query 'LoadBalancerDescriptions[*].[LoadBalancerName,VPCId]' --output table
+
+# List ALBs/NLBs
+aws elbv2 describe-load-balancers --region <region> --query 'LoadBalancers[*].[LoadBalancerName,VpcId]' --output table
+
+# Delete orphaned ELBs (the name often contains 'k8s' or a hash)
+aws elb delete-load-balancer --load-balancer-name <elb-name> --region <region>
+```
+
+After cleaning up the load balancers, wait a minute for ENIs to be released, then retry `terraform destroy`.
+
+**If the VPC deletion hangs:**
+
+Kubernetes-created security groups (for load balancers) may still exist:
+
+```bash
+# List security groups in the VPC
+aws ec2 describe-security-groups --filters "Name=vpc-id,Values=<vpc-id>" --region <region> --query 'SecurityGroups[*].[GroupId,GroupName]' --output table
+
+# Delete any k8s/ELB security groups (not the "default" one)
+aws ec2 delete-security-group --group-id <sg-id> --region <region>
 ```
 
 ## Notes
