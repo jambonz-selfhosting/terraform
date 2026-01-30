@@ -1,0 +1,140 @@
+# Example terraform.tfvars for jambonz large cluster deployment on GCP
+# Fully separated architecture: Web, Monitoring, SIP, RTP as individual VMs
+#
+# Copy this file to terraform.tfvars and fill in the required values
+
+# ------------------------------------------------------------------------------
+# GCP PROJECT CONFIGURATION
+# ------------------------------------------------------------------------------
+
+project_id = "your-project-id"
+region     = "us-west1"
+zone       = "us-west1-a"
+
+# ------------------------------------------------------------------------------
+# DEPLOYMENT CONFIGURATION
+# ------------------------------------------------------------------------------
+
+name_prefix = "jambonz"
+environment = "production"
+
+# ------------------------------------------------------------------------------
+# NETWORK CONFIGURATION
+# ------------------------------------------------------------------------------
+
+vpc_cidr           = "172.20.0.0/16"
+public_subnet_cidr = "172.20.10.0/24"
+
+# ------------------------------------------------------------------------------
+# NETWORK ACCESS CONTROLS
+# ------------------------------------------------------------------------------
+
+# IMPORTANT: Restrict these for production use
+allowed_ssh_cidr  = ["0.0.0.0/0"]    # SSH access - consider restricting to your IP
+allowed_http_cidr = ["0.0.0.0/0"]    # Web/API access
+allowed_sip_cidr  = ["0.0.0.0/0"]    # SIP signaling access
+allowed_rtp_cidr  = ["0.0.0.0/0"]    # RTP media access
+
+# ------------------------------------------------------------------------------
+# IMAGE CONFIGURATION
+# Run generate-tf.sh to populate these with the correct image self-links
+# ------------------------------------------------------------------------------
+
+sip_image            = "projects/YOUR_PROJECT/global/images/jambonz-sip-VERSION"
+rtp_image            = "projects/YOUR_PROJECT/global/images/jambonz-rtp-VERSION"
+web_image            = "projects/YOUR_PROJECT/global/images/jambonz-web-VERSION"
+monitoring_image     = "projects/YOUR_PROJECT/global/images/jambonz-monitoring-VERSION"
+feature_server_image = "projects/YOUR_PROJECT/global/images/jambonz-fs-VERSION"
+recording_image      = "projects/YOUR_PROJECT/global/images/jambonz-recording-VERSION"
+
+# ------------------------------------------------------------------------------
+# MACHINE TYPE CONFIGURATION
+# ------------------------------------------------------------------------------
+
+sip_machine_type            = "e2-standard-2"
+rtp_machine_type            = "e2-standard-2"
+web_machine_type            = "e2-standard-4"
+monitoring_machine_type     = "e2-standard-4"
+feature_server_machine_type = "e2-standard-4"
+recording_machine_type      = "e2-standard-2"
+
+# ------------------------------------------------------------------------------
+# DISK SIZE CONFIGURATION
+# ------------------------------------------------------------------------------
+
+sip_disk_size            = 100
+rtp_disk_size            = 100
+web_disk_size            = 100
+monitoring_disk_size     = 200  # Larger for time-series data
+feature_server_disk_size = 100
+recording_disk_size      = 100
+
+# ------------------------------------------------------------------------------
+# SIP/RTP INSTANCE COUNTS
+# Each SIP and RTP server gets a static public IP
+# ------------------------------------------------------------------------------
+
+sip_count = 1   # Number of SIP servers (1-10)
+rtp_count = 1   # Number of RTP servers (1-10)
+
+# ------------------------------------------------------------------------------
+# MANAGED INSTANCE GROUP CONFIGURATION
+# ------------------------------------------------------------------------------
+
+feature_server_target_size  = 1
+feature_server_min_replicas = 1
+feature_server_max_replicas = 8
+
+recording_target_size  = 1
+recording_min_replicas = 1
+recording_max_replicas = 8
+
+# Graceful scale-in timeout (max 15 minutes)
+scale_in_timeout_seconds = 900
+
+# ------------------------------------------------------------------------------
+# SSH CONFIGURATION
+# ------------------------------------------------------------------------------
+
+ssh_user       = "jambonz"
+ssh_public_key = "REPLACE_WITH_YOUR_SSH_PUBLIC_KEY"
+
+# ------------------------------------------------------------------------------
+# DATABASE CONFIGURATION
+# ------------------------------------------------------------------------------
+
+mysql_tier      = "db-custom-2-4096"
+mysql_disk_size = 20
+
+# Optionally provide a password (leave empty to auto-generate)
+# mysql_password = ""
+
+# ------------------------------------------------------------------------------
+# REDIS CONFIGURATION
+# ------------------------------------------------------------------------------
+
+redis_memory_size_gb = 1
+redis_tier           = "BASIC"  # or "STANDARD_HA" for high availability
+
+# ------------------------------------------------------------------------------
+# JAMBONZ CONFIGURATION
+# ------------------------------------------------------------------------------
+
+url_portal               = "REPLACE_WITH_YOUR_DOMAIN"
+enable_pcaps             = true
+deploy_recording_cluster = true
+
+# Feature server public IP (set to false to use Cloud NAT for outbound)
+feature_server_public_ip = false
+
+# ------------------------------------------------------------------------------
+# APIBAN CONFIGURATION (optional)
+# Get a free key at https://apiban.org/getkey.html
+# ------------------------------------------------------------------------------
+
+# Single key mode (simpler):
+# apiban_key = "YOUR_APIBAN_KEY"
+
+# OR multi-key mode (auto-provisions unique key per instance):
+# apiban_client_id     = "YOUR_CLIENT_ID"
+# apiban_client_secret = "YOUR_CLIENT_SECRET"

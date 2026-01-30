@@ -1,0 +1,83 @@
+# Example terraform.tfvars for jambonz mini (single VM) deployment on GCP
+# All-in-one deployment with local MySQL, Redis, and monitoring
+#
+# Copy this file to terraform.tfvars and fill in the required values
+
+# ------------------------------------------------------------------------------
+# GCP PROJECT CONFIGURATION
+# ------------------------------------------------------------------------------
+
+project_id = "your-project-id"
+region     = "us-west1"
+zone       = "us-west1-a"
+
+# ------------------------------------------------------------------------------
+# DEPLOYMENT CONFIGURATION
+# ------------------------------------------------------------------------------
+
+name_prefix = "jambonz"
+environment = "production"
+
+# ------------------------------------------------------------------------------
+# NETWORK CONFIGURATION
+# ------------------------------------------------------------------------------
+
+vpc_cidr           = "10.0.0.0/16"
+public_subnet_cidr = "10.0.0.0/24"
+
+# ------------------------------------------------------------------------------
+# NETWORK ACCESS CONTROLS
+# ------------------------------------------------------------------------------
+
+# IMPORTANT: Restrict these for production use
+allowed_ssh_cidr = ["0.0.0.0/0"]    # SSH access - consider restricting to your IP
+allowed_http_cidr = ["0.0.0.0/0"]   # Web/API access
+allowed_sip_cidr = ["0.0.0.0/0"]    # SIP/RTP access
+
+# ------------------------------------------------------------------------------
+# IMAGE CONFIGURATION
+# Run generate-tf.sh to populate this with the correct image self-link
+# ------------------------------------------------------------------------------
+
+mini_image = "projects/YOUR_PROJECT/global/images/jambonz-mini-VERSION"
+
+# ------------------------------------------------------------------------------
+# MACHINE TYPE CONFIGURATION
+# ------------------------------------------------------------------------------
+
+# e2-standard-4 recommended for mini (4 vCPU, 16 GB RAM)
+# Can use e2-standard-2 for very light workloads
+machine_type = "e2-standard-4"
+
+# ------------------------------------------------------------------------------
+# DISK SIZE CONFIGURATION
+# ------------------------------------------------------------------------------
+
+disk_size = 100
+
+# ------------------------------------------------------------------------------
+# SSH CONFIGURATION
+# ------------------------------------------------------------------------------
+
+ssh_user       = "jambonz"
+ssh_public_key = "REPLACE_WITH_YOUR_SSH_PUBLIC_KEY"
+
+# ------------------------------------------------------------------------------
+# JAMBONZ CONFIGURATION
+# ------------------------------------------------------------------------------
+
+# Domain name for the jambonz portal (leave empty to access by IP address)
+# If set, you'll need to create DNS A records pointing to the public IP
+url_portal = "REPLACE_WITH_YOUR_DOMAIN"
+
+# ------------------------------------------------------------------------------
+# APIBAN CONFIGURATION (optional)
+# Get a free key at https://apiban.org/getkey.html
+# ------------------------------------------------------------------------------
+
+# Single key mode (simpler):
+# apiban_key = "YOUR_APIBAN_KEY"
+
+# OR multi-key mode (auto-provisions unique key per instance):
+# apiban_client_id     = "YOUR_CLIENT_ID"
+# apiban_client_secret = "YOUR_CLIENT_SECRET"
