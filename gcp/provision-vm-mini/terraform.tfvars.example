@@ -1,4 +1,7 @@
-# Terraform variables for jambonz medium cluster deployment on GCP
+# Example terraform.tfvars for jambonz mini (single VM) deployment on GCP
+# All-in-one deployment with local MySQL, Redis, and monitoring
+#
+# Copy this file to terraform.tfvars and fill in the required values
 
 # ==============================================================================
 # REQUIRED - You MUST provide values for these variables
@@ -9,10 +12,6 @@ url_portal     = ""  # Your domain name (e.g., "jambonz.example.com")
 region         = ""  # GCP region (e.g., "us-west1", "us-east1", "europe-west1")
 zone           = ""  # GCP zone (e.g., "us-west1-a", "us-east1-b", "europe-west1-c")
 ssh_public_key = ""  # Your SSH public key (e.g., "ssh-rsa AAAAB3Nz... user@host")
-
-# Set to false to disable if not needed
-enable_pcaps             = true
-deploy_recording_cluster = true
 
 # ------------------------------------------------------------------------------
 # APIBAN CONFIGURATION (optional)
@@ -27,7 +26,7 @@ deploy_recording_cluster = true
 # apiban_client_secret = "YOUR_CLIENT_SECRET"
 
 # ==============================================================================
-# OPTIONAL - The defaults below work for most deployments
+# OPTIONAL - The defaults below work for most deployments but can be edited as needed
 # ==============================================================================
 
 # ------------------------------------------------------------------------------
@@ -41,76 +40,41 @@ environment = "production"
 # NETWORK CONFIGURATION
 # ------------------------------------------------------------------------------
 
-vpc_cidr           = "172.20.0.0/16"
-public_subnet_cidr = "172.20.10.0/24"
+vpc_cidr           = "10.0.0.0/16"
+public_subnet_cidr = "10.0.0.0/24"
 
 # ------------------------------------------------------------------------------
 # NETWORK ACCESS CONTROLS
 # ------------------------------------------------------------------------------
 
-allowed_ssh_cidr  = ["0.0.0.0/0"]
-allowed_http_cidr = ["0.0.0.0/0"]
-allowed_sbc_cidr  = ["0.0.0.0/0"]
+# IMPORTANT: Restrict these for production use
+allowed_ssh_cidr = ["0.0.0.0/0"]    # SSH access - consider restricting to your IP
+allowed_http_cidr = ["0.0.0.0/0"]   # Web/API access
+allowed_sip_cidr = ["0.0.0.0/0"]    # SIP/RTP access
 
 # ------------------------------------------------------------------------------
 # IMAGE CONFIGURATION
+# Public jambonz images from drachtio-cpaas project
 # ------------------------------------------------------------------------------
 
-# Public jambonz images from drachtio-cpaas project
-feature_server_image = "projects/drachtio-cpaas/global/images/jambonz-fs-v10-0-4-debian-12-20260204151510"
-sbc_image            = "projects/drachtio-cpaas/global/images/jambonz-sip-rtp-v10-0-4-debian-12-20260204151605"
-web_monitoring_image = "projects/drachtio-cpaas/global/images/jambonz-web-monitoring-v10-0-4-debian-12-20260204151711"
-recording_image      = "projects/drachtio-cpaas/global/images/jambonz-recording-v10-0-4-debian-12-20260204152210"
+mini_image = "projects/drachtio-cpaas/global/images/jambonz-mini-v10-0-4-debian-12-20260204151445"
 
 # ------------------------------------------------------------------------------
 # MACHINE TYPE CONFIGURATION
 # ------------------------------------------------------------------------------
 
-sbc_machine_type            = "e2-standard-4"
-feature_server_machine_type = "e2-standard-4"
-web_monitoring_machine_type = "e2-standard-4"
-recording_machine_type      = "e2-standard-2"
-
-web_monitoring_disk_size = 200
+# e2-standard-4 recommended for mini (4 vCPU, 16 GB RAM)
+# Can use e2-standard-2 for very light workloads
+machine_type = "e2-standard-4"
 
 # ------------------------------------------------------------------------------
-# SBC CONFIGURATION
+# DISK SIZE CONFIGURATION
 # ------------------------------------------------------------------------------
 
-sbc_count = 1
-
-# ------------------------------------------------------------------------------
-# MANAGED INSTANCE GROUP CONFIGURATION
-# ------------------------------------------------------------------------------
-
-feature_server_target_size  = 1
-feature_server_min_replicas = 1
-feature_server_max_replicas = 3
-
-recording_target_size  = 1
-recording_min_replicas = 1
-recording_max_replicas = 3
-
-# Graceful scale-in timeout (max 900 seconds / 15 minutes)
-scale_in_timeout_seconds = 900
+disk_size = 100
 
 # ------------------------------------------------------------------------------
 # SSH CONFIGURATION
 # ------------------------------------------------------------------------------
 
 ssh_user = "jambonz"
-
-# ------------------------------------------------------------------------------
-# DATABASE CONFIGURATION
-# ------------------------------------------------------------------------------
-
-mysql_tier      = "db-custom-2-4096"
-mysql_disk_size = 20
-
-# ------------------------------------------------------------------------------
-# REDIS CONFIGURATION (Memorystore)
-# No AUTH, no TLS - simple configuration
-# ------------------------------------------------------------------------------
-
-redis_memory_size_gb = 1
-redis_tier           = "BASIC"

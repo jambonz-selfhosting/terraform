@@ -39,6 +39,10 @@ testing/.test-state-*.yaml
 testing/__pycache__/
 testing/lib/__pycache__/
 
-.vscode 
+.vscode
 
 CLAUDE.md
+
+# Kubernetes cluster terraforms (not yet ready for release)
+aws/provision-eks-cluster/
+gcp/provision-gke-cluster/

@@ -1,4 +1,5 @@
-# Variables for jambonz medium cluster deployment on GCP
+# Variables for jambonz large cluster deployment on GCP
+# Fully separated architecture: Web, Monitoring, SIP, RTP as individual VMs
 
 # ------------------------------------------------------------------------------
 # GCP PROJECT CONFIGURATION
@@ -82,8 +83,14 @@ variable "allowed_http_cidr" {
   default     = ["0.0.0.0/0"]
 }
 
-variable "allowed_sbc_cidr" {
-  description = "CIDR blocks allowed SIP/RTP access to SBC"
+variable "allowed_sip_cidr" {
+  description = "CIDR blocks allowed SIP access to SIP servers"
+  type        = list(string)
+  default     = ["0.0.0.0/0"]
+}
+
+variable "allowed_rtp_cidr" {
+  description = "CIDR blocks allowed RTP access to RTP servers"
   type        = list(string)
   default     = ["0.0.0.0/0"]
 }
@@ -92,18 +99,28 @@ variable "allowed_sbc_cidr" {
 # IMAGE CONFIGURATION
 # ------------------------------------------------------------------------------
 
-variable "sbc_image" {
-  description = "Self-link or name of the SBC image"
+variable "sip_image" {
+  description = "Self-link or name of the SIP server image"
+  type        = string
+}
+
+variable "rtp_image" {
+  description = "Self-link or name of the RTP server image"
+  type        = string
+}
+
+variable "web_image" {
+  description = "Self-link or name of the Web server image"
+  type        = string
+}
+
+variable "monitoring_image" {
+  description = "Self-link or name of the Monitoring server image"
   type        = string
 }
 
 variable "feature_server_image" {
   description = "Self-link or name of the Feature Server image"
-  type        = string
-}
-
-variable "web_monitoring_image" {
-  description = "Self-link or name of the Web/Monitoring image"
   type        = string
 }
 
@@ -117,8 +134,26 @@ variable "recording_image" {
 # MACHINE TYPE CONFIGURATION
 # ------------------------------------------------------------------------------
 
-variable "sbc_machine_type" {
-  description = "GCP machine type for SBC servers"
+variable "sip_machine_type" {
+  description = "GCP machine type for SIP servers"
+  type        = string
+  default     = "e2-standard-2"
+}
+
+variable "rtp_machine_type" {
+  description = "GCP machine type for RTP servers"
+  type        = string
+  default     = "e2-standard-2"
+}
+
+variable "web_machine_type" {
+  description = "GCP machine type for Web server"
+  type        = string
+  default     = "e2-standard-4"
+}
+
+variable "monitoring_machine_type" {
+  description = "GCP machine type for Monitoring server"
   type        = string
   default     = "e2-standard-4"
 }
@@ -129,36 +164,56 @@ variable "feature_server_machine_type" {
   default     = "e2-standard-4"
 }
 
-variable "web_monitoring_machine_type" {
-  description = "GCP machine type for Web/Monitoring server"
-  type        = string
-  default     = "e2-standard-4"
-}
-
 variable "recording_machine_type" {
   description = "GCP machine type for Recording Servers"
   type        = string
   default     = "e2-standard-2"
 }
 
-variable "web_monitoring_disk_size" {
-  description = "Disk size in GB for the Web/Monitoring server"
-  type        = number
-  default     = 200
+# ------------------------------------------------------------------------------
+# DISK SIZE CONFIGURATION
+# ------------------------------------------------------------------------------
 
-  validation {
-    condition     = var.web_monitoring_disk_size >= 100 && var.web_monitoring_disk_size <= 1024
-    error_message = "Disk size must be between 100 and 1024 GB."
-  }
-}
-
-variable "sbc_disk_size" {
-  description = "Disk size in GB for SBC instances"
+variable "sip_disk_size" {
+  description = "Disk size in GB for SIP instances"
   type        = number
   default     = 100
 
   validation {
-    condition     = var.sbc_disk_size >= 100 && var.sbc_disk_size <= 1024
+    condition     = var.sip_disk_size >= 100 && var.sip_disk_size <= 1024
+    error_message = "Disk size must be between 100 and 1024 GB."
+  }
+}
+
+variable "rtp_disk_size" {
+  description = "Disk size in GB for RTP instances"
+  type        = number
+  default     = 100
+
+  validation {
+    condition     = var.rtp_disk_size >= 100 && var.rtp_disk_size <= 1024
+    error_message = "Disk size must be between 100 and 1024 GB."
+  }
+}
+
+variable "web_disk_size" {
+  description = "Disk size in GB for Web server"
+  type        = number
+  default     = 100
+
+  validation {
+    condition     = var.web_disk_size >= 100 && var.web_disk_size <= 1024
+    error_message = "Disk size must be between 100 and 1024 GB."
+  }
+}
+
+variable "monitoring_disk_size" {
+  description = "Disk size in GB for Monitoring server (larger for time-series data)"
+  type        = number
+  default     = 200
+
+  validation {
+    condition     = var.monitoring_disk_size >= 100 && var.monitoring_disk_size <= 1024
     error_message = "Disk size must be between 100 and 1024 GB."
   }
 }
@@ -186,17 +241,28 @@ variable "recording_disk_size" {
 }
 
 # ------------------------------------------------------------------------------
-# SBC CONFIGURATION
+# SIP/RTP INSTANCE COUNTS
 # ------------------------------------------------------------------------------
 
-variable "sbc_count" {
-  description = "Number of SBC instances to deploy (each gets a static public IP)"
+variable "sip_count" {
+  description = "Number of SIP server instances to deploy (each gets a static public IP)"
   type        = number
   default     = 1
 
   validation {
-    condition     = var.sbc_count >= 1 && var.sbc_count <= 10
-    error_message = "SBC count must be between 1 and 10."
+    condition     = var.sip_count >= 1 && var.sip_count <= 10
+    error_message = "SIP count must be between 1 and 10."
+  }
+}
+
+variable "rtp_count" {
+  description = "Number of RTP server instances to deploy (each gets a static public IP)"
+  type        = number
+  default     = 1
+
+  validation {
+    condition     = var.rtp_count >= 1 && var.rtp_count <= 10
+    error_message = "RTP count must be between 1 and 10."
   }
 }
 
@@ -219,7 +285,7 @@ variable "feature_server_min_replicas" {
 variable "feature_server_max_replicas" {
   description = "Maximum number of Feature Server instances"
   type        = number
-  default     = 4
+  default     = 8
 }
 
 variable "recording_target_size" {

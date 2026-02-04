@@ -1,34 +1,12 @@
 # Terraform variables for jambonz medium cluster deployment on GCP
 
-# ==============================================================================
-# REQUIRED - You MUST provide values for these variables
-# ==============================================================================
-
-project_id     = ""  # Your GCP project ID (e.g., "my-gcp-project")
-url_portal     = ""  # Your domain name (e.g., "jambonz.example.com")
-region         = ""  # GCP region (e.g., "us-west1", "us-east1", "europe-west1")
-zone           = ""  # GCP zone (e.g., "us-west1-a", "us-east1-b", "europe-west1-c")
-ssh_public_key = ""  # Your SSH public key (e.g., "ssh-rsa AAAAB3Nz... user@host")
-
-# Set to false to disable if not needed
-enable_pcaps             = true
-deploy_recording_cluster = true
-
 # ------------------------------------------------------------------------------
-# APIBAN CONFIGURATION (optional)
-# Get a free key at https://apiban.org/getkey.html
+# GCP PROJECT CONFIGURATION
 # ------------------------------------------------------------------------------
 
-# Single key mode (simpler):
-# apiban_key = "YOUR_APIBAN_KEY"
-
-# OR multi-key mode (auto-provisions unique key per instance):
-# apiban_client_id     = "YOUR_CLIENT_ID"
-# apiban_client_secret = "YOUR_CLIENT_SECRET"
-
-# ==============================================================================
-# OPTIONAL - The defaults below work for most deployments
-# ==============================================================================
+project_id = "drachtio-cpaas"
+region     = "us-central1"
+zone       = "us-central1-c"
 
 # ------------------------------------------------------------------------------
 # DEPLOYMENT CONFIGURATION
@@ -56,19 +34,19 @@ allowed_sbc_cidr  = ["0.0.0.0/0"]
 # IMAGE CONFIGURATION
 # ------------------------------------------------------------------------------
 
-# Public jambonz images from drachtio-cpaas project
-feature_server_image = "projects/drachtio-cpaas/global/images/jambonz-fs-v10-0-4-debian-12-20260204151510"
-sbc_image            = "projects/drachtio-cpaas/global/images/jambonz-sip-rtp-v10-0-4-debian-12-20260204151605"
-web_monitoring_image = "projects/drachtio-cpaas/global/images/jambonz-web-monitoring-v10-0-4-debian-12-20260204151711"
-recording_image      = "projects/drachtio-cpaas/global/images/jambonz-recording-v10-0-4-debian-12-20260204152210"
+# Images built with Packer in us-central1-c (2025-12-30)
+feature_server_image = "projects/drachtio-cpaas/global/images/jambonz-fs-094-debian-12-20251230195659"
+sbc_image            = "projects/drachtio-cpaas/global/images/jambonz-sip-rtp-094-debian-12-20251230151438"
+web_monitoring_image = "projects/drachtio-cpaas/global/images/jambonz-web-monitoring-094-debian-12-20251230151342"
+recording_image      = "projects/drachtio-cpaas/global/images/jambonz-recording-094-debian-12-20251230151414"
 
 # ------------------------------------------------------------------------------
 # MACHINE TYPE CONFIGURATION
 # ------------------------------------------------------------------------------
 
-sbc_machine_type            = "e2-standard-4"
-feature_server_machine_type = "e2-standard-4"
-web_monitoring_machine_type = "e2-standard-4"
+sbc_machine_type            = "e2-standard-2"
+feature_server_machine_type = "e2-standard-2"
+web_monitoring_machine_type = "e2-standard-2"
 recording_machine_type      = "e2-standard-2"
 
 web_monitoring_disk_size = 200
@@ -98,7 +76,8 @@ scale_in_timeout_seconds = 900
 # SSH CONFIGURATION
 # ------------------------------------------------------------------------------
 
-ssh_user = "jambonz"
+ssh_user       = "jambonz"
+ssh_public_key = "ssh-rsa AAAAB3NzaC1yc2EAAAABIwAAAQEAy6siMtEB6heB+xyGATunivJP5eUkWxN75YLtNGIqQ5g/BxRNlj/9ScjgHGVZWmEa/yGZlEvZUUdIToozSgRUNj7BwI3P3BwNOWNwZviEORTexz0IOAkLj1NYOtnS0JLIRoHAnDzk8cpFd85NupzsxA9is4lwpHJ/VHkIxZ1a14NES95Xm/Z9OVOM+UL4mY+sirAKiFDzFtF5d4YRVDvYBCRB+udBVcWkf1CjYDw0i59MSeqnssAyQj8ke+kdWo1sUqEL58wJ0bfqsN6EaPi1S7dIXyWO9Pf2uh9+T8dKQjoTPNrPNXqFJJlMu8JvVbqgQsxsCIQ7rEEpQiVQZe2xxQ== dhorton@dave-hortons-macbook-pro.local"
 
 # ------------------------------------------------------------------------------
 # DATABASE CONFIGURATION
@@ -114,3 +93,11 @@ mysql_disk_size = 20
 
 redis_memory_size_gb = 1
 redis_tier           = "BASIC"
+
+# ------------------------------------------------------------------------------
+# JAMBONZ CONFIGURATION
+# ------------------------------------------------------------------------------
+
+url_portal               = "gcp.jambonz.io"
+enable_pcaps             = true
+deploy_recording_cluster = true
