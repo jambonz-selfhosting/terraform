@@ -13,13 +13,11 @@ variable "project_id" {
 variable "region" {
   description = "GCP region to deploy in"
   type        = string
-  default     = "us-west1"
 }
 
 variable "zone" {
   description = "GCP zone for zonal resources"
   type        = string
-  default     = "us-west1-a"
 }
 
 # ------------------------------------------------------------------------------
@@ -145,9 +143,13 @@ variable "ssh_user" {
 # ------------------------------------------------------------------------------
 
 variable "url_portal" {
-  description = "DNS name for the jambonz portal (e.g., jambonz.example.com). Leave empty to access by IP."
+  description = "DNS name for the jambonz portal (e.g., jambonz.example.com)"
   type        = string
-  default     = ""
+
+  validation {
+    condition     = can(regex("^[a-zA-Z0-9][a-zA-Z0-9.-]*\\.[a-zA-Z]{2,}$", var.url_portal))
+    error_message = "Must be a valid domain name."
+  }
 }
 
 variable "apiban_key" {

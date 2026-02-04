@@ -152,7 +152,7 @@ resource "google_compute_instance_template" "feature_server" {
   tags = ["jambonz", "jambonz-fs"]
 
   disk {
-    source_image = var.feature_server_image
+    source_image = google_compute_image.feature_server.self_link
     auto_delete  = true
     boot         = true
     disk_type    = "pd-ssd"
@@ -311,7 +311,7 @@ resource "google_compute_instance_template" "recording" {
   tags = ["jambonz", "jambonz-recording"]
 
   disk {
-    source_image = var.recording_image
+    source_image = google_compute_image.recording[0].self_link
     auto_delete  = true
     boot         = true
     disk_type    = "pd-ssd"

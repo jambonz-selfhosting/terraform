@@ -3,13 +3,22 @@
 #
 # Copy this file to terraform.tfvars and fill in the required values
 
-# ------------------------------------------------------------------------------
-# GCP PROJECT CONFIGURATION
-# ------------------------------------------------------------------------------
+# ==============================================================================
+# REQUIRED - You MUST provide values for these variables
+# ==============================================================================
 
-project_id = "your-project-id"
-region     = "us-west1"
-zone       = "us-west1-a"
+project_id = ""  # Your GCP project ID (e.g., "my-gcp-project")
+url_portal = ""  # Your domain name (e.g., "jambonz.example.com")
+region     = ""  # GCP region (e.g., "us-west1", "us-east1", "europe-west1")
+zone       = ""  # GCP zone (e.g., "us-west1-a", "us-east1-b", "europe-west1-c")
+
+# Set to false to disable if not needed
+enable_pcaps             = true
+deploy_recording_cluster = true
+
+# ==============================================================================
+# OPTIONAL - The defaults below work for most deployments but can be edited as needed
+# ==============================================================================
 
 # ------------------------------------------------------------------------------
 # DEPLOYMENT CONFIGURATION
@@ -37,15 +46,15 @@ allowed_rtp_cidr  = ["0.0.0.0/0"]    # RTP media access
 
 # ------------------------------------------------------------------------------
 # IMAGE CONFIGURATION
-# Run generate-tf.sh to populate these with the correct image self-links
+# Public jambonz images from drachtio-cpaas project
 # ------------------------------------------------------------------------------
 
-sip_image            = "projects/YOUR_PROJECT/global/images/jambonz-sip-VERSION"
-rtp_image            = "projects/YOUR_PROJECT/global/images/jambonz-rtp-VERSION"
-web_image            = "projects/YOUR_PROJECT/global/images/jambonz-web-VERSION"
-monitoring_image     = "projects/YOUR_PROJECT/global/images/jambonz-monitoring-VERSION"
-feature_server_image = "projects/YOUR_PROJECT/global/images/jambonz-fs-VERSION"
-recording_image      = "projects/YOUR_PROJECT/global/images/jambonz-recording-VERSION"
+sip_image            = "projects/drachtio-cpaas/global/images/jambonz-sip-v10-0-4-debian-12-20260204151530"
+rtp_image            = "projects/drachtio-cpaas/global/images/jambonz-rtp-v10-0-4-debian-12-20260204151546"
+web_image            = "projects/drachtio-cpaas/global/images/jambonz-web-v10-0-4-debian-12-20260204151622"
+monitoring_image     = "projects/drachtio-cpaas/global/images/jambonz-monitoring-v10-0-4-debian-12-20260204151643"
+feature_server_image = "projects/drachtio-cpaas/global/images/jambonz-fs-v10-0-4-debian-12-20260204151510"
+recording_image      = "projects/drachtio-cpaas/global/images/jambonz-recording-v10-0-4-debian-12-20260204152210"
 
 # ------------------------------------------------------------------------------
 # MACHINE TYPE CONFIGURATION
@@ -115,17 +124,6 @@ mysql_disk_size = 20
 
 redis_memory_size_gb = 1
 redis_tier           = "BASIC"  # or "STANDARD_HA" for high availability
-
-# ------------------------------------------------------------------------------
-# JAMBONZ CONFIGURATION
-# ------------------------------------------------------------------------------
-
-url_portal               = "REPLACE_WITH_YOUR_DOMAIN"
-enable_pcaps             = true
-deploy_recording_cluster = true
-
-# Feature server public IP (set to false to use Cloud NAT for outbound)
-feature_server_public_ip = false
 
 # ------------------------------------------------------------------------------
 # APIBAN CONFIGURATION (optional)

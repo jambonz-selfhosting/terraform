@@ -1,12 +1,21 @@
 # Terraform variables for jambonz medium cluster deployment on GCP
 
-# ------------------------------------------------------------------------------
-# GCP PROJECT CONFIGURATION
-# ------------------------------------------------------------------------------
+# ==============================================================================
+# REQUIRED - You MUST provide values for these variables
+# ==============================================================================
 
-project_id = "your-gcp-project-id"
-region     = "us-west1"
-zone       = "us-west1-a"
+project_id = ""  # Your GCP project ID (e.g., "my-gcp-project")
+url_portal = ""  # Your domain name (e.g., "jambonz.example.com")
+region     = ""  # GCP region (e.g., "us-west1", "us-east1", "europe-west1")
+zone       = ""  # GCP zone (e.g., "us-west1-a", "us-east1-b", "europe-west1-c")
+
+# Set to false to disable if not needed
+enable_pcaps             = true
+deploy_recording_cluster = true
+
+# ==============================================================================
+# OPTIONAL - The defaults below work for most deployments
+# ==============================================================================
 
 # ------------------------------------------------------------------------------
 # DEPLOYMENT CONFIGURATION
@@ -34,12 +43,11 @@ allowed_sbc_cidr  = ["0.0.0.0/0"]
 # IMAGE CONFIGURATION
 # ------------------------------------------------------------------------------
 
-# Images built with Packer - use self-links or image names
-# Example: "projects/your-project/global/images/jambonz-fs-main-debian-12-20251229"
-feature_server_image = "projects/your-project/global/images/jambonz-fs-image"
-sbc_image            = "projects/your-project/global/images/jambonz-sbc-image"
-web_monitoring_image = "projects/your-project/global/images/jambonz-web-monitoring-image"
-recording_image      = "projects/your-project/global/images/jambonz-recording-image"
+# Public jambonz images from drachtio-cpaas project
+feature_server_image = "projects/drachtio-cpaas/global/images/jambonz-fs-v10-0-4-debian-12-20260204151510"
+sbc_image            = "projects/drachtio-cpaas/global/images/jambonz-sip-rtp-v10-0-4-debian-12-20260204151605"
+web_monitoring_image = "projects/drachtio-cpaas/global/images/jambonz-web-monitoring-v10-0-4-debian-12-20260204151711"
+recording_image      = "projects/drachtio-cpaas/global/images/jambonz-recording-v10-0-4-debian-12-20260204152210"
 
 # ------------------------------------------------------------------------------
 # MACHINE TYPE CONFIGURATION
@@ -95,10 +103,3 @@ mysql_disk_size = 20
 redis_memory_size_gb = 1
 redis_tier           = "BASIC"
 
-# ------------------------------------------------------------------------------
-# JAMBONZ CONFIGURATION
-# ------------------------------------------------------------------------------
-
-url_portal               = "gcp.jambonz.io"
-enable_pcaps             = true
-deploy_recording_cluster = true
