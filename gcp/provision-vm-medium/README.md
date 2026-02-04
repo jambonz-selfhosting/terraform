@@ -5,26 +5,37 @@ This Terraform configuration deploys a jambonz medium cluster on Google Cloud Pl
 ## Architecture
 
 ```
-                    Internet
-                        │
-        ┌───────────────┼───────────────┐
-        │               │               │
-        ▼               ▼               ▼
-   ┌─────────┐    ┌──────────┐    ┌─────────┐
-   │   SBC   │    │   Web/   │    │   FS    │
-   │  (VM)   │    │ Monitor  │    │  (MIG)  │
-   │         │    │   (VM)   │    │         │
-   └────┬────┘    └────┬─────┘    └────┬────┘
-        │              │               │
-        └──────────────┼───────────────┘
-                       │
-              ┌────────┴────────┐
-              │                 │
-        ┌─────┴─────┐    ┌──────┴──────┐
-        │Cloud SQL  │    │ Memorystore │
-        │  (MySQL)  │    │   (Redis)   │
-        │ No SSL    │    │  No AUTH    │
-        └───────────┘    └─────────────┘
+                               Internet
+                                   │
+      ┌────────────────────────────┼────────────────────────────┐
+      │                            │                            │
+      ▼                            ▼                            ▼
+ ┌─────────┐                ┌──────────┐                 ┌───────────┐
+ │   SBC   │                │   Web/   │                 │Cloud NAT  │
+ │  (VM)   │                │ Monitor  │                 └─────┬─────┘
+ └────┬────┘                │  (VM)    │                       │
+      │                     └────┬─────┘                       │
+══════╪══════════════════════════╪═════════════════════════════╪═══════
+      │                          │                             │
+      │                          │    ┌────────────────────────┤
+      │                          │    │                        │
+      │                     ┌────┴────┴────┐        ┌──────────┴──────────┐
+      │                     │      FS      │        │  Internal LB        │
+      │                     │    (MIG)     │────────│  ┌───────────────┐  │
+      │                     └──────┬───────┘        │  │   Recording   │  │
+      │                            │                │  │     (MIG)     │  │
+      │                            │                │  └───────────────┘  │
+      │                            │                └─────────────────────┘
+      └────────────────────────────┼────────────────────────────┘
+                                   │
+                          ┌────────┴────────┐
+                          │                 │
+                    ┌─────┴─────┐    ┌──────┴──────┐
+                    │Cloud SQL  │    │ Memorystore │
+                    │  (MySQL)  │    │   (Redis)   │
+                    └───────────┘    └─────────────┘
+
+══════ Public/Private boundary (VMs above line have static public IPs)
 ```
 
 ## Components
@@ -37,6 +48,14 @@ This Terraform configuration deploys a jambonz medium cluster on Google Cloud Pl
 | Recording | Managed Instance Group | Optional recording cluster |
 | MySQL | Cloud SQL | Private IP, no SSL |
 | Redis | Memorystore | No AUTH, no TLS |
+
+## Network Architecture
+
+- **Public-facing components**: SBC and Web/Monitoring VMs have static public IPs for inbound traffic
+- **Internal components**: Feature Server and Recording MIGs have private IPs only
+- **Cloud NAT**: Provides outbound internet access for internal components (software updates, external API calls)
+- **Internal Load Balancer**: Routes traffic from Feature Servers to the Recording MIG
+- **Managed Services**: Cloud SQL (MySQL) and Memorystore (Redis) are accessible only via private IP within the VPC
 
 ## Prerequisites
 
