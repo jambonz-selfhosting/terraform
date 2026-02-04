@@ -7,14 +7,27 @@
 # REQUIRED - You MUST provide values for these variables
 # ==============================================================================
 
-project_id = ""  # Your GCP project ID (e.g., "my-gcp-project")
-url_portal = ""  # Your domain name (e.g., "jambonz.example.com")
-region     = ""  # GCP region (e.g., "us-west1", "us-east1", "europe-west1")
-zone       = ""  # GCP zone (e.g., "us-west1-a", "us-east1-b", "europe-west1-c")
+project_id     = ""  # Your GCP project ID (e.g., "my-gcp-project")
+url_portal     = ""  # Your domain name (e.g., "jambonz.example.com")
+region         = ""  # GCP region (e.g., "us-west1", "us-east1", "europe-west1")
+zone           = ""  # GCP zone (e.g., "us-west1-a", "us-east1-b", "europe-west1-c")
+ssh_public_key = ""  # Your SSH public key (e.g., "ssh-rsa AAAAB3Nz... user@host")
 
 # Set to false to disable if not needed
 enable_pcaps             = true
 deploy_recording_cluster = true
+
+# ------------------------------------------------------------------------------
+# APIBAN CONFIGURATION (optional)
+# Get a free key at https://apiban.org/getkey.html
+# ------------------------------------------------------------------------------
+
+# Single key mode (simpler):
+# apiban_key = "YOUR_APIBAN_KEY"
+
+# OR multi-key mode (auto-provisions unique key per instance):
+# apiban_client_id     = "YOUR_CLIENT_ID"
+# apiban_client_secret = "YOUR_CLIENT_SECRET"
 
 # ==============================================================================
 # OPTIONAL - The defaults below work for most deployments but can be edited as needed
@@ -105,8 +118,7 @@ scale_in_timeout_seconds = 900
 # SSH CONFIGURATION
 # ------------------------------------------------------------------------------
 
-ssh_user       = "jambonz"
-ssh_public_key = "REPLACE_WITH_YOUR_SSH_PUBLIC_KEY"
+ssh_user = "jambonz"
 
 # ------------------------------------------------------------------------------
 # DATABASE CONFIGURATION
@@ -124,15 +136,3 @@ mysql_disk_size = 20
 
 redis_memory_size_gb = 1
 redis_tier           = "BASIC"  # or "STANDARD_HA" for high availability
-
-# ------------------------------------------------------------------------------
-# APIBAN CONFIGURATION (optional)
-# Get a free key at https://apiban.org/getkey.html
-# ------------------------------------------------------------------------------
-
-# Single key mode (simpler):
-# apiban_key = "YOUR_APIBAN_KEY"
-
-# OR multi-key mode (auto-provisions unique key per instance):
-# apiban_client_id     = "YOUR_CLIENT_ID"
-# apiban_client_secret = "YOUR_CLIENT_SECRET"

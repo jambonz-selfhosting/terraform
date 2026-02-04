@@ -60,14 +60,45 @@ This Terraform configuration deploys a jambonz medium cluster on Google Cloud Pl
 ## Prerequisites
 
 1. **GCP Project** with billing enabled
-2. **Packer images** built for GCP (feature-server, sbc, web-monitoring, recording)
-3. **gcloud CLI** authenticated:
+2. **Terraform** >= 1.0
+3. **gcloud CLI** installed and configured
+
+### Authentication
+
+There are two ways to authenticate Terraform with GCP. Choose one:
+
+#### Option A: Service Account Key (Recommended)
+
+This is the most reliable method and what GCP recommends for Terraform.
+
+1. Go to the [GCP Console](https://console.cloud.google.com/) → IAM & Admin → Service Accounts
+2. Create a service account (or use an existing one) with **Editor** role
+3. Create a JSON key for the service account and download it
+4. Run these commands (replace the path and project ID with your values):
    ```bash
-   gcloud auth application-default login
-   # Or set GOOGLE_APPLICATION_CREDENTIALS to a service account key
-   export GOOGLE_APPLICATION_CREDENTIALS="$HOME/.config/gcloud/application_default_credentials.json"
+   export GOOGLE_APPLICATION_CREDENTIALS="/path/to/your-service-account-key.json"
+   gcloud auth activate-service-account --key-file="$GOOGLE_APPLICATION_CREDENTIALS"
+   gcloud config set project YOUR_PROJECT_ID
    ```
-4. **Terraform** >= 1.0
+
+#### Option B: User Account (Application Default Credentials)
+
+Use this if you don't want to create a service account.
+
+```bash
+# Login to gcloud CLI
+gcloud auth login
+gcloud config set project YOUR_PROJECT_ID
+
+# Verify you have access (this MUST succeed before continuing)
+gcloud projects describe YOUR_PROJECT_ID
+
+# Create application default credentials for Terraform
+gcloud auth application-default login
+gcloud auth application-default set-quota-project YOUR_PROJECT_ID
+```
+
+If the `application-default login` command fails with browser issues, use `--no-browser` flag and follow the manual flow.
 
 ### Enable Required APIs
 
@@ -76,7 +107,7 @@ gcloud services enable compute.googleapis.com
 gcloud services enable sqladmin.googleapis.com
 gcloud services enable redis.googleapis.com
 gcloud services enable servicenetworking.googleapis.com
-gcloud services enable secretmanager.googleapis.com
+gcloud services enable cloudresourcemanager.googleapis.com
 ```
 
 ## Deployment
@@ -322,12 +353,15 @@ Error code 9, message: Failed to delete connection; Producer services (e.g. Clou
 **Solution:** Manually delete the VPC peering, then retry destroy:
 
 ```bash
-# Step 1: Delete the service networking peering
+# Step 1: Find your VPC name
+gcloud compute networks list --project=<project-id>
+
+# Step 2: Delete the service networking peering
 gcloud compute networks peerings delete servicenetworking-googleapis-com \
-  --network=<name-prefix>-vpc \
+  --network=<vpc-name-from-step-1> \
   --project=<project-id>
 
-# Step 2: Retry terraform destroy
+# Step 3: Retry terraform destroy
 terraform destroy
 ```
 

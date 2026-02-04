@@ -40,13 +40,45 @@ All components run on a single VM:
 ## Prerequisites
 
 1. **GCP Project** with billing enabled
-2. **gcloud CLI** authenticated:
+2. **Terraform** >= 1.0
+3. **gcloud CLI** installed and configured
+
+### Authentication
+
+There are two ways to authenticate Terraform with GCP. Choose one:
+
+#### Option A: Service Account Key (Recommended)
+
+This is the most reliable method and what GCP recommends for Terraform.
+
+1. Go to the [GCP Console](https://console.cloud.google.com/) → IAM & Admin → Service Accounts
+2. Create a service account (or use an existing one) with **Editor** role
+3. Create a JSON key for the service account and download it
+4. Run these commands (replace the path and project ID with your values):
    ```bash
-   gcloud auth application-default login
-   # Or set GOOGLE_APPLICATION_CREDENTIALS to a service account key
-   export GOOGLE_APPLICATION_CREDENTIALS="/path/to/your-key.json"
+   export GOOGLE_APPLICATION_CREDENTIALS="/path/to/your-service-account-key.json"
+   gcloud auth activate-service-account --key-file="$GOOGLE_APPLICATION_CREDENTIALS"
+   gcloud config set project YOUR_PROJECT_ID
    ```
-3. **Terraform** >= 1.0
+
+#### Option B: User Account (Application Default Credentials)
+
+Use this if you don't want to create a service account.
+
+```bash
+# Login to gcloud CLI
+gcloud auth login
+gcloud config set project YOUR_PROJECT_ID
+
+# Verify you have access (this MUST succeed before continuing)
+gcloud projects describe YOUR_PROJECT_ID
+
+# Create application default credentials for Terraform
+gcloud auth application-default login
+gcloud auth application-default set-quota-project YOUR_PROJECT_ID
+```
+
+If the `application-default login` command fails with browser issues, use `--no-browser` flag and follow the manual flow.
 
 ### Enable Required APIs
 
@@ -118,7 +150,16 @@ ssh jambonz@<public-ip>
 ### Check startup script logs
 
 ```bash
+# On the instance (view logs)
 sudo journalctl -u google-startup-scripts.service
+
+# Or filter syslog
+sudo cat /var/log/syslog | grep startup-script
+
+# From your local machine (stream logs via gcloud)
+gcloud compute instances get-serial-port-output <instance-name> \
+  --zone=<zone> \
+  --project=<project-id>
 ```
 
 ### Check jambonz app logs
