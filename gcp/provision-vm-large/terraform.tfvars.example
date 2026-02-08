@@ -66,7 +66,7 @@ sip_image            = "projects/drachtio-cpaas/global/images/jambonz-sip-v10-0-
 rtp_image            = "projects/drachtio-cpaas/global/images/jambonz-rtp-v10-0-4-debian-12-20260204151546"
 web_image            = "projects/drachtio-cpaas/global/images/jambonz-web-v10-0-4-debian-12-20260204151622"
 monitoring_image     = "projects/drachtio-cpaas/global/images/jambonz-monitoring-v10-0-4-debian-12-20260204151643"
-feature_server_image = "projects/drachtio-cpaas/global/images/jambonz-fs-v10-0-4-debian-12-20260204151510"
+feature_server_image = "projects/drachtio-cpaas/global/images/jambonz-fs-v10-0-4-debian-12-20260208163010"
 recording_image      = "projects/drachtio-cpaas/global/images/jambonz-recording-v10-0-4-debian-12-20260204152210"
 
 # ------------------------------------------------------------------------------

@@ -21,53 +21,37 @@ variable "tenant_id" {
 # ------------------------------------------------------------------------------
 
 variable "location" {
-  description = "Azure region to deploy in"
+  description = "Azure region to deploy in. See README for supported regions."
   type        = string
   default     = "eastus"
 
   validation {
     condition = contains([
+      # Americas
       "eastus",
       "eastus2",
-      "westus",
       "westus2",
       "westus3",
       "centralus",
       "northcentralus",
       "southcentralus",
-      "westcentralus",
       "canadacentral",
-      "canadaeast",
       "brazilsouth",
+      # Europe
       "northeurope",
       "westeurope",
       "uksouth",
-      "ukwest",
       "francecentral",
-      "francesouth",
-      "switzerlandnorth",
-      "switzerlandwest",
       "germanywestcentral",
-      "norwayeast",
       "swedencentral",
-      "eastasia",
+      # Asia Pacific
+      "australiaeast",
       "southeastasia",
       "japaneast",
-      "japanwest",
-      "australiaeast",
-      "australiasoutheast",
-      "australiacentral",
       "koreacentral",
-      "koreasouth",
       "centralindia",
-      "southindia",
-      "westindia",
-      "uaenorth",
-      "uaecentral",
-      "southafricanorth",
-      "southafricawest",
     ], var.location)
-    error_message = "Location must be a valid Azure region."
+    error_message = "Location must be a supported Azure region. Supported regions: eastus, eastus2, westus2, westus3, centralus, northcentralus, southcentralus, canadacentral, brazilsouth, northeurope, westeurope, uksouth, francecentral, germanywestcentral, swedencentral, australiaeast, southeastasia, japaneast, koreacentral, centralindia. Contact support@jambonz.org if you need a different region."
   }
 }
 
@@ -84,25 +68,20 @@ variable "environment" {
 }
 
 # ------------------------------------------------------------------------------
-# IMAGE CONFIGURATION
+# JAMBONZ IMAGE CONFIGURATION
+# Images are pulled from the jambonz Azure Community Gallery
 # ------------------------------------------------------------------------------
 
-variable "image_name" {
-  description = "Name of the jambonz image in Azure. Used if image_id is not set."
+variable "jambonz_version" {
+  description = "jambonz version to deploy (image version in community gallery)"
   type        = string
-  default     = ""
+  default     = "10.0.4"
 }
 
-variable "image_resource_group" {
-  description = "Resource group containing the jambonz image. Required if using image_name."
+variable "community_gallery_name" {
+  description = "Name of the Azure Community Gallery containing jambonz images"
   type        = string
-  default     = ""
-}
-
-variable "image_id" {
-  description = "Full resource ID of the jambonz image in Azure. Takes precedence over image_name."
-  type        = string
-  default     = ""
+  default     = "jambonz-8962e4f5-da0f-41ee-b094-8680ad38d302"
 }
 
 # ------------------------------------------------------------------------------
@@ -160,6 +139,11 @@ variable "disk_size" {
 variable "ssh_public_key" {
   description = "SSH public key content for VM access"
   type        = string
+
+  validation {
+    condition     = length(var.ssh_public_key) > 0 && can(regex("^ssh-(rsa|ed25519|ecdsa)", var.ssh_public_key))
+    error_message = "SSH public key is required and must start with ssh-rsa, ssh-ed25519, or ssh-ecdsa."
+  }
 }
 
 # ------------------------------------------------------------------------------

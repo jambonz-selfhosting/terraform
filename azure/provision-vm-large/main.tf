@@ -1,5 +1,9 @@
-# Terraform configuration for jambonz medium cluster deployment on Azure
-# Equivalent to the AWS CloudFormation jambonz.yaml deployment
+# Terraform configuration for jambonz large cluster deployment on Azure
+#
+# Large deployment separates:
+# - Web (portal/API) from Monitoring (Grafana/Homer/Jaeger)
+# - SIP (drachtio signaling) from RTP (rtpengine media)
+# This enables independent scaling and resource optimization.
 
 terraform {
   required_version = ">= 1.0"
@@ -66,7 +70,7 @@ resource "azurerm_resource_group" "jambonz" {
   tags = {
     environment = var.environment
     service     = "jambonz"
-    deployment  = "medium-cluster"
+    deployment  = "large-cluster"
   }
 }
 
@@ -86,7 +90,6 @@ resource "azurerm_user_assigned_identity" "jambonz" {
 }
 
 # Grant Network Contributor role to managed identity for public IP management
-# Required for auto-assign-public-ip.azure.sh script to associate static IPs to SBC instances
 resource "azurerm_role_assignment" "network_contributor" {
   scope                = azurerm_resource_group.jambonz.id
   role_definition_name = "Network Contributor"
@@ -94,7 +97,6 @@ resource "azurerm_role_assignment" "network_contributor" {
 }
 
 # Grant Virtual Machine Contributor role to managed identity for VMSS NIC access
-# Required for auto-assign-public-ip.azure.sh script to read VM/VMSS instance info
 resource "azurerm_role_assignment" "vm_contributor" {
   scope                = azurerm_resource_group.jambonz.id
   role_definition_name = "Virtual Machine Contributor"
@@ -196,49 +198,8 @@ resource "azurerm_subnet" "mysql" {
 }
 
 # ------------------------------------------------------------------------------
-# NAT GATEWAY (for outbound internet access from private instances)
-# ------------------------------------------------------------------------------
-
-resource "azurerm_public_ip" "nat" {
-  name                = "${var.name_prefix}-nat-pip"
-  location            = azurerm_resource_group.jambonz.location
-  resource_group_name = azurerm_resource_group.jambonz.name
-  allocation_method   = "Static"
-  sku                 = "Standard"
-
-  tags = {
-    environment = var.environment
-    service     = "jambonz"
-  }
-}
-
-resource "azurerm_nat_gateway" "jambonz" {
-  name                    = "${var.name_prefix}-nat-gateway"
-  location                = azurerm_resource_group.jambonz.location
-  resource_group_name     = azurerm_resource_group.jambonz.name
-  sku_name                = "Standard"
-  idle_timeout_in_minutes = 10
-
-  tags = {
-    environment = var.environment
-    service     = "jambonz"
-  }
-}
-
-resource "azurerm_nat_gateway_public_ip_association" "jambonz" {
-  nat_gateway_id       = azurerm_nat_gateway.jambonz.id
-  public_ip_address_id = azurerm_public_ip.nat.id
-}
-
-# Only associate NAT Gateway with subnet2 (for recording servers without public IPs)
-# Subnet1 has Feature Server VMSS with public IPs which are incompatible with NAT Gateway
-resource "azurerm_subnet_nat_gateway_association" "public2" {
-  subnet_id      = azurerm_subnet.public2.id
-  nat_gateway_id = azurerm_nat_gateway.jambonz.id
-}
-
-# ------------------------------------------------------------------------------
 # NETWORK SECURITY GROUPS
+# Large deployment has separate NSGs for Web, Monitoring, SIP, and RTP
 # ------------------------------------------------------------------------------
 
 # SSH Security Group
@@ -397,189 +358,9 @@ resource "azurerm_network_security_group" "feature_server" {
   }
 }
 
-# SBC Security Group
-resource "azurerm_network_security_group" "sbc" {
-  name                = "${var.name_prefix}-sbc-nsg"
-  location            = azurerm_resource_group.jambonz.location
-  resource_group_name = azurerm_resource_group.jambonz.name
-
-  security_rule {
-    name                       = "SSH"
-    priority                   = 1000
-    direction                  = "Inbound"
-    access                     = "Allow"
-    protocol                   = "Tcp"
-    source_port_range          = "*"
-    destination_port_range     = "22"
-    source_address_prefix      = var.allowed_ssh_cidr
-    destination_address_prefix = "*"
-  }
-
-  security_rule {
-    name                       = "HTTP-Internal"
-    priority                   = 1001
-    direction                  = "Inbound"
-    access                     = "Allow"
-    protocol                   = "Tcp"
-    source_port_range          = "*"
-    destination_port_range     = "3000-3009"
-    source_address_prefix      = var.vpc_cidr
-    destination_address_prefix = "*"
-  }
-
-  security_rule {
-    name                       = "HTTP-External"
-    priority                   = 1002
-    direction                  = "Inbound"
-    access                     = "Allow"
-    protocol                   = "Tcp"
-    source_port_range          = "*"
-    destination_port_range     = "3010-3019"
-    source_address_prefix      = "*"
-    destination_address_prefix = "*"
-  }
-
-  security_rule {
-    name                       = "SIP-TCP-TLS"
-    priority                   = 1003
-    direction                  = "Inbound"
-    access                     = "Allow"
-    protocol                   = "Tcp"
-    source_port_range          = "*"
-    destination_port_range     = "5060-5061"
-    source_address_prefix      = var.allowed_sbc_cidr
-    destination_address_prefix = "*"
-  }
-
-  security_rule {
-    name                       = "SIP-UDP"
-    priority                   = 1004
-    direction                  = "Inbound"
-    access                     = "Allow"
-    protocol                   = "Udp"
-    source_port_range          = "*"
-    destination_port_range     = "5060"
-    source_address_prefix      = var.allowed_sbc_cidr
-    destination_address_prefix = "*"
-  }
-
-  security_rule {
-    name                       = "SIP-WSS"
-    priority                   = 1005
-    direction                  = "Inbound"
-    access                     = "Allow"
-    protocol                   = "Tcp"
-    source_port_range          = "*"
-    destination_port_range     = "8443"
-    source_address_prefix      = var.allowed_sbc_cidr
-    destination_address_prefix = "*"
-  }
-
-  security_rule {
-    name                       = "RTP-External"
-    priority                   = 1006
-    direction                  = "Inbound"
-    access                     = "Allow"
-    protocol                   = "Udp"
-    source_port_range          = "*"
-    destination_port_range     = "40000-60000"
-    source_address_prefix      = var.allowed_sbc_cidr
-    destination_address_prefix = "*"
-  }
-
-  security_rule {
-    name                       = "RTP-VPC"
-    priority                   = 1007
-    direction                  = "Inbound"
-    access                     = "Allow"
-    protocol                   = "Udp"
-    source_port_range          = "*"
-    destination_port_range     = "40000-60000"
-    source_address_prefix      = var.vpc_cidr
-    destination_address_prefix = "*"
-  }
-
-  security_rule {
-    name                       = "SIP-UDP-VPC"
-    priority                   = 1008
-    direction                  = "Inbound"
-    access                     = "Allow"
-    protocol                   = "Udp"
-    source_port_range          = "*"
-    destination_port_range     = "5060"
-    source_address_prefix      = var.vpc_cidr
-    destination_address_prefix = "*"
-  }
-
-  security_rule {
-    name                       = "RTPEngine-NG"
-    priority                   = 1009
-    direction                  = "Inbound"
-    access                     = "Allow"
-    protocol                   = "Udp"
-    source_port_range          = "*"
-    destination_port_range     = "22222-22223"
-    source_address_prefix      = var.vpc_cidr
-    destination_address_prefix = "*"
-  }
-
-  security_rule {
-    name                       = "RTPEngine-WS"
-    priority                   = 1010
-    direction                  = "Inbound"
-    access                     = "Allow"
-    protocol                   = "Tcp"
-    source_port_range          = "*"
-    destination_port_range     = "8080"
-    source_address_prefix      = var.vpc_cidr
-    destination_address_prefix = "*"
-  }
-
-  security_rule {
-    name                       = "HTTP-Callback"
-    priority                   = 1011
-    direction                  = "Inbound"
-    access                     = "Allow"
-    protocol                   = "Tcp"
-    source_port_range          = "*"
-    destination_port_range     = "3001"
-    source_address_prefix      = var.allowed_http_cidr
-    destination_address_prefix = "*"
-  }
-
-  security_rule {
-    name                       = "Prometheus"
-    priority                   = 1012
-    direction                  = "Inbound"
-    access                     = "Allow"
-    protocol                   = "Tcp"
-    source_port_range          = "*"
-    destination_port_range     = "9090"
-    source_address_prefix      = var.vpc_cidr
-    destination_address_prefix = "*"
-  }
-
-  security_rule {
-    name                       = "DTMF-Events"
-    priority                   = 1013
-    direction                  = "Inbound"
-    access                     = "Allow"
-    protocol                   = "Udp"
-    source_port_range          = "*"
-    destination_port_range     = "22224-22233"
-    source_address_prefix      = var.vpc_cidr
-    destination_address_prefix = "*"
-  }
-
-  tags = {
-    environment = var.environment
-    service     = "jambonz"
-  }
-}
-
-# Web/Monitoring Security Group
-resource "azurerm_network_security_group" "web_monitoring" {
-  name                = "${var.name_prefix}-web-monitoring-nsg"
+# Web Server Security Group (portal/API only - split from web-monitoring)
+resource "azurerm_network_security_group" "web" {
+  name                = "${var.name_prefix}-web-nsg"
   location            = azurerm_resource_group.jambonz.location
   resource_group_name = azurerm_resource_group.jambonz.name
 
@@ -643,9 +424,33 @@ resource "azurerm_network_security_group" "web_monitoring" {
     destination_address_prefix = "*"
   }
 
+  tags = {
+    environment = var.environment
+    service     = "jambonz"
+  }
+}
+
+# Monitoring Server Security Group (Grafana/Homer/Jaeger - split from web-monitoring)
+resource "azurerm_network_security_group" "monitoring" {
+  name                = "${var.name_prefix}-monitoring-nsg"
+  location            = azurerm_resource_group.jambonz.location
+  resource_group_name = azurerm_resource_group.jambonz.name
+
+  security_rule {
+    name                       = "SSH"
+    priority                   = 1000
+    direction                  = "Inbound"
+    access                     = "Allow"
+    protocol                   = "Tcp"
+    source_port_range          = "*"
+    destination_port_range     = "22"
+    source_address_prefix      = var.allowed_ssh_cidr
+    destination_address_prefix = "*"
+  }
+
   security_rule {
     name                       = "Grafana"
-    priority                   = 1005
+    priority                   = 1001
     direction                  = "Inbound"
     access                     = "Allow"
     protocol                   = "Tcp"
@@ -657,7 +462,7 @@ resource "azurerm_network_security_group" "web_monitoring" {
 
   security_rule {
     name                       = "InfluxDB"
-    priority                   = 1006
+    priority                   = 1002
     direction                  = "Inbound"
     access                     = "Allow"
     protocol                   = "Tcp"
@@ -669,7 +474,7 @@ resource "azurerm_network_security_group" "web_monitoring" {
 
   security_rule {
     name                       = "InfluxDB-Backup"
-    priority                   = 1007
+    priority                   = 1003
     direction                  = "Inbound"
     access                     = "Allow"
     protocol                   = "Tcp"
@@ -681,7 +486,7 @@ resource "azurerm_network_security_group" "web_monitoring" {
 
   security_rule {
     name                       = "Homer-Web"
-    priority                   = 1008
+    priority                   = 1004
     direction                  = "Inbound"
     access                     = "Allow"
     protocol                   = "Tcp"
@@ -693,7 +498,7 @@ resource "azurerm_network_security_group" "web_monitoring" {
 
   security_rule {
     name                       = "Homer-HEP"
-    priority                   = 1009
+    priority                   = 1005
     direction                  = "Inbound"
     access                     = "Allow"
     protocol                   = "Udp"
@@ -705,7 +510,7 @@ resource "azurerm_network_security_group" "web_monitoring" {
 
   security_rule {
     name                       = "Jaeger-Query"
-    priority                   = 1010
+    priority                   = 1006
     direction                  = "Inbound"
     access                     = "Allow"
     protocol                   = "Tcp"
@@ -717,12 +522,228 @@ resource "azurerm_network_security_group" "web_monitoring" {
 
   security_rule {
     name                       = "Jaeger-Collector"
-    priority                   = 1011
+    priority                   = 1007
     direction                  = "Inbound"
     access                     = "Allow"
     protocol                   = "Tcp"
     source_port_range          = "*"
     destination_port_range     = "14268-14269"
+    source_address_prefix      = var.vpc_cidr
+    destination_address_prefix = "*"
+  }
+
+  tags = {
+    environment = var.environment
+    service     = "jambonz"
+  }
+}
+
+# SIP Server Security Group (drachtio signaling only - split from SBC)
+resource "azurerm_network_security_group" "sip" {
+  name                = "${var.name_prefix}-sip-nsg"
+  location            = azurerm_resource_group.jambonz.location
+  resource_group_name = azurerm_resource_group.jambonz.name
+
+  security_rule {
+    name                       = "SSH"
+    priority                   = 1000
+    direction                  = "Inbound"
+    access                     = "Allow"
+    protocol                   = "Tcp"
+    source_port_range          = "*"
+    destination_port_range     = "22"
+    source_address_prefix      = var.allowed_ssh_cidr
+    destination_address_prefix = "*"
+  }
+
+  security_rule {
+    name                       = "HTTP-Internal"
+    priority                   = 1001
+    direction                  = "Inbound"
+    access                     = "Allow"
+    protocol                   = "Tcp"
+    source_port_range          = "*"
+    destination_port_range     = "3000-3009"
+    source_address_prefix      = var.vpc_cidr
+    destination_address_prefix = "*"
+  }
+
+  security_rule {
+    name                       = "HTTP-External"
+    priority                   = 1002
+    direction                  = "Inbound"
+    access                     = "Allow"
+    protocol                   = "Tcp"
+    source_port_range          = "*"
+    destination_port_range     = "3010-3019"
+    source_address_prefix      = "*"
+    destination_address_prefix = "*"
+  }
+
+  security_rule {
+    name                       = "SIP-TCP-TLS"
+    priority                   = 1003
+    direction                  = "Inbound"
+    access                     = "Allow"
+    protocol                   = "Tcp"
+    source_port_range          = "*"
+    destination_port_range     = "5060-5061"
+    source_address_prefix      = var.allowed_sip_cidr
+    destination_address_prefix = "*"
+  }
+
+  security_rule {
+    name                       = "SIP-UDP"
+    priority                   = 1004
+    direction                  = "Inbound"
+    access                     = "Allow"
+    protocol                   = "Udp"
+    source_port_range          = "*"
+    destination_port_range     = "5060"
+    source_address_prefix      = var.allowed_sip_cidr
+    destination_address_prefix = "*"
+  }
+
+  security_rule {
+    name                       = "SIP-WSS"
+    priority                   = 1005
+    direction                  = "Inbound"
+    access                     = "Allow"
+    protocol                   = "Tcp"
+    source_port_range          = "*"
+    destination_port_range     = "8443"
+    source_address_prefix      = var.allowed_sip_cidr
+    destination_address_prefix = "*"
+  }
+
+  security_rule {
+    name                       = "SIP-UDP-VPC"
+    priority                   = 1006
+    direction                  = "Inbound"
+    access                     = "Allow"
+    protocol                   = "Udp"
+    source_port_range          = "*"
+    destination_port_range     = "5060"
+    source_address_prefix      = var.vpc_cidr
+    destination_address_prefix = "*"
+  }
+
+  security_rule {
+    name                       = "RTPEngine-NG"
+    priority                   = 1007
+    direction                  = "Inbound"
+    access                     = "Allow"
+    protocol                   = "Udp"
+    source_port_range          = "*"
+    destination_port_range     = "22222-22223"
+    source_address_prefix      = var.vpc_cidr
+    destination_address_prefix = "*"
+  }
+
+  security_rule {
+    name                       = "HTTP-Callback"
+    priority                   = 1008
+    direction                  = "Inbound"
+    access                     = "Allow"
+    protocol                   = "Tcp"
+    source_port_range          = "*"
+    destination_port_range     = "3001"
+    source_address_prefix      = var.allowed_http_cidr
+    destination_address_prefix = "*"
+  }
+
+  security_rule {
+    name                       = "Prometheus"
+    priority                   = 1009
+    direction                  = "Inbound"
+    access                     = "Allow"
+    protocol                   = "Tcp"
+    source_port_range          = "*"
+    destination_port_range     = "9090"
+    source_address_prefix      = var.vpc_cidr
+    destination_address_prefix = "*"
+  }
+
+  tags = {
+    environment = var.environment
+    service     = "jambonz"
+  }
+}
+
+# RTP Server Security Group (rtpengine media only - split from SBC)
+resource "azurerm_network_security_group" "rtp" {
+  name                = "${var.name_prefix}-rtp-nsg"
+  location            = azurerm_resource_group.jambonz.location
+  resource_group_name = azurerm_resource_group.jambonz.name
+
+  security_rule {
+    name                       = "SSH"
+    priority                   = 1000
+    direction                  = "Inbound"
+    access                     = "Allow"
+    protocol                   = "Tcp"
+    source_port_range          = "*"
+    destination_port_range     = "22"
+    source_address_prefix      = var.allowed_ssh_cidr
+    destination_address_prefix = "*"
+  }
+
+  security_rule {
+    name                       = "RTP-External"
+    priority                   = 1001
+    direction                  = "Inbound"
+    access                     = "Allow"
+    protocol                   = "Udp"
+    source_port_range          = "*"
+    destination_port_range     = "40000-60000"
+    source_address_prefix      = var.allowed_rtp_cidr
+    destination_address_prefix = "*"
+  }
+
+  security_rule {
+    name                       = "RTP-VPC"
+    priority                   = 1002
+    direction                  = "Inbound"
+    access                     = "Allow"
+    protocol                   = "Udp"
+    source_port_range          = "*"
+    destination_port_range     = "40000-60000"
+    source_address_prefix      = var.vpc_cidr
+    destination_address_prefix = "*"
+  }
+
+  security_rule {
+    name                       = "RTPEngine-NG"
+    priority                   = 1003
+    direction                  = "Inbound"
+    access                     = "Allow"
+    protocol                   = "Udp"
+    source_port_range          = "*"
+    destination_port_range     = "22222"
+    source_address_prefix      = var.vpc_cidr
+    destination_address_prefix = "*"
+  }
+
+  security_rule {
+    name                       = "RTPEngine-WS"
+    priority                   = 1004
+    direction                  = "Inbound"
+    access                     = "Allow"
+    protocol                   = "Tcp"
+    source_port_range          = "*"
+    destination_port_range     = "8080"
+    source_address_prefix      = var.vpc_cidr
+    destination_address_prefix = "*"
+  }
+
+  security_rule {
+    name                       = "DTMF-Events"
+    priority                   = 1005
+    direction                  = "Inbound"
+    access                     = "Allow"
+    protocol                   = "Udp"
+    source_port_range          = "*"
+    destination_port_range     = "22224-22233"
     source_address_prefix      = var.vpc_cidr
     destination_address_prefix = "*"
   }
@@ -836,7 +857,6 @@ resource "azurerm_mysql_flexible_server" "jambonz" {
   private_dns_zone_id    = azurerm_private_dns_zone.mysql.id
   sku_name               = var.mysql_sku_name
   version                = "8.0.21"
-  # zone omitted - let Azure pick an available zone
 
   storage {
     auto_grow_enabled = true
@@ -844,6 +864,11 @@ resource "azurerm_mysql_flexible_server" "jambonz" {
   }
 
   depends_on = [azurerm_private_dns_zone_virtual_network_link.mysql]
+
+  # Ignore zone changes - Azure provider bug causes drift detection issues
+  lifecycle {
+    ignore_changes = [zone]
+  }
 
   tags = {
     environment = var.environment
@@ -879,14 +904,14 @@ resource "azurerm_mysql_flexible_server_configuration" "require_secure_transport
 # ------------------------------------------------------------------------------
 
 resource "azurerm_redis_cache" "jambonz" {
-  name                = "${var.name_prefix}-redis"
-  location            = azurerm_resource_group.jambonz.location
-  resource_group_name = azurerm_resource_group.jambonz.name
-  capacity            = var.redis_capacity
-  family              = var.redis_family
-  sku_name            = var.redis_sku_name
+  name                 = "${var.name_prefix}-redis"
+  location             = azurerm_resource_group.jambonz.location
+  resource_group_name  = azurerm_resource_group.jambonz.name
+  capacity             = var.redis_capacity
+  family               = var.redis_family
+  sku_name             = var.redis_sku_name
   non_ssl_port_enabled = true
-  minimum_tls_version = "1.2"
+  minimum_tls_version  = "1.2"
 
   redis_configuration {
     maxmemory_policy = "allkeys-lru"

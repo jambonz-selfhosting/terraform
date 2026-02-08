@@ -1,40 +1,6 @@
 # Compute resources for jambonz medium cluster on Azure
-# Web/Monitoring VM, SBC VMSS, Feature Server VMSS, Recording VMSS
-
-# ------------------------------------------------------------------------------
-# DATA SOURCES - IMAGES
-# ------------------------------------------------------------------------------
-
-data "azurerm_image" "sbc" {
-  count               = var.sbc_image_id == "" ? 1 : 0
-  name                = var.sbc_image_name
-  resource_group_name = var.image_resource_group
-}
-
-data "azurerm_image" "feature_server" {
-  count               = var.feature_server_image_id == "" ? 1 : 0
-  name                = var.feature_server_image_name
-  resource_group_name = var.image_resource_group
-}
-
-data "azurerm_image" "web_monitoring" {
-  count               = var.web_monitoring_image_id == "" ? 1 : 0
-  name                = var.web_monitoring_image_name
-  resource_group_name = var.image_resource_group
-}
-
-data "azurerm_image" "recording" {
-  count               = var.deploy_recording_cluster && var.recording_image_id == "" ? 1 : 0
-  name                = var.recording_image_name
-  resource_group_name = var.image_resource_group
-}
-
-locals {
-  sbc_image_id            = var.sbc_image_id != "" ? var.sbc_image_id : data.azurerm_image.sbc[0].id
-  feature_server_image_id = var.feature_server_image_id != "" ? var.feature_server_image_id : data.azurerm_image.feature_server[0].id
-  web_monitoring_image_id = var.web_monitoring_image_id != "" ? var.web_monitoring_image_id : data.azurerm_image.web_monitoring[0].id
-  recording_image_id      = var.deploy_recording_cluster ? (var.recording_image_id != "" ? var.recording_image_id : data.azurerm_image.recording[0].id) : ""
-}
+# Web/Monitoring VM, SBC VMs, Feature Server VMSS, Recording VMSS
+# Image IDs are defined in images.tf
 
 # ------------------------------------------------------------------------------
 # WEB/MONITORING SERVER
@@ -335,7 +301,7 @@ resource "azurerm_lb" "recording" {
 
   frontend_ip_configuration {
     name                          = "RecordingFrontend"
-    subnet_id                     = azurerm_subnet.public1.id
+    subnet_id                     = azurerm_subnet.public2.id
     private_ip_address_allocation = "Dynamic"
   }
 
@@ -407,7 +373,7 @@ resource "azurerm_linux_virtual_machine_scale_set" "recording" {
     ip_configuration {
       name                                   = "internal"
       primary                                = true
-      subnet_id                              = azurerm_subnet.public1.id
+      subnet_id                              = azurerm_subnet.public2.id
       load_balancer_backend_address_pool_ids = [azurerm_lb_backend_address_pool.recording[0].id]
     }
 

@@ -191,7 +191,7 @@ resource "google_compute_instance_template" "feature_server" {
     web_monitoring_private_ip = google_compute_instance.web_monitoring.network_interface[0].network_ip
     vpc_cidr                  = var.vpc_cidr
     url_portal                = var.url_portal
-    recording_ws_base_url     = var.deploy_recording_cluster ? "ws://${google_compute_forwarding_rule.recording[0].ip_address}" : "ws://${google_compute_instance.web_monitoring.network_interface[0].network_ip}:3017"
+    recording_ws_base_url     = var.deploy_recording_cluster ? "ws://${google_compute_forwarding_rule.recording[0].ip_address}:3000" : "ws://${google_compute_instance.web_monitoring.network_interface[0].network_ip}:3017"
     scale_in_timeout_seconds  = var.scale_in_timeout_seconds
     project_id                = var.project_id
     zone                      = var.zone
