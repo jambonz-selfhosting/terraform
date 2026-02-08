@@ -1,0 +1,86 @@
+#cloud-config
+# Cloud-init configuration for jambonz Monitoring server on Azure (Large deployment)
+# Handles Grafana, Homer, Jaeger, InfluxDB, Cassandra (no portal/API - that's on web server)
+
+package_update: false
+package_upgrade: false
+
+write_files:
+  - path: /tmp/jambonz-setup.sh
+    permissions: '0755'
+    content: |
+      #!/bin/bash -xe
+
+      # Variables passed from Terraform
+      MYSQL_HOST="${mysql_host}"
+      MYSQL_USER="${mysql_user}"
+      MYSQL_PASSWORD="${mysql_password}"
+      JWT_SECRET="${jwt_secret}"
+      VPC_CIDR="${vpc_cidr}"
+      KEY_VAULT_NAME="${key_vault_name}"
+
+      echo "Starting jambonz Monitoring server configuration for Azure large deployment"
+
+      # Detecting the Linux distribution
+      if grep -q 'ID="rhel"' /etc/os-release 2>/dev/null || grep -q 'ID=rhel' /etc/os-release 2>/dev/null; then
+          DEFAULT_USER=admin
+          NGINX_CONFIG=/etc/nginx/conf.d/default.conf
+
+          echo "Restarting postgresql"
+          systemctl restart postgresql-12 || true
+
+          echo "Disabling firewalld"
+          sudo systemctl stop firewalld || true
+          sudo systemctl disable firewalld || true
+      else
+          DEFAULT_USER=admin
+          NGINX_CONFIG=/etc/nginx/sites-available/default
+      fi
+
+      # Always use jambonz user for apps
+      USER=jambonz
+      HOME=/home/jambonz
+
+      # Get instance metadata from Azure IMDS
+      echo "Getting instance metadata from Azure IMDS..."
+      PRIVATE_IP=$(curl -s -H Metadata:true --noproxy "*" "http://169.254.169.254/metadata/instance/network/interface/0/ipv4/ipAddress/0/privateIpAddress?api-version=2021-02-01&format=text" 2>/dev/null || hostname -I | awk '{print $1}')
+      INSTANCE_ID=$(curl -s -H Metadata:true --noproxy "*" "http://169.254.169.254/metadata/instance/compute/vmId?api-version=2021-02-01&format=text" 2>/dev/null || hostname)
+
+      # Get the public IP
+      PUBLIC_IP=$(curl -s https://api.ipify.org 2>/dev/null || echo "")
+
+      echo "Public IP: $PUBLIC_IP"
+      echo "Private IP: $PRIVATE_IP"
+      echo "Instance ID: $INSTANCE_ID"
+
+      # Configure telegraf to send to itself (local monitoring server)
+      sudo sed -i -e "s/influxdb:8086/127.0.0.1:8086/g" /etc/telegraf/telegraf.conf
+      sudo systemctl restart telegraf
+
+      # Start monitoring services
+      echo "Starting monitoring services..."
+
+      # Restart heplify-server (Homer SIP capture)
+      sudo systemctl restart heplify-server.service || true
+
+      # Restart cassandra and give it time to come up
+      echo "Restarting cassandra..."
+      sudo systemctl restart cassandra.service || true
+      sleep 60
+
+      echo "Restarting jaeger"
+      sudo systemctl restart jaeger-collector.service || true
+      sudo systemctl restart jaeger-query.service || true
+
+      # Start InfluxDB
+      sudo systemctl restart influxdb || true
+
+      # Start Grafana
+      sudo systemctl restart grafana-server || true
+
+      echo "Monitoring server setup complete!"
+
+runcmd:
+  - /tmp/jambonz-setup.sh > /var/log/jambonz-setup.log 2>&1
+
+final_message: "jambonz Monitoring server cloud-init configuration complete after $UPTIME seconds"

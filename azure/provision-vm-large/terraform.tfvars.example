@@ -1,4 +1,4 @@
-# Example Terraform variables for jambonz medium cluster deployment on Azure
+# Example Terraform variables for jambonz large cluster deployment on Azure
 # Copy this file to terraform.tfvars and fill in your values
 
 # ------------------------------------------------------------------------------
@@ -16,11 +16,13 @@ ssh_public_key = ""  # REQUIRED: Your SSH public key content
 
 # DNS name for the jambonz portal
 # You'll need to create DNS A records pointing to the server IPs for:
-#   - jambonz.example.com         -> web_monitoring_public_ip
-#   - api.jambonz.example.com     -> web_monitoring_public_ip
-#   - grafana.jambonz.example.com -> web_monitoring_public_ip
-#   - homer.jambonz.example.com   -> web_monitoring_public_ip
-#   - sip.jambonz.example.com     -> sbc_public_ip
+#   - jambonz.example.com             -> web_public_ip
+#   - api.jambonz.example.com         -> web_public_ip
+#   - public-apps.jambonz.example.com -> web_public_ip
+#   - grafana.jambonz.example.com     -> monitoring_public_ip
+#   - homer.jambonz.example.com       -> monitoring_public_ip
+#   - jaeger.jambonz.example.com      -> monitoring_public_ip
+#   - sip.jambonz.example.com         -> sip_public_ips[0]
 url_portal = ""  # REQUIRED: e.g., "jambonz.example.com"
 
 # ------------------------------------------------------------------------------
@@ -77,13 +79,24 @@ allowed_ssh_cidr = "0.0.0.0/0"
 # HTTP/HTTPS access
 allowed_http_cidr = "0.0.0.0/0"
 
-# SIP/RTP access to SBC
-allowed_sbc_cidr = "0.0.0.0/0"
+# SIP signaling access (TCP 5060-5061, 8443, UDP 5060)
+allowed_sip_cidr = "0.0.0.0/0"
+
+# RTP media access (UDP 40000-60000)
+allowed_rtp_cidr = "0.0.0.0/0"
 
 # ------------------------------------------------------------------------------
 # JAMBONZ IMAGE CONFIGURATION
 # Images are pulled from the jambonz Azure Community Gallery
 # See https://docs.jambonz.org/releases for available versions
+#
+# Large deployment uses separate images for:
+# - Web (portal/API only)
+# - Monitoring (Grafana/Homer/Jaeger)
+# - SIP (drachtio signaling)
+# - RTP (rtpengine media)
+# - Feature Server
+# - Recording (optional)
 # ------------------------------------------------------------------------------
 
 # jambonz version (image version in community gallery)
@@ -95,27 +108,48 @@ jambonz_version = "10.0.4"
 # ------------------------------------------------------------------------------
 # VM SIZE CONFIGURATION
 # See https://docs.microsoft.com/en-us/azure/virtual-machines/sizes
+#
+# Large deployment uses smaller VMs per role for cost efficiency:
+# - Web: Standard_F2s_v2 (small, just portal/API)
+# - Monitoring: Standard_F4s_v2 (larger for metrics storage)
+# - SIP: Standard_F2s_v2 (CPU for signaling)
+# - RTP: Standard_F2s_v2 (network for media)
 # ------------------------------------------------------------------------------
 
-sbc_vm_size            = "Standard_F4s_v2"
+web_vm_size            = "Standard_F2s_v2"
+monitoring_vm_size     = "Standard_F4s_v2"
+sip_vm_size            = "Standard_F2s_v2"
+rtp_vm_size            = "Standard_F2s_v2"
 feature_server_vm_size = "Standard_F4s_v2"
-web_monitoring_vm_size = "Standard_F4s_v2"
 recording_vm_size      = "Standard_D2s_v3"
 
-# Disk size for Web/Monitoring server (100-1024 GB)
-web_monitoring_disk_size = 200
+# Disk sizes
+web_disk_size            = 100
+monitoring_disk_size     = 200
+sip_disk_size            = 100
+rtp_disk_size            = 100
+feature_server_disk_size = 100
+recording_disk_size      = 100
+
+# ------------------------------------------------------------------------------
+# SERVER COUNTS
+# Large deployment allows independent scaling of SIP and RTP servers
+# ------------------------------------------------------------------------------
+
+# Number of SIP servers (drachtio signaling)
+sip_count = 1
+
+# Number of RTP servers (rtpengine media)
+rtp_count = 1
 
 # ------------------------------------------------------------------------------
 # SCALE SET CONFIGURATION
+# Feature Server VMSS has higher max capacity for large deployments
 # ------------------------------------------------------------------------------
-
-sbc_desired_capacity = 1
-sbc_min_capacity     = 1
-sbc_max_capacity     = 4
 
 feature_server_desired_capacity = 1
 feature_server_min_capacity     = 1
-feature_server_max_capacity     = 4
+feature_server_max_capacity     = 8
 
 recording_desired_capacity = 1
 recording_min_capacity     = 1

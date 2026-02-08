@@ -24,18 +24,13 @@ provider "azurerm" {
 }
 
 # ------------------------------------------------------------------------------
-# DATA SOURCES
+# COMMUNITY GALLERY IMAGE
+# Images are published to the jambonz Azure Community Gallery
+# Community Gallery image IDs use format: /communityGalleries/{gallery}/images/{image}/versions/{version}
 # ------------------------------------------------------------------------------
 
-# Look up the jambonz image by name or use ID directly
-data "azurerm_image" "jambonz" {
-  count               = var.image_id == "" ? 1 : 0
-  name                = var.image_name
-  resource_group_name = var.image_resource_group
-}
-
 locals {
-  image_id = var.image_id != "" ? var.image_id : data.azurerm_image.jambonz[0].id
+  image_id = "/communityGalleries/${var.community_gallery_name}/images/jambonz-mini/versions/${var.jambonz_version}"
 }
 
 # ------------------------------------------------------------------------------

@@ -1,0 +1,121 @@
+#cloud-config
+# Cloud-init configuration for jambonz RTP server on Azure (Large deployment)
+# Handles RTPEngine and RTP-related sidecars only (no Drachtio)
+
+package_update: false
+package_upgrade: false
+
+write_files:
+  - path: /tmp/jambonz-setup.sh
+    permissions: '0755'
+    content: |
+      #!/bin/bash -xe
+
+      # Variables passed from Terraform
+      MONITORING_PRIVATE_IP="${monitoring_private_ip}"
+      VPC_CIDR="${vpc_cidr}"
+      KEY_VAULT_NAME="${key_vault_name}"
+
+      echo "Starting jambonz RTP server configuration for Azure large deployment"
+
+      # Detecting the Linux distribution
+      if grep -q 'ID="rhel"' /etc/os-release 2>/dev/null || grep -q 'ID=rhel' /etc/os-release 2>/dev/null; then
+          DEFAULT_USER=admin
+          echo "Disabling firewalld"
+          sudo systemctl stop firewalld || true
+          sudo systemctl disable firewalld || true
+      else
+          DEFAULT_USER=admin
+      fi
+
+      # Always use jambonz user for apps
+      USER=jambonz
+      HOME=/home/jambonz
+
+      sudo systemctl stop rtpengine || true
+
+      # Get instance metadata from Azure IMDS
+      echo "Getting instance metadata from Azure IMDS..."
+      PRIVATE_IP=$(curl -s -H Metadata:true --noproxy "*" "http://169.254.169.254/metadata/instance/network/interface/0/ipv4/ipAddress/0/privateIpAddress?api-version=2021-02-01&format=text" 2>/dev/null || hostname -I | awk '{print $1}')
+      INSTANCE_ID=$(curl -s -H Metadata:true --noproxy "*" "http://169.254.169.254/metadata/instance/compute/vmId?api-version=2021-02-01&format=text" 2>/dev/null || hostname)
+
+      echo "Private IP: $PRIVATE_IP"
+      echo "Instance ID: $INSTANCE_ID"
+
+      # Get the public IP (already assigned via Terraform)
+      PUBLIC_IP=$(curl -s https://api.ipify.org 2>/dev/null || echo "")
+      echo "Public IP: $PUBLIC_IP"
+
+      echo "Writing $HOME/apps/ecosystem.config.js..."
+      cat << EOF > $HOME/apps/ecosystem.config.js
+      module.exports = {
+        apps : [
+        {
+          name: 'sbc-rtpengine-sidecar',
+          cwd: '$HOME/apps/sbc-rtpengine-sidecar',
+          script: 'app.js',
+          instance_var: 'INSTANCE_ID',
+          out_file: '$HOME/.pm2/logs/sbc-rtpengine-sidecar.log',
+          err_file: '$HOME/.pm2/logs/sbc-rtpengine-sidecar.log',
+          exec_mode: 'fork',
+          instances: 1,
+          autorestart: true,
+          watch: false,
+          max_memory_restart: '1G',
+          env: {
+            LOGLEVEL: 'info',
+            DTMF_ONLY: true,
+            RTPENGINE_DTMF_LOG_PORT: 22223,
+            ENABLE_METRICS: 1,
+            STATS_HOST: '127.0.0.1',
+            STATS_PORT: 8125,
+            STATS_PROTOCOL: 'tcp',
+            STATS_SAMPLE_RATE:1,
+            STATS_TELEGRAF: 1
+          }
+        }
+        ]
+      };
+      EOF
+      echo "Finished writing config file"
+
+      echo "Restarting telegraf"
+      # Configure telegraf to send to the monitoring server
+      sudo sed -i -e "s/influxdb:8086/$MONITORING_PRIVATE_IP:8086/g" /etc/telegraf/telegraf.conf
+      sudo systemctl restart telegraf
+
+      sudo systemctl daemon-reload
+      sudo systemctl restart rtpengine
+
+      echo "Starting jambonz apps"
+      sudo -u $USER bash -c "pm2 restart $HOME/apps/ecosystem.config.js"
+      sudo env PATH=$PATH:/usr/bin /usr/lib/node_modules/pm2/bin/pm2 startup systemd -u $USER --hp $HOME
+      sudo -u $USER bash -c "pm2 save"
+      sudo systemctl enable pm2-$USER.service
+
+      # Set up scheduled events polling for graceful termination
+      echo "Setting up Azure Scheduled Events polling for graceful termination..."
+      cat > /usr/local/bin/check-scheduled-events.sh << 'EOFSCRIPT'
+      #!/bin/bash
+      # Poll Azure Scheduled Events for termination notification
+      EVENTS=$(curl -s -H Metadata:true --noproxy "*" "http://169.254.169.254/metadata/scheduledevents?api-version=2020-07-01")
+      if echo "$EVENTS" | grep -q '"EventType":"Terminate"'; then
+          echo "Termination event detected, initiating graceful shutdown..."
+          # Signal jambonz apps to stop accepting new calls
+          sudo -u jambonz pm2 sendSignal SIGUSR1 all 2>/dev/null || true
+          # Log the event
+          echo "$(date): Terminate event received" >> /var/log/jambonz-terminate.log
+      fi
+      EOFSCRIPT
+      chmod +x /usr/local/bin/check-scheduled-events.sh
+
+      # Add cron job to poll every 30 seconds
+      echo "* * * * * root /usr/local/bin/check-scheduled-events.sh" >> /etc/crontab
+      echo "* * * * * root sleep 30 && /usr/local/bin/check-scheduled-events.sh" >> /etc/crontab
+
+      echo "RTP server setup complete!"
+
+runcmd:
+  - /tmp/jambonz-setup.sh > /var/log/jambonz-setup.log 2>&1
+
+final_message: "jambonz RTP server cloud-init configuration complete after $UPTIME seconds"

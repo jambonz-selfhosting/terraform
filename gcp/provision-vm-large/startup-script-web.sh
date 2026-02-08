@@ -186,6 +186,30 @@ server {
     proxy_cache_bypass \$http_upgrade;
   }
 }
+server {
+  listen 80;
+  server_name grafana.$URL_PORTAL;
+  location / {
+    proxy_pass http://$MONITORING_PRIVATE_IP:3010;
+    proxy_http_version 1.1;
+    proxy_set_header Upgrade \$http_upgrade;
+    proxy_set_header Connection 'upgrade';
+    proxy_set_header Host \$host;
+    proxy_cache_bypass \$http_upgrade;
+  }
+}
+server {
+  listen 80;
+  server_name homer.$URL_PORTAL;
+  location / {
+    proxy_pass http://$MONITORING_PRIVATE_IP:9080;
+    proxy_http_version 1.1;
+    proxy_set_header Upgrade \$http_upgrade;
+    proxy_set_header Connection 'upgrade';
+    proxy_set_header Host \$host;
+    proxy_cache_bypass \$http_upgrade;
+  }
+}
 EOF
 
 sudo systemctl restart nginx

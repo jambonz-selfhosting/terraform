@@ -2,22 +2,40 @@
 # Copy this file to terraform.tfvars and fill in your values
 
 # ------------------------------------------------------------------------------
-# AZURE CREDENTIALS
-# These can also be set via environment variables:
-#   export ARM_SUBSCRIPTION_ID="your-subscription-id"
-#   export ARM_TENANT_ID="your-tenant-id"
-# Or use Azure CLI: az login
+# REQUIRED VARIABLES
+# You MUST provide values for these - Terraform will fail without them
 # ------------------------------------------------------------------------------
 
-subscription_id = "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
-tenant_id       = "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+# Azure credentials (get these with: az account show)
+subscription_id = ""  # REQUIRED: Your Azure subscription ID
+tenant_id       = ""  # REQUIRED: Your Azure tenant ID
+
+# SSH public key for VM access
+# Example: "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQDx... user@host"
+ssh_public_key = ""  # REQUIRED: Your SSH public key content
+
+# DNS name for the jambonz portal
+# You'll need to create DNS A records pointing to the server IP for:
+#   - jambonz.example.com
+#   - api.jambonz.example.com
+#   - grafana.jambonz.example.com
+#   - homer.jambonz.example.com
+#   - sip.jambonz.example.com
+url_portal = ""  # REQUIRED: e.g., "jambonz.example.com"
 
 # ------------------------------------------------------------------------------
 # DEPLOYMENT CONFIGURATION
 # ------------------------------------------------------------------------------
 
-# Azure region - see https://azure.microsoft.com/en-us/global-infrastructure/locations/
-# Common options: eastus, eastus2, westus2, westeurope, northeurope, etc.
+# Azure region - jambonz images are available in these regions:
+#
+# Americas:      eastus, eastus2, westus2, westus3, centralus,
+#                northcentralus, southcentralus, canadacentral, brazilsouth
+# Europe:        northeurope, westeurope, uksouth, francecentral,
+#                germanywestcentral, swedencentral
+# Asia Pacific:  australiaeast, southeastasia, japaneast, koreacentral, centralindia
+#
+# Need a different region? Contact support@jambonz.org
 location = "eastus"
 
 # Prefix for resource names
@@ -27,16 +45,16 @@ name_prefix = "jambonz"
 environment = "production"
 
 # ------------------------------------------------------------------------------
-# IMAGE CONFIGURATION
-# Use EITHER image_name + image_resource_group OR image_id
+# JAMBONZ IMAGE CONFIGURATION
+# Images are pulled from the jambonz Azure Community Gallery
+# See https://docs.jambonz.org/releases for available versions
 # ------------------------------------------------------------------------------
 
-# Option 1: Reference image by name (requires image_resource_group)
-image_name           = "jambonz-mini-debian-12"
-image_resource_group = "packer-images-rg"
+# jambonz version (image version in community gallery)
+jambonz_version = "10.0.4"
 
-# Option 2: Reference image by full resource ID (takes precedence)
-# image_id = "/subscriptions/xxx/resourceGroups/xxx/providers/Microsoft.Compute/images/jambonz-mini-debian-12"
+# Community gallery name (default should work for most users)
+# community_gallery_name = "jambonz-8962e4f5-da0f-41ee-b094-8680ad38d302"
 
 # ------------------------------------------------------------------------------
 # INSTANCE CONFIGURATION
@@ -47,22 +65,14 @@ image_resource_group = "packer-images-rg"
 vm_size = "Standard_D2s_v3"
 
 # OS disk size in GB
-disk_size = 50
-
-# ------------------------------------------------------------------------------
-# SSH CONFIGURATION
-# ------------------------------------------------------------------------------
-
-# SSH public key content (required)
-ssh_public_key = "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAAB... user@host"
+disk_size = 100
 
 # ------------------------------------------------------------------------------
 # NETWORK ACCESS CONTROLS
 # Use x.x.x.x/32 for a single IP, or 0.0.0.0/0 for any IP (less secure)
 # ------------------------------------------------------------------------------
 
-# SSH access - IMPORTANT: Restrict this for security
-allowed_ssh_cidr = "203.0.113.50/32"
+allowed_ssh_cidr = "0.0.0.0/0"
 
 # HTTP/HTTPS access
 allowed_http_cidr = "0.0.0.0/0"
@@ -72,16 +82,3 @@ allowed_sip_cidr = "0.0.0.0/0"
 
 # RTP media access (UDP 40000-60000)
 allowed_rtp_cidr = "0.0.0.0/0"
-
-# ------------------------------------------------------------------------------
-# JAMBONZ CONFIGURATION
-# ------------------------------------------------------------------------------
-
-# DNS name for the jambonz portal
-# You'll need to create DNS A records pointing to the server IP for:
-#   - jambonz.example.com
-#   - api.jambonz.example.com
-#   - grafana.jambonz.example.com
-#   - homer.jambonz.example.com
-#   - sip.jambonz.example.com
-url_portal = "jambonz.example.com"

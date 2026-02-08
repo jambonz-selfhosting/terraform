@@ -1,4 +1,9 @@
-# Variables for jambonz medium cluster deployment on Azure
+# Variables for jambonz large cluster deployment on Azure
+#
+# Large deployment separates:
+# - Web (portal/API) from Monitoring (Grafana/Homer/Jaeger)
+# - SIP (drachtio signaling) from RTP (rtpengine media)
+# This enables independent scaling and resource optimization.
 
 # ------------------------------------------------------------------------------
 # AZURE CREDENTIALS
@@ -146,13 +151,24 @@ variable "allowed_http_cidr" {
   }
 }
 
-variable "allowed_sbc_cidr" {
-  description = "CIDR block allowed SIP/RTP access to SBC"
+variable "allowed_sip_cidr" {
+  description = "CIDR block allowed SIP signaling access"
   type        = string
   default     = "0.0.0.0/0"
 
   validation {
-    condition     = can(cidrhost(var.allowed_sbc_cidr, 0))
+    condition     = can(cidrhost(var.allowed_sip_cidr, 0))
+    error_message = "Must be a valid CIDR block."
+  }
+}
+
+variable "allowed_rtp_cidr" {
+  description = "CIDR block allowed RTP media access"
+  type        = string
+  default     = "0.0.0.0/0"
+
+  validation {
+    condition     = can(cidrhost(var.allowed_rtp_cidr, 0))
     error_message = "Must be a valid CIDR block."
   }
 }
@@ -171,6 +187,7 @@ variable "allowed_smpp_cidr" {
 # ------------------------------------------------------------------------------
 # JAMBONZ IMAGE CONFIGURATION
 # Images are pulled from the jambonz Azure Community Gallery
+# Large deployment uses 6 separate images
 # ------------------------------------------------------------------------------
 
 variable "jambonz_version" {
@@ -187,22 +204,35 @@ variable "community_gallery_name" {
 
 # ------------------------------------------------------------------------------
 # VM SIZE CONFIGURATION
+# Large deployment uses smaller VMs per role for cost efficiency
 # ------------------------------------------------------------------------------
 
-variable "sbc_vm_size" {
-  description = "Azure VM size for SBC servers"
+variable "web_vm_size" {
+  description = "Azure VM size for Web server (portal/API only)"
+  type        = string
+  default     = "Standard_F2s_v2"
+}
+
+variable "monitoring_vm_size" {
+  description = "Azure VM size for Monitoring server (Grafana/Homer/Jaeger)"
   type        = string
   default     = "Standard_F4s_v2"
+}
+
+variable "sip_vm_size" {
+  description = "Azure VM size for SIP servers (drachtio signaling)"
+  type        = string
+  default     = "Standard_F2s_v2"
+}
+
+variable "rtp_vm_size" {
+  description = "Azure VM size for RTP servers (rtpengine media)"
+  type        = string
+  default     = "Standard_F2s_v2"
 }
 
 variable "feature_server_vm_size" {
   description = "Azure VM size for Feature Servers"
-  type        = string
-  default     = "Standard_F4s_v2"
-}
-
-variable "web_monitoring_vm_size" {
-  description = "Azure VM size for Web/Monitoring server"
   type        = string
   default     = "Standard_F4s_v2"
 }
@@ -213,24 +243,50 @@ variable "recording_vm_size" {
   default     = "Standard_D2s_v3"
 }
 
-variable "web_monitoring_disk_size" {
-  description = "Disk size in GB for the Web/Monitoring server"
-  type        = number
-  default     = 200
+# ------------------------------------------------------------------------------
+# DISK SIZE CONFIGURATION
+# ------------------------------------------------------------------------------
 
-  validation {
-    condition     = var.web_monitoring_disk_size >= 100 && var.web_monitoring_disk_size <= 1024
-    error_message = "Disk size must be between 100 and 1024 GB."
-  }
-}
-
-variable "sbc_disk_size" {
-  description = "Disk size in GB for SBC instances"
+variable "web_disk_size" {
+  description = "Disk size in GB for the Web server"
   type        = number
   default     = 100
 
   validation {
-    condition     = var.sbc_disk_size >= 100 && var.sbc_disk_size <= 1024
+    condition     = var.web_disk_size >= 100 && var.web_disk_size <= 1024
+    error_message = "Disk size must be between 100 and 1024 GB."
+  }
+}
+
+variable "monitoring_disk_size" {
+  description = "Disk size in GB for the Monitoring server (larger for metrics storage)"
+  type        = number
+  default     = 200
+
+  validation {
+    condition     = var.monitoring_disk_size >= 100 && var.monitoring_disk_size <= 1024
+    error_message = "Disk size must be between 100 and 1024 GB."
+  }
+}
+
+variable "sip_disk_size" {
+  description = "Disk size in GB for SIP server instances"
+  type        = number
+  default     = 100
+
+  validation {
+    condition     = var.sip_disk_size >= 100 && var.sip_disk_size <= 1024
+    error_message = "Disk size must be between 100 and 1024 GB."
+  }
+}
+
+variable "rtp_disk_size" {
+  description = "Disk size in GB for RTP server instances"
+  type        = number
+  default     = 100
+
+  validation {
+    condition     = var.rtp_disk_size >= 100 && var.rtp_disk_size <= 1024
     error_message = "Disk size must be between 100 and 1024 GB."
   }
 }
@@ -258,22 +314,35 @@ variable "recording_disk_size" {
 }
 
 # ------------------------------------------------------------------------------
-# SBC CONFIGURATION
+# SIP/RTP SERVER CONFIGURATION
+# Large deployment scales SIP and RTP independently
 # ------------------------------------------------------------------------------
 
-variable "sbc_count" {
-  description = "Number of SBC instances to deploy (each gets a static public IP)"
+variable "sip_count" {
+  description = "Number of SIP server instances to deploy (each gets a static public IP)"
   type        = number
   default     = 1
 
   validation {
-    condition     = var.sbc_count >= 1 && var.sbc_count <= 10
-    error_message = "SBC count must be between 1 and 10."
+    condition     = var.sip_count >= 1 && var.sip_count <= 10
+    error_message = "SIP count must be between 1 and 10."
+  }
+}
+
+variable "rtp_count" {
+  description = "Number of RTP server instances to deploy (each gets a static public IP)"
+  type        = number
+  default     = 1
+
+  validation {
+    condition     = var.rtp_count >= 1 && var.rtp_count <= 10
+    error_message = "RTP count must be between 1 and 10."
   }
 }
 
 # ------------------------------------------------------------------------------
 # SCALE SET CONFIGURATION
+# Large deployment has increased max capacity for Feature Servers
 # ------------------------------------------------------------------------------
 
 variable "feature_server_desired_capacity" {
@@ -289,9 +358,9 @@ variable "feature_server_min_capacity" {
 }
 
 variable "feature_server_max_capacity" {
-  description = "Maximum number of Feature Server instances"
+  description = "Maximum number of Feature Server instances (increased for large deployment)"
   type        = number
-  default     = 4
+  default     = 8
 }
 
 variable "recording_desired_capacity" {

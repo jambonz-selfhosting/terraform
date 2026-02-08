@@ -17,8 +17,6 @@ This Terraform configuration deploys a single-instance jambonz server on Azure.
    brew install terraform  # macOS
    ```
 
-4. **jambonz Image**: Build a jambonz image using Packer. The image should be available in your Azure subscription.
-
 ## Quick Start
 
 1. **Clone and configure**:
@@ -29,7 +27,7 @@ This Terraform configuration deploys a single-instance jambonz server on Azure.
 
 2. **Edit `terraform.tfvars`** with your values:
    - Azure subscription and tenant IDs
-   - Image name and resource group (or image ID)
+   - jambonz version (defaults to latest)
    - URL portal domain
    - SSH public key
 
@@ -59,14 +57,26 @@ This Terraform configuration deploys a single-instance jambonz server on Azure.
 
 ## Configuration
 
+### jambonz Images
+
+jambonz images are published to an **Azure Community Gallery** and are automatically pulled during deployment. No image building or manual setup is required.
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `jambonz_version` | `10.0.4` | jambonz version to deploy |
+| `community_gallery_name` | `jambonz-8962e4f5-da0f-41ee-b094-8680ad38d302` | Azure Community Gallery name |
+
+To use a different version, set `jambonz_version` in your `terraform.tfvars`:
+```hcl
+jambonz_version = "10.0.5"
+```
+
 ### Required Variables
 
 | Variable | Description |
 |----------|-------------|
 | `subscription_id` | Azure subscription ID |
 | `tenant_id` | Azure tenant ID |
-| `image_name` | Name of the jambonz image in Azure (or use `image_id`) |
-| `image_resource_group` | Resource group containing the image (required if using `image_name`) |
 | `ssh_public_key` | SSH public key for VM access |
 | `url_portal` | DNS name for the jambonz portal |
 
@@ -74,9 +84,10 @@ This Terraform configuration deploys a single-instance jambonz server on Azure.
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `location` | `eastus` | Azure region |
+| `jambonz_version` | `10.0.4` | jambonz version to deploy |
+| `location` | `eastus` | Azure region (see supported regions below) |
 | `vm_size` | `Standard_D2s_v3` | VM size |
-| `disk_size` | `50` | OS disk size in GB |
+| `disk_size` | `100` | OS disk size in GB |
 | `allowed_ssh_cidr` | `0.0.0.0/0` | CIDR for SSH access |
 | `allowed_http_cidr` | `0.0.0.0/0` | CIDR for HTTP access |
 | `allowed_sip_cidr` | `0.0.0.0/0` | CIDR for SIP access |
@@ -84,6 +95,24 @@ This Terraform configuration deploys a single-instance jambonz server on Azure.
 | `apiban_key` | `""` | APIBan API key for single-key mode |
 | `apiban_client_id` | `""` | APIBan client ID for multi-key mode |
 | `apiban_client_secret` | `""` | APIBan client secret for multi-key mode |
+
+### Supported Regions
+
+jambonz images are available in the following Azure regions:
+
+| Region | Americas | Europe | Asia Pacific |
+|--------|----------|--------|--------------|
+| | eastus | northeurope | australiaeast |
+| | eastus2 | westeurope | southeastasia |
+| | westus2 | uksouth | japaneast |
+| | westus3 | francecentral | koreacentral |
+| | centralus | germanywestcentral | centralindia |
+| | northcentralus | swedencentral | |
+| | southcentralus | | |
+| | canadacentral | | |
+| | brazilsouth | | |
+
+**Need a different region?** Contact [support@jambonz.org](mailto:support@jambonz.org) to request additional regions.
 
 ### APIBan Configuration (Optional)
 
