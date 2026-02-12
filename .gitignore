@@ -45,4 +45,5 @@ CLAUDE.md
 
 # Kubernetes cluster terraforms (not yet ready for release)
 aws/provision-eks-cluster/
+azure/provision-aks-cluster/
 gcp/provision-gke-cluster/
