@@ -1,0 +1,65 @@
+# Example Terraform variables file for jambonz mini deployment on OCI
+# Copy this file to terraform.tfvars and fill in your values
+
+# ------------------------------------------------------------------------------
+# OCI CREDENTIALS
+# Get these from OCI Console -> Identity -> Users -> API Keys
+# ------------------------------------------------------------------------------
+
+tenancy_ocid     = "ocid1.tenancy.oc1..aaaaaaa..."
+user_ocid        = "ocid1.user.oc1..aaaaaaa..."
+fingerprint      = "aa:bb:cc:dd:ee:ff:00:11:22:33:44:55:66:77:88:99"
+private_key_path = "~/.oci/oci_api_key.pem"
+compartment_id   = "ocid1.compartment.oc1..aaaaaaa..."
+region           = "us-ashburn-1"
+
+# ------------------------------------------------------------------------------
+# JAMBONZ IMAGE (Optional)
+# Default uses the official jambonz image. Override only if using a custom image.
+# ------------------------------------------------------------------------------
+
+# image_par_url = "https://id580apywcz8.objectstorage.us-ashburn-1.oci.customer-oci.com/p/8EqWqw5irenhdhyRciBaH6PratRrR9EZAv8YOHLLls8k431-DiYxufUBuw1b89cB/n/id580apywcz8/b/jambonz-images/o/jambonz-mini-v10.0.4.oci"
+
+# ------------------------------------------------------------------------------
+# INSTANCE CONFIGURATION
+# Adjust based on expected call volume
+# ------------------------------------------------------------------------------
+
+shape         = "VM.Standard.E4.Flex"
+ocpus         = 4
+memory_in_gbs = 8
+disk_size     = 200
+
+# ------------------------------------------------------------------------------
+# SSH ACCESS
+# Your SSH public key for VM access
+# ------------------------------------------------------------------------------
+
+ssh_public_key = "ssh-rsa AAAA... user@host"
+
+# ------------------------------------------------------------------------------
+# JAMBONZ CONFIGURATION
+# ------------------------------------------------------------------------------
+
+url_portal = "jambonz.example.com"
+
+# ------------------------------------------------------------------------------
+# NETWORK ACCESS CONTROLS (Optional)
+# Restrict access to specific CIDR blocks for security
+# Default is 0.0.0.0/0 (allow from anywhere)
+# ------------------------------------------------------------------------------
+
+# allowed_ssh_cidr  = "203.0.113.0/24"  # Your office IP range
+# allowed_http_cidr = "0.0.0.0/0"
+# allowed_sip_cidr  = "0.0.0.0/0"
+# allowed_rtp_cidr  = "0.0.0.0/0"
+
+# ------------------------------------------------------------------------------
+# APIBAN (Optional)
+# Get a free key at https://apiban.org/getkey.html
+# Or use client credentials for multi-key mode
+# ------------------------------------------------------------------------------
+
+# apiban_key           = "your-apiban-api-key"
+# apiban_client_id     = ""
+# apiban_client_secret = ""

@@ -74,6 +74,25 @@ server_types:
       - telegraf
     pm2_processes: []  # No PM2 on recording servers
 
+  # Mini deployment - All-in-one single server
+  mini:
+    description: "All-in-one mini deployment (all services on one VM)"
+    systemd_services:
+      - drachtio
+      - rtpengine
+      - freeswitch
+      - mysql
+      - redis
+      - grafana-server
+      - telegraf
+    pm2_processes:
+      - inbound
+      - outbound
+      - sbc-call-router
+      - feature-server
+      - webapp
+      - api-server
+
   # SIP Server (Large deployment - SIP signaling only)
   sip:
     description: "SIP Server for signaling only (large deployment)"
@@ -177,6 +196,9 @@ service_checks:
     aws:
       command: "sudo cloud-init status"
       success_indicator: "status: done"
+    oci:
+      command: "sudo cloud-init status"
+      success_indicator: "status: done"
 
 # Optional services that won't cause failures if missing
 optional_services:
@@ -206,6 +228,13 @@ service_aliases:
     influxdb:
       - influxdb.service
       - influxd
+    mysql:
+      - mysqld
+      - mysql.service
+      - mysqld.service
+    redis:
+      - redis-server
+      - redis.service
 
   # PM2 process aliases
   pm2:

@@ -153,13 +153,21 @@ def provision_tls_certificates(
     # Step 1: Discover domains from nginx
     print("Step 1: Discovering domains from nginx configuration...")
     try:
+        # Try both Debian/Ubuntu style (sites-enabled) and RHEL/Oracle style (conf.d)
+        # Use shell to check both locations and combine results
+        discover_cmd = """
+        (
+            sudo grep -h 'server_name' /etc/nginx/sites-enabled/* 2>/dev/null || true
+            sudo grep -h 'server_name' /etc/nginx/conf.d/*.conf 2>/dev/null || true
+        ) | grep -v '#' | sed 's/.*server_name//g' | sed 's/;//g' | tr -s ' ' '\\n' | grep -v '^$' | sort -u
+        """
         stdout, stderr, exit_code = run_ssh_command(
             host=host,
-            command="sudo grep -h 'server_name' /etc/nginx/sites-enabled/* | grep -v '#' | sed 's/.*server_name//g' | sed 's/;//g' | tr -s ' ' '\n' | grep -v '^$' | sort -u",
+            command=discover_cmd,
             ssh_config=ssh_config
         )
 
-        if exit_code != 0 or not stdout.strip():
+        if not stdout.strip():
             print("❌ Failed to discover domains from nginx")
             return False
 
@@ -415,17 +423,29 @@ def main(terraform_dir, email, config, skip_dns, skip_tls, skip_webapp, staging)
     tf_outputs = run_terraform_output(tf_dir)
 
     portal_url = tf_outputs.get('portal_url', '').replace('http://', '').replace('https://', '')
-    web_ip = tf_outputs.get('web_monitoring_public_ip')
+    # Support both medium/large (web_monitoring_public_ip) and mini (public_ip) deployments
+    web_ip = tf_outputs.get('web_monitoring_public_ip') or tf_outputs.get('public_ip')
     sbc_ips = tf_outputs.get('sbc_public_ips', [])
-    portal_password = tf_outputs.get('portal_password')
+    # For mini deployments, the single VM handles SBC too
+    is_mini = 'mini' in str(tf_dir).lower()
+    if is_mini and not sbc_ips and web_ip:
+        sbc_ips = [web_ip]  # Mini uses same IP for all services
+    portal_password = tf_outputs.get('portal_password') or tf_outputs.get('admin_password')
 
     if not portal_url or not web_ip or not sbc_ips:
         print("❌ Missing required terraform outputs")
+        print(f"   portal_url: {portal_url}")
+        print(f"   web_ip: {web_ip}")
+        print(f"   sbc_ips: {sbc_ips}")
         sys.exit(1)
 
-    print(f"✓ Portal URL: {portal_url}")
-    print(f"✓ Web/Monitoring IP: {web_ip}")
-    print(f"✓ SBC IPs: {', '.join(sbc_ips)}")
+    if is_mini:
+        print(f"✓ Portal URL: {portal_url}")
+        print(f"✓ Mini Server IP: {web_ip} (all-in-one)")
+    else:
+        print(f"✓ Portal URL: {portal_url}")
+        print(f"✓ Web/Monitoring IP: {web_ip}")
+        print(f"✓ SBC IPs: {', '.join(sbc_ips)}")
     print()
 
     # Track results
