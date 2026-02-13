@@ -142,17 +142,17 @@ jambonz_version = "10.0.5"
 
 jambonz images are available in the following Azure regions:
 
-| Region | Americas | Europe | Asia Pacific |
-|--------|----------|--------|--------------|
-| | eastus | northeurope | australiaeast |
-| | eastus2 | westeurope | southeastasia |
-| | westus2 | uksouth | japaneast |
-| | westus3 | francecentral | koreacentral |
-| | centralus | germanywestcentral | centralindia |
-| | northcentralus | swedencentral | |
-| | southcentralus | | |
-| | canadacentral | | |
-| | brazilsouth | | |
+| Region | Americas | Europe | Asia Pacific | Africa |
+|--------|----------|--------|--------------|--------|
+| | eastus | northeurope | australiaeast | southafricanorth |
+| | eastus2 | westeurope | southeastasia | |
+| | westus2 | uksouth | japaneast | |
+| | westus3 | francecentral | koreacentral | |
+| | centralus | germanywestcentral | centralindia | |
+| | northcentralus | swedencentral | | |
+| | southcentralus | | | |
+| | canadacentral | | | |
+| | brazilsouth | | | |
 
 **Need a different region?** Contact [support@jambonz.org](mailto:support@jambonz.org) to request additional regions.
 
