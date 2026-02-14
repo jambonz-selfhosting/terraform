@@ -101,6 +101,31 @@ write_files:
       # Change the database password
       NEW_DB_PASSWD="${db_password}"
 
+      # Ensure jambones database and admin user exist
+      # On other providers the image is pre-seeded, but OCI Oracle Linux images
+      # may start with a fresh MySQL that needs initialization
+      if ! mysql -h 127.0.0.1 -u admin -pJambonzR0ck$ -e "SELECT 1" &>/dev/null; then
+          echo "Default admin user not found, initializing MySQL..."
+          # Try connecting as root (Oracle Linux mysqld default)
+          MYSQL_ROOT_CMD="mysql -h 127.0.0.1 -u root"
+          # Some Oracle Linux installs set a random root password in /var/log/mysqld.log
+          TEMP_PASSWD=$(grep 'temporary password' /var/log/mysqld.log 2>/dev/null | tail -1 | awk '{print $NF}')
+          if [ -n "$TEMP_PASSWD" ]; then
+              MYSQL_ROOT_CMD="mysql -h 127.0.0.1 -u root -p$TEMP_PASSWD --connect-expired-password"
+          fi
+          $MYSQL_ROOT_CMD -e "CREATE DATABASE IF NOT EXISTS jambones" || true
+          $MYSQL_ROOT_CMD -e "CREATE USER IF NOT EXISTS 'admin'@'%' IDENTIFIED BY 'JambonzR0ck\$'" || true
+          $MYSQL_ROOT_CMD -e "GRANT ALL PRIVILEGES ON jambones.* TO 'admin'@'%'" || true
+          $MYSQL_ROOT_CMD -e "FLUSH PRIVILEGES" || true
+
+          # Seed the database schema and data
+          if [ -f "$HOME/apps/api-server/db/jambones-sql.sql" ]; then
+              echo "Seeding jambones database schema..."
+              mysql -h 127.0.0.1 -u admin -pJambonzR0ck$ -D jambones < $HOME/apps/api-server/db/jambones-sql.sql || true
+              mysql -h 127.0.0.1 -u admin -pJambonzR0ck$ -D jambones < $HOME/apps/api-server/db/seed-production-database-open-source.sql || true
+          fi
+      fi
+
       if [ -f "$HOME/apps/ecosystem.config.js" ]; then
           echo "alter user 'admin'@'%' identified by '$NEW_DB_PASSWD'" | mysql -h 127.0.0.1 -u admin -D jambones -pJambonzR0ck$ || true
           sudo sed -i -e "s/\(.*\)JAMBONES_MYSQL_PASSWORD.*/\1JAMBONES_MYSQL_PASSWORD: '$NEW_DB_PASSWD',/g" $HOME/apps/ecosystem.config.js
@@ -232,20 +257,20 @@ write_files:
 
       # Configure drachtio service
       if [ -f /etc/systemd/system/drachtio.service ]; then
-          sudo sed -i -e "s/MYSQL_HOST=/MYSQL_HOST=127.0.0.1/g" /etc/systemd/system/drachtio.service
-          sudo sed -i -e "s/MYSQL_USER=/MYSQL_USER=admin/g" /etc/systemd/system/drachtio.service
-          sudo sed -i -e "s/MYSQL_PASSWORD=/MYSQL_PASSWORD=$NEW_DB_PASSWD/g" /etc/systemd/system/drachtio.service
-          sudo sed -i -e "s/MYSQL_DATABASE=/MYSQL_DATABASE=jambones/g" /etc/systemd/system/drachtio.service
+          sudo sed -i -e "s/JAMBONES_MYSQL_HOST=/JAMBONES_MYSQL_HOST=127.0.0.1/g" /etc/systemd/system/drachtio.service
+          sudo sed -i -e "s/JAMBONES_MYSQL_USER=/JAMBONES_MYSQL_USER=admin/g" /etc/systemd/system/drachtio.service
+          sudo sed -i -e "s/JAMBONES_MYSQL_PASSWORD=/JAMBONES_MYSQL_PASSWORD=$NEW_DB_PASSWD/g" /etc/systemd/system/drachtio.service
+          sudo sed -i -e "s/JAMBONES_MYSQL_DATABASE=/JAMBONES_MYSQL_DATABASE=jambones/g" /etc/systemd/system/drachtio.service
           sudo sed -i -e "s/JAMBONES_REDIS_HOST=/JAMBONES_REDIS_HOST=127.0.0.1/g" /etc/systemd/system/drachtio.service
           sudo sed -i -e "s/JAMBONES_REDIS_PORT=/JAMBONES_REDIS_PORT=6379/g" /etc/systemd/system/drachtio.service
       fi
 
       # Configure freeswitch service
       if [ -f /etc/systemd/system/freeswitch.service ]; then
-          sudo sed -i -e "s/MYSQL_HOST=/MYSQL_HOST=127.0.0.1/g" /etc/systemd/system/freeswitch.service
-          sudo sed -i -e "s/MYSQL_USER=/MYSQL_USER=admin/g" /etc/systemd/system/freeswitch.service
-          sudo sed -i -e "s/MYSQL_PASSWORD=/MYSQL_PASSWORD=$NEW_DB_PASSWD/g" /etc/systemd/system/freeswitch.service
-          sudo sed -i -e "s/MYSQL_DATABASE=/MYSQL_DATABASE=jambones/g" /etc/systemd/system/freeswitch.service
+          sudo sed -i -e "s/JAMBONES_MYSQL_HOST=/JAMBONES_MYSQL_HOST=127.0.0.1/g" /etc/systemd/system/freeswitch.service
+          sudo sed -i -e "s/JAMBONES_MYSQL_USER=/JAMBONES_MYSQL_USER=admin/g" /etc/systemd/system/freeswitch.service
+          sudo sed -i -e "s/JAMBONES_MYSQL_PASSWORD=/JAMBONES_MYSQL_PASSWORD=$NEW_DB_PASSWD/g" /etc/systemd/system/freeswitch.service
+          sudo sed -i -e "s/JAMBONES_MYSQL_DATABASE=/JAMBONES_MYSQL_DATABASE=jambones/g" /etc/systemd/system/freeswitch.service
           sudo sed -i -e "s/JAMBONES_REDIS_HOST=/JAMBONES_REDIS_HOST=127.0.0.1/g" /etc/systemd/system/freeswitch.service
           sudo sed -i -e "s/JAMBONES_REDIS_PORT=/JAMBONES_REDIS_PORT=6379/g" /etc/systemd/system/freeswitch.service
       fi

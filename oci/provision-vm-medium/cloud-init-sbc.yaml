@@ -65,13 +65,25 @@ write_files:
       PUBLIC_IP=$(curl -s -H "Authorization: Bearer Oracle" http://169.254.169.254/opc/v2/vnics/ 2>/dev/null | jq -r '.[0].publicIp' 2>/dev/null || curl -s https://api.ipify.org 2>/dev/null || echo "")
       echo "Public IP: $PUBLIC_IP"
 
+      # Wait for Redis to be available (web_monitoring server may still be initializing)
+      echo "Waiting for Redis at $REDIS_HOST:$REDIS_PORT..."
+      for i in $(seq 1 60); do
+          if redis-cli -h $REDIS_HOST -p $REDIS_PORT ping 2>/dev/null | grep -q PONG; then
+              echo "Redis is available"
+              break
+          fi
+          echo "Redis not yet available, attempt $i/60..."
+          sleep 10
+      done
+
       # Configure drachtio service
-      sudo sed -i -e "s/MYSQL_HOST=/MYSQL_HOST=$MYSQL_HOST/g" /etc/systemd/system/drachtio.service
-      sudo sed -i -e "s/MYSQL_USER=/MYSQL_USER=$MYSQL_USER/g" /etc/systemd/system/drachtio.service
-      sudo sed -i -e "s/MYSQL_PASSWORD=/MYSQL_PASSWORD=$MYSQL_PASSWORD/g" /etc/systemd/system/drachtio.service
-      sudo sed -i -e "s/MYSQL_DATABASE=/MYSQL_DATABASE=jambones/g" /etc/systemd/system/drachtio.service
+      sudo sed -i -e "s/JAMBONES_MYSQL_HOST=/JAMBONES_MYSQL_HOST=$MYSQL_HOST/g" /etc/systemd/system/drachtio.service
+      sudo sed -i -e "s/JAMBONES_MYSQL_USER=/JAMBONES_MYSQL_USER=$MYSQL_USER/g" /etc/systemd/system/drachtio.service
+      sudo sed -i -e "s/JAMBONES_MYSQL_PASSWORD=/JAMBONES_MYSQL_PASSWORD=$MYSQL_PASSWORD/g" /etc/systemd/system/drachtio.service
+      sudo sed -i -e "s/JAMBONES_MYSQL_DATABASE=/JAMBONES_MYSQL_DATABASE=jambones/g" /etc/systemd/system/drachtio.service
       sudo sed -i -e "s/JAMBONES_REDIS_HOST=/JAMBONES_REDIS_HOST=$REDIS_HOST/g" /etc/systemd/system/drachtio.service
       sudo sed -i -e "s/JAMBONES_REDIS_PORT=/JAMBONES_REDIS_PORT=$REDIS_PORT/g" /etc/systemd/system/drachtio.service
+
 
       echo "Writing $HOME/apps/ecosystem.config.js..."
       cat << EOF > $HOME/apps/ecosystem.config.js
@@ -103,6 +115,7 @@ write_files:
             JAMBONES_MYSQL_CONNECTION_LIMIT: 10,
             JAMBONES_REDIS_HOST: '$REDIS_HOST',
             JAMBONES_REDIS_PORT: $REDIS_PORT,
+
             JAMBONES_TIME_SERIES_HOST: '$WEB_MONITORING_PRIVATE_IP',
             ENABLE_METRICS: 1,
             STATS_HOST: '127.0.0.1',
@@ -195,6 +208,7 @@ write_files:
             JAMBONES_MYSQL_CONNECTION_LIMIT: 10,
             JAMBONES_REDIS_HOST: '$REDIS_HOST',
             JAMBONES_REDIS_PORT: $REDIS_PORT,
+
             JAMBONES_TIME_SERIES_HOST: '$WEB_MONITORING_PRIVATE_IP',
             JAMBONES_TRACK_ACCOUNT_CALLS: 0,
             JAMBONES_TRACK_SP_CALLS: 0,
@@ -238,6 +252,7 @@ write_files:
             JAMBONES_MYSQL_CONNECTION_LIMIT: 10,
             JAMBONES_REDIS_HOST: '$REDIS_HOST',
             JAMBONES_REDIS_PORT: $REDIS_PORT,
+
             JAMBONES_TIME_SERIES_HOST: '$WEB_MONITORING_PRIVATE_IP',
             ENABLE_METRICS: 1,
             JAMBONES_TRACK_ACCOUNT_CALLS: 0,

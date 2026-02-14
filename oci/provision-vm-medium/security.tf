@@ -153,6 +153,22 @@ resource "oci_core_network_security_group_security_rule" "web_monitoring_api" {
   }
 }
 
+# Internal - Redis from VCN (TCP 6379)
+resource "oci_core_network_security_group_security_rule" "web_monitoring_redis" {
+  network_security_group_id = oci_core_network_security_group.web_monitoring.id
+  direction                 = "INGRESS"
+  protocol                  = "6"
+  source                    = var.vcn_cidr
+  source_type               = "CIDR_BLOCK"
+  description               = "Redis from VCN"
+  tcp_options {
+    destination_port_range {
+      min = 6379
+      max = 6379
+    }
+  }
+}
+
 # ------------------------------------------------------------------------------
 # SBC NSG
 # ------------------------------------------------------------------------------
@@ -444,18 +460,3 @@ resource "oci_core_network_security_group_security_rule" "database_mysql" {
   }
 }
 
-# Redis from VCN
-resource "oci_core_network_security_group_security_rule" "database_redis" {
-  network_security_group_id = oci_core_network_security_group.database.id
-  direction                 = "INGRESS"
-  protocol                  = "6"
-  source                    = var.vcn_cidr
-  source_type               = "CIDR_BLOCK"
-  description               = "Redis from VCN"
-  tcp_options {
-    destination_port_range {
-      min = 6379
-      max = 6379
-    }
-  }
-}

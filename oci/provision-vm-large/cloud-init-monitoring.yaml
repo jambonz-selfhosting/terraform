@@ -1,0 +1,79 @@
+#cloud-config
+# Cloud-init configuration for jambonz Monitoring server on OCI (Large deployment)
+# Handles Grafana, Homer, Jaeger, InfluxDB, Cassandra, HEPlify, Redis
+
+package_update: false
+package_upgrade: false
+
+write_files:
+  - path: /tmp/jambonz-setup.sh
+    permissions: '0755'
+    content: |
+      #!/bin/bash -xe
+
+      # Variables passed from Terraform
+      URL_PORTAL="${url_portal}"
+      VPC_CIDR="${vpc_cidr}"
+
+      echo "Starting jambonz Monitoring server configuration for OCI large deployment"
+
+      # Detecting the Linux distribution
+      if grep -q 'ID="ol"' /etc/os-release 2>/dev/null || grep -q 'ID="rhel"' /etc/os-release 2>/dev/null || grep -q 'ID=ol' /etc/os-release 2>/dev/null || grep -q 'ID=rhel' /etc/os-release 2>/dev/null; then
+          DEFAULT_USER=admin
+
+          echo "Restarting postgresql"
+          systemctl restart postgresql-12 || true
+
+          echo "Disabling firewalld"
+          sudo systemctl stop firewalld || true
+          sudo systemctl disable firewalld || true
+      else
+          DEFAULT_USER=admin
+      fi
+
+      # Copy SSH authorized_keys from opc user to jambonz user
+      if [ -f /home/opc/.ssh/authorized_keys ] && [ -d /home/jambonz ]; then
+          echo "Copying SSH keys from opc to jambonz user..."
+          mkdir -p /home/jambonz/.ssh
+          cp /home/opc/.ssh/authorized_keys /home/jambonz/.ssh/authorized_keys
+          chown -R jambonz:jambonz /home/jambonz/.ssh
+          chmod 700 /home/jambonz/.ssh
+          chmod 600 /home/jambonz/.ssh/authorized_keys
+      fi
+
+      # Get instance metadata from OCI IMDS
+      echo "Getting instance metadata from OCI IMDS..."
+      PRIVATE_IP=$(curl -s -H "Authorization: Bearer Oracle" http://169.254.169.254/opc/v2/vnics/ 2>/dev/null | jq -r '.[0].privateIp' || hostname -I | awk '{print $1}')
+      INSTANCE_ID=$(curl -s -H "Authorization: Bearer Oracle" http://169.254.169.254/opc/v2/instance/id 2>/dev/null || hostname)
+
+      if [ -z "$PRIVATE_IP" ] || [ "$PRIVATE_IP" = "null" ]; then
+          PRIVATE_IP=$(hostname -I | awk '{print $1}')
+      fi
+
+      PUBLIC_IP=$(curl -s https://api.ipify.org 2>/dev/null || echo "")
+
+      echo "Public IP: $PUBLIC_IP"
+      echo "Private IP: $PRIVATE_IP"
+      echo "Instance ID: $INSTANCE_ID"
+
+      # Configure telegraf to send locally (this IS the monitoring server)
+      sudo sed -i -e "s/influxdb:8086/127.0.0.1:8086/g" /etc/telegraf/telegraf.conf
+      sudo systemctl restart telegraf
+
+      # Start/restart HEPlify server (receives HEP packets from SIP/RTP servers)
+      sudo systemctl restart heplify-server.service || true
+
+      # Restart cassandra and give it time to come up
+      echo "Restarting cassandra..."
+      sudo systemctl restart cassandra.service || true
+      sleep 60
+      echo "Restarting jaeger"
+      sudo systemctl restart jaeger-collector.service || true
+      sudo systemctl restart jaeger-query.service || true
+
+      echo "Monitoring server setup complete!"
+
+runcmd:
+  - /tmp/jambonz-setup.sh > /var/log/jambonz-setup.log 2>&1
+
+final_message: "jambonz Monitoring server cloud-init configuration complete after $UPTIME seconds"

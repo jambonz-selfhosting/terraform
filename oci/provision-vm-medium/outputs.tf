@@ -31,8 +31,8 @@ output "web_monitoring_private_ip" {
 }
 
 output "sbc_public_ips" {
-  description = "Public IP addresses for SBC instances (SIP traffic)"
-  value       = oci_core_instance.sbc[*].public_ip
+  description = "Reserved public IP addresses for SBC instances (SIP traffic) - these persist across instance recreation"
+  value       = oci_core_public_ip.sbc[*].ip_address
 }
 
 output "sbc_private_ips" {
@@ -87,23 +87,21 @@ output "recording_instance_ids" {
 
 output "mysql_endpoint" {
   description = "MySQL HeatWave endpoint"
-  value       = oci_mysql_mysql_db_system.jambonz.endpoints[0].hostname
-  sensitive   = true
+  value       = oci_mysql_mysql_db_system.jambonz.ip_address
 }
 
 output "mysql_port" {
   description = "MySQL HeatWave port"
-  value       = oci_mysql_mysql_db_system.jambonz.endpoints[0].port
+  value       = oci_mysql_mysql_db_system.jambonz.port
 }
 
 output "redis_endpoint" {
-  description = "OCI Cache (Redis) endpoint"
-  value       = oci_redis_redis_cluster.jambonz.primary_endpoint_ip_address
-  sensitive   = true
+  description = "Redis endpoint (on web/monitoring server)"
+  value       = oci_core_instance.web_monitoring.private_ip
 }
 
 output "redis_port" {
-  description = "OCI Cache (Redis) port"
+  description = "Redis port"
   value       = 6379
 }
 
@@ -135,7 +133,7 @@ output "ssh_connection_web_monitoring" {
 
 output "ssh_connection_sbc" {
   description = "SSH connection commands for SBC instances"
-  value       = [for i, ip in oci_core_instance.sbc[*].public_ip : "ssh jambonz@${ip}"]
+  value       = [for i, ip in oci_core_public_ip.sbc[*].ip_address : "ssh jambonz@${ip}"]
 }
 
 output "ssh_connection_feature_server" {
@@ -151,7 +149,7 @@ output "dns_records_required" {
     "grafana.${var.url_portal}"     = oci_core_instance.web_monitoring.public_ip
     "homer.${var.url_portal}"       = oci_core_instance.web_monitoring.public_ip
     "public-apps.${var.url_portal}" = oci_core_instance.web_monitoring.public_ip
-    "sip.${var.url_portal}"         = oci_core_instance.sbc[0].public_ip
+    "sip.${var.url_portal}"         = oci_core_public_ip.sbc[0].ip_address
   }
 }
 

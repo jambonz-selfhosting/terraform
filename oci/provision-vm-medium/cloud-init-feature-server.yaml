@@ -61,6 +61,17 @@ write_files:
       echo "Private IP: $PRIVATE_IP"
       echo "Instance ID: $INSTANCE_ID"
 
+      # Wait for Redis to be available (web_monitoring server may still be initializing)
+      echo "Waiting for Redis at $REDIS_HOST:$REDIS_PORT..."
+      for i in $(seq 1 60); do
+          if redis-cli -h $REDIS_HOST -p $REDIS_PORT ping 2>/dev/null | grep -q PONG; then
+              echo "Redis is available"
+              break
+          fi
+          echo "Redis not yet available, attempt $i/60..."
+          sleep 10
+      done
+
       echo "Writing $HOME/apps/ecosystem.config.js..."
 
       cat << EOF > $HOME/apps/ecosystem.config.js
@@ -101,6 +112,7 @@ write_files:
             JAMBONES_MYSQL_CONNECTION_LIMIT: 10,
             JAMBONES_REDIS_HOST: '$REDIS_HOST',
             JAMBONES_REDIS_PORT: $REDIS_PORT,
+
             JAMBONES_TIME_SERIES_HOST: '$WEB_MONITORING_PRIVATE_IP',
             HTTP_PORT: 3000,
             HTTP_PORT_MAX: 3009,
@@ -121,12 +133,13 @@ write_files:
       echo "Finished writing config file"
 
       # Configure freeswitch service
-      sudo sed -i -e "s/MYSQL_HOST=/MYSQL_HOST=$MYSQL_HOST/g" /etc/systemd/system/freeswitch.service
-      sudo sed -i -e "s/MYSQL_USER=/MYSQL_USER=$MYSQL_USER/g" /etc/systemd/system/freeswitch.service
-      sudo sed -i -e "s/MYSQL_PASSWORD=/MYSQL_PASSWORD=$MYSQL_PASSWORD/g" /etc/systemd/system/freeswitch.service
-      sudo sed -i -e "s/MYSQL_DATABASE=/MYSQL_DATABASE=jambones/g" /etc/systemd/system/freeswitch.service
+      sudo sed -i -e "s/JAMBONES_MYSQL_HOST=/JAMBONES_MYSQL_HOST=$MYSQL_HOST/g" /etc/systemd/system/freeswitch.service
+      sudo sed -i -e "s/JAMBONES_MYSQL_USER=/JAMBONES_MYSQL_USER=$MYSQL_USER/g" /etc/systemd/system/freeswitch.service
+      sudo sed -i -e "s/JAMBONES_MYSQL_PASSWORD=/JAMBONES_MYSQL_PASSWORD=$MYSQL_PASSWORD/g" /etc/systemd/system/freeswitch.service
+      sudo sed -i -e "s/JAMBONES_MYSQL_DATABASE=/JAMBONES_MYSQL_DATABASE=jambones/g" /etc/systemd/system/freeswitch.service
       sudo sed -i -e "s/JAMBONES_REDIS_HOST=/JAMBONES_REDIS_HOST=$REDIS_HOST/g" /etc/systemd/system/freeswitch.service
       sudo sed -i -e "s/JAMBONES_REDIS_PORT=/JAMBONES_REDIS_PORT=$REDIS_PORT/g" /etc/systemd/system/freeswitch.service
+
 
       sudo systemctl daemon-reload
       sudo systemctl restart freeswitch

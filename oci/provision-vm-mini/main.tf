@@ -6,7 +6,7 @@ terraform {
   required_providers {
     oci = {
       source  = "oracle/oci"
-      version = "~> 5.0"
+      version = "~> 6.0"
     }
     random = {
       source  = "hashicorp/random"
@@ -116,6 +116,23 @@ resource "oci_core_route_table" "public" {
 # PUBLIC SUBNET
 # ------------------------------------------------------------------------------
 
+# Security list for public subnet (NSGs handle all rules, this just allows egress)
+resource "oci_core_security_list" "public" {
+  compartment_id = var.compartment_id
+  vcn_id         = oci_core_vcn.jambonz.id
+  display_name   = "${var.name_prefix}-public-sl"
+
+  egress_security_rules {
+    protocol    = "all"
+    destination = "0.0.0.0/0"
+  }
+
+  freeform_tags = {
+    environment = var.environment
+    service     = "jambonz"
+  }
+}
+
 resource "oci_core_subnet" "public" {
   compartment_id             = var.compartment_id
   vcn_id                     = oci_core_vcn.jambonz.id
@@ -124,7 +141,7 @@ resource "oci_core_subnet" "public" {
   dns_label                  = "public"
   prohibit_public_ip_on_vnic = false
   route_table_id             = oci_core_route_table.public.id
-  security_list_ids          = [oci_core_vcn.jambonz.default_security_list_id]
+  security_list_ids          = [oci_core_security_list.public.id]
 
   freeform_tags = {
     environment = var.environment

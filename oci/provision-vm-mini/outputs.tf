@@ -12,7 +12,7 @@ output "instance_name" {
 
 output "public_ip" {
   description = "Public IP address of the jambonz instance"
-  value       = oci_core_instance.jambonz_mini.public_ip
+  value       = oci_core_public_ip.jambonz_mini.ip_address
 }
 
 output "private_ip" {
@@ -42,7 +42,7 @@ output "jaeger_url" {
 
 output "ssh_connection" {
   description = "SSH command to connect to the instance"
-  value       = "ssh jambonz@${oci_core_instance.jambonz_mini.public_ip}"
+  value       = "ssh jambonz@${oci_core_public_ip.jambonz_mini.ip_address}"
 }
 
 output "admin_user" {
@@ -59,12 +59,12 @@ output "admin_password" {
 output "dns_records_required" {
   description = "DNS A records required for the deployment"
   value = {
-    "${var.url_portal}"          = oci_core_instance.jambonz_mini.public_ip
-    "api.${var.url_portal}"      = oci_core_instance.jambonz_mini.public_ip
-    "grafana.${var.url_portal}"  = oci_core_instance.jambonz_mini.public_ip
-    "homer.${var.url_portal}"    = oci_core_instance.jambonz_mini.public_ip
-    "jaeger.${var.url_portal}"   = oci_core_instance.jambonz_mini.public_ip
-    "sip.${var.url_portal}"      = oci_core_instance.jambonz_mini.public_ip
+    "${var.url_portal}"          = oci_core_public_ip.jambonz_mini.ip_address
+    "api.${var.url_portal}"      = oci_core_public_ip.jambonz_mini.ip_address
+    "grafana.${var.url_portal}"  = oci_core_public_ip.jambonz_mini.ip_address
+    "homer.${var.url_portal}"    = oci_core_public_ip.jambonz_mini.ip_address
+    "jaeger.${var.url_portal}"   = oci_core_public_ip.jambonz_mini.ip_address
+    "sip.${var.url_portal}"      = oci_core_public_ip.jambonz_mini.ip_address
   }
 }
 

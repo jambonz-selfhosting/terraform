@@ -29,6 +29,12 @@ write_files:
           DEFAULT_USER=admin
           NGINX_CONFIG=/etc/nginx/conf.d/default.conf
 
+          # Install MySQL client if not present (needed for remote MySQL HeatWave)
+          if ! command -v mysql &>/dev/null; then
+              echo "Installing MySQL client..."
+              sudo dnf install -y mysql 2>/dev/null || sudo yum install -y mysql || true
+          fi
+
           echo "Restarting postgresql"
           systemctl restart postgresql-12 || true
 
@@ -76,6 +82,9 @@ write_files:
       echo "Instance ID: $INSTANCE_ID"
 
       echo "Seeding database..."
+      # OCI MySQL HeatWave doesn't create the database via Terraform (unlike GCP/Azure),
+      # so we need to create it here before seeding
+      mysql -h $MYSQL_HOST -u $MYSQL_USER -p$MYSQL_PASSWORD -e "CREATE DATABASE IF NOT EXISTS jambones"
       DEFAULT_ACCOUNT_SID=$(uuidgen)
       DEFAULT_TOKEN=$(uuidgen)
       sudo sed -i "s/9351f46a-678c-43f5-b8a6-d4eb58d131af/$DEFAULT_ACCOUNT_SID/g" $HOME/apps/api-server/db/seed-production-database-open-source.sql
@@ -194,11 +203,11 @@ write_files:
           server_name $URL_PORTAL;
           location /api/ {
               rewrite ^/api/(.*)$ /\$1 break;
-              proxy_pass http://localhost:3000;
+              proxy_pass http://127.0.0.1:3000;
               proxy_set_header Host \$host;
           }
           location / {
-              proxy_pass http://localhost:3001;
+              proxy_pass http://127.0.0.1:3001;
               proxy_set_header Host \$host;
           }
       }
@@ -206,7 +215,7 @@ write_files:
           listen 80;
           server_name api.$URL_PORTAL;
           location / {
-              proxy_pass http://localhost:3000;
+              proxy_pass http://127.0.0.1:3000;
               proxy_set_header Host \$host;
           }
       }

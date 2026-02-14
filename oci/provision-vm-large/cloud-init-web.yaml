@@ -1,5 +1,6 @@
 #cloud-config
-# Cloud-init configuration for jambonz Web/Monitoring server on OCI
+# Cloud-init configuration for jambonz Web server on OCI (Large deployment)
+# Handles API server, webapp, and public-apps only (no monitoring stack)
 
 package_update: false
 package_upgrade: false
@@ -19,18 +20,21 @@ write_files:
       JWT_SECRET="${jwt_secret}"
       URL_PORTAL="${url_portal}"
       VPC_CIDR="${vpc_cidr}"
+      MONITORING_PRIVATE_IP="${monitoring_private_ip}"
       DEPLOY_RECORDING_CLUSTER="${deploy_recording_cluster}"
 
-      echo "Starting jambonz Web/Monitoring server configuration for OCI deployment"
+      echo "Starting jambonz Web server configuration for OCI large deployment"
 
       # Detecting the Linux distribution
-      # Oracle Linux uses ID="ol", RHEL uses ID="rhel"
       if grep -q 'ID="ol"' /etc/os-release 2>/dev/null || grep -q 'ID="rhel"' /etc/os-release 2>/dev/null || grep -q 'ID=ol' /etc/os-release 2>/dev/null || grep -q 'ID=rhel' /etc/os-release 2>/dev/null; then
           DEFAULT_USER=admin
           NGINX_CONFIG=/etc/nginx/conf.d/default.conf
 
-          echo "Restarting postgresql"
-          systemctl restart postgresql-12 || true
+          # Install MySQL client if not present (needed for remote MySQL HeatWave)
+          if ! command -v mysql &>/dev/null; then
+              echo "Installing MySQL client..."
+              sudo dnf install -y mysql 2>/dev/null || sudo yum install -y mysql || true
+          fi
 
           echo "Disabling firewalld"
           sudo systemctl stop firewalld || true
@@ -45,7 +49,6 @@ write_files:
       HOME=/home/jambonz
 
       # Copy SSH authorized_keys from opc user to jambonz user
-      # OCI only adds SSH keys to the opc user by default
       if [ -f /home/opc/.ssh/authorized_keys ] && [ -d /home/jambonz ]; then
           echo "Copying SSH keys from opc to jambonz user..."
           mkdir -p /home/jambonz/.ssh
@@ -60,7 +63,6 @@ write_files:
       PRIVATE_IP=$(curl -s -H "Authorization: Bearer Oracle" http://169.254.169.254/opc/v2/vnics/ 2>/dev/null | jq -r '.[0].privateIp' || hostname -I | awk '{print $1}')
       INSTANCE_ID=$(curl -s -H "Authorization: Bearer Oracle" http://169.254.169.254/opc/v2/instance/id 2>/dev/null || hostname)
 
-      # Fallback if jq parsing fails
       if [ -z "$PRIVATE_IP" ] || [ "$PRIVATE_IP" = "null" ]; then
           PRIVATE_IP=$(hostname -I | awk '{print $1}')
       fi
@@ -68,7 +70,6 @@ write_files:
           INSTANCE_ID=$(hostname)
       fi
 
-      # Get the public IP
       PUBLIC_IP=$(curl -s https://api.ipify.org 2>/dev/null || echo "")
 
       echo "Public IP: $PUBLIC_IP"
@@ -76,6 +77,7 @@ write_files:
       echo "Instance ID: $INSTANCE_ID"
 
       echo "Seeding database..."
+      mysql -h $MYSQL_HOST -u $MYSQL_USER -p$MYSQL_PASSWORD -e "CREATE DATABASE IF NOT EXISTS jambones"
       DEFAULT_ACCOUNT_SID=$(uuidgen)
       DEFAULT_TOKEN=$(uuidgen)
       sudo sed -i "s/9351f46a-678c-43f5-b8a6-d4eb58d131af/$DEFAULT_ACCOUNT_SID/g" $HOME/apps/api-server/db/seed-production-database-open-source.sql
@@ -131,7 +133,7 @@ write_files:
             JAMBONES_REDIS_HOST: '$REDIS_HOST',
             JAMBONES_REDIS_PORT: $REDIS_PORT,
             JAMBONE_API_VERSION: 'v1',
-            JAMBONES_TIME_SERIES_HOST: '127.0.0.1',
+            JAMBONES_TIME_SERIES_HOST: '$MONITORING_PRIVATE_IP',
             ENABLE_METRICS: 1,
             STATS_HOST: '127.0.0.1',
             STATS_PORT: 8125,
@@ -139,8 +141,8 @@ write_files:
             STATS_TELEGRAF: 1,
             STATS_SAMPLE_RATE: 1,
             HTTP_PORT: 3000,
-            JAEGER_BASE_URL: 'http://127.0.0.1:16686',
-            HOMER_BASE_URL: 'http://127.0.0.1:9080',
+            JAEGER_BASE_URL: 'http://$MONITORING_PRIVATE_IP:16686',
+            HOMER_BASE_URL: 'http://$MONITORING_PRIVATE_IP:9080',
             HOMER_USERNAME: 'admin',
             HOMER_PASSWORD: 'sipcapture',
             JAMBONZ_RECORD_WS_USERNAME: 'jambonz',
@@ -183,22 +185,22 @@ write_files:
       sudo -u $USER bash -c "pm2 save"
       sudo systemctl enable pm2-$USER.service
 
-      # Configure telegraf to send to the monitoring server (which is local)
-      sudo sed -i -e "s/influxdb:8086/127.0.0.1:8086/g" /etc/telegraf/telegraf.conf
+      # Configure telegraf to send to the monitoring server
+      sudo sed -i -e "s/influxdb:8086/$MONITORING_PRIVATE_IP:8086/g" /etc/telegraf/telegraf.conf
       sudo systemctl restart telegraf
 
-      # Configure nginx
+      # Configure nginx (web-only: portal, API, public-apps; proxy grafana/homer to monitoring server)
       sudo cat << EOF > $NGINX_CONFIG
       server {
           listen 80;
           server_name $URL_PORTAL;
           location /api/ {
               rewrite ^/api/(.*)$ /\$1 break;
-              proxy_pass http://localhost:3000;
+              proxy_pass http://127.0.0.1:3000;
               proxy_set_header Host \$host;
           }
           location / {
-              proxy_pass http://localhost:3001;
+              proxy_pass http://127.0.0.1:3001;
               proxy_set_header Host \$host;
           }
       }
@@ -206,7 +208,7 @@ write_files:
           listen 80;
           server_name api.$URL_PORTAL;
           location / {
-              proxy_pass http://localhost:3000;
+              proxy_pass http://127.0.0.1:3000;
               proxy_set_header Host \$host;
           }
       }
@@ -214,7 +216,7 @@ write_files:
         listen 80;
         server_name grafana.$URL_PORTAL;
         location / {
-          proxy_pass http://127.0.0.1:3010;
+          proxy_pass http://$MONITORING_PRIVATE_IP:3010;
           proxy_http_version 1.1;
           proxy_set_header Upgrade \$http_upgrade;
           proxy_set_header Connection 'upgrade';
@@ -226,7 +228,7 @@ write_files:
         listen 80;
         server_name homer.$URL_PORTAL;
         location / {
-          proxy_pass http://127.0.0.1:9080;
+          proxy_pass http://$MONITORING_PRIVATE_IP:9080;
           proxy_http_version 1.1;
           proxy_set_header Upgrade \$http_upgrade;
           proxy_set_header Connection 'upgrade';
@@ -250,16 +252,6 @@ write_files:
 
       sudo systemctl restart nginx
 
-      sudo systemctl restart heplify-server.service || true
-
-      # Restart cassandra and give it time to come up
-      echo "Restarting cassandra..."
-      sudo systemctl restart cassandra.service || true
-      sleep 60
-      echo "Restarting jaeger"
-      sudo systemctl restart jaeger-collector.service || true
-      sudo systemctl restart jaeger-query.service || true
-
       # Configure upload_recordings service
       sudo sed -i -e "s/MYSQL_HOST=/MYSQL_HOST=$MYSQL_HOST/g" /etc/systemd/system/upload_recordings.service
       sudo sed -i -e "s/MYSQL_USER=/MYSQL_USER=$MYSQL_USER/g" /etc/systemd/system/upload_recordings.service
@@ -280,9 +272,9 @@ write_files:
         sudo systemctl disable upload_recordings 2>/dev/null || true
       fi
 
-      echo "Web + monitoring server setup complete!"
+      echo "Web server setup complete!"
 
 runcmd:
   - /tmp/jambonz-setup.sh > /var/log/jambonz-setup.log 2>&1
 
-final_message: "jambonz web/monitoring cloud-init configuration complete after $UPTIME seconds"
+final_message: "jambonz Web server cloud-init configuration complete after $UPTIME seconds"

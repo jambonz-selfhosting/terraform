@@ -34,6 +34,7 @@ resource "oci_network_load_balancer_backend_set" "recording" {
     protocol           = "HTTP"
     port               = 3000
     url_path           = "/health"
+    return_code        = 200
     interval_in_millis = 15000
     timeout_in_millis  = 3000
     retries            = 2

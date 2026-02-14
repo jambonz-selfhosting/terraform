@@ -1,5 +1,13 @@
 # Example Terraform variables for jambonz large cluster deployment on OCI
 # Copy this file to terraform.tfvars and fill in your values
+#
+# Large deployment uses fully separated architecture:
+#   - SIP servers (drachtio only)
+#   - RTP servers (rtpengine only)
+#   - Web server (portal, API, webapp)
+#   - Monitoring server (Redis, Grafana, Homer, Jaeger, InfluxDB)
+#   - Feature servers (FreeSWITCH)
+#   - Recording servers (optional)
 
 # ------------------------------------------------------------------------------
 # OCI CREDENTIALS
@@ -16,12 +24,14 @@ region           = "us-ashburn-1"
 # ------------------------------------------------------------------------------
 # JAMBONZ IMAGE PAR URLs (Optional)
 # Default uses the official jambonz images. Override only if using custom images.
-# Images are imported from Object Storage using Pre-Authenticated Requests
+# Large deployment uses separate images for each role (SIP, RTP, Web, Monitoring)
 # ------------------------------------------------------------------------------
 
-# sbc_image_par_url            = "https://objectstorage.us-ashburn-1.oraclecloud.com/p/xxxxx/n/namespace/b/bucket/o/jambonz-sbc-v10.0.4.oci"
+# sip_image_par_url            = "https://objectstorage.us-ashburn-1.oraclecloud.com/p/xxxxx/n/namespace/b/bucket/o/jambonz-sip-v10.0.4.oci"
+# rtp_image_par_url            = "https://objectstorage.us-ashburn-1.oraclecloud.com/p/xxxxx/n/namespace/b/bucket/o/jambonz-rtp-v10.0.4.oci"
+# web_image_par_url            = "https://objectstorage.us-ashburn-1.oraclecloud.com/p/xxxxx/n/namespace/b/bucket/o/jambonz-web-v10.0.4.oci"
+# monitoring_image_par_url     = "https://objectstorage.us-ashburn-1.oraclecloud.com/p/xxxxx/n/namespace/b/bucket/o/jambonz-monitoring-v10.0.4.oci"
 # feature_server_image_par_url = "https://objectstorage.us-ashburn-1.oraclecloud.com/p/xxxxx/n/namespace/b/bucket/o/jambonz-fs-v10.0.4.oci"
-# web_monitoring_image_par_url = "https://objectstorage.us-ashburn-1.oraclecloud.com/p/xxxxx/n/namespace/b/bucket/o/jambonz-web-monitoring-v10.0.4.oci"
 # recording_image_par_url      = "https://objectstorage.us-ashburn-1.oraclecloud.com/p/xxxxx/n/namespace/b/bucket/o/jambonz-recording-v10.0.4.oci"
 
 # ------------------------------------------------------------------------------
@@ -79,24 +89,37 @@ allowed_rtp_cidr  = "0.0.0.0/0"
 # See https://docs.oracle.com/en-us/iaas/Content/Compute/References/computeshapes.htm
 # ------------------------------------------------------------------------------
 
-# Web/Monitoring Server
-web_monitoring_shape         = "VM.Standard.E4.Flex"
-web_monitoring_ocpus         = 4
-web_monitoring_memory_in_gbs = 8
-web_monitoring_disk_size     = 200
+# SIP Servers (drachtio only)
+sip_shape         = "VM.Standard.E4.Flex"
+sip_ocpus         = 4
+sip_memory_in_gbs = 8
+sip_disk_size     = 100
+sip_count         = 2
 
-# SBC Servers
-sbc_shape         = "VM.Standard.E4.Flex"
-sbc_ocpus         = 4
-sbc_memory_in_gbs = 8
-sbc_disk_size     = 200
-sbc_count         = 4
+# RTP Servers (rtpengine only)
+rtp_shape         = "VM.Standard.E4.Flex"
+rtp_ocpus         = 4
+rtp_memory_in_gbs = 8
+rtp_disk_size     = 100
+rtp_count         = 2
 
-# Feature Servers
+# Web Server (portal, API, webapp)
+web_shape         = "VM.Standard.E4.Flex"
+web_ocpus         = 4
+web_memory_in_gbs = 8
+web_disk_size     = 100
+
+# Monitoring Server (Redis, Grafana, Homer, Jaeger, InfluxDB)
+monitoring_shape         = "VM.Standard.E4.Flex"
+monitoring_ocpus         = 4
+monitoring_memory_in_gbs = 16
+monitoring_disk_size     = 200
+
+# Feature Servers (FreeSWITCH)
 feature_server_shape         = "VM.Standard.E4.Flex"
-feature_server_ocpus         = 4
-feature_server_memory_in_gbs = 8
-feature_server_disk_size     = 200
+feature_server_ocpus         = 8
+feature_server_memory_in_gbs = 16
+feature_server_disk_size     = 100
 feature_server_count         = 4
 
 # Recording Servers (only used if deploy_recording_cluster = true)
@@ -121,17 +144,6 @@ mysql_storage_size = 100
 # Database credentials
 mysql_username = "jambonz"
 # mysql_password = ""  # Leave empty to auto-generate
-
-# ------------------------------------------------------------------------------
-# REDIS CONFIGURATION (OCI Cache with Redis)
-# See https://docs.oracle.com/en-us/iaas/Content/redis/home.htm
-# ------------------------------------------------------------------------------
-
-# Number of Redis nodes (1-5)
-redis_node_count = 3
-
-# Memory per node in GB
-redis_memory_in_gbs = 16
 
 # ------------------------------------------------------------------------------
 # APIBAN (Optional)

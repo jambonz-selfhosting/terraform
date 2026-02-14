@@ -19,7 +19,7 @@ resource "oci_core_instance" "jambonz_mini" {
 
   create_vnic_details {
     subnet_id                 = oci_core_subnet.public.id
-    assign_public_ip          = true
+    assign_public_ip          = false
     display_name              = "${var.name_prefix}-vnic"
     hostname_label            = "jambonz"
     nsg_ids                   = [oci_core_network_security_group.jambonz.id]
@@ -39,6 +39,33 @@ resource "oci_core_instance" "jambonz_mini" {
       apiban_client_secret = var.apiban_client_secret
     }))
   }
+
+  freeform_tags = {
+    environment = var.environment
+    service     = "jambonz"
+    deployment  = "mini"
+  }
+}
+
+# ------------------------------------------------------------------------------
+# RESERVED PUBLIC IP
+# Static IP that persists even if the instance is recreated
+# ------------------------------------------------------------------------------
+
+data "oci_core_vnic_attachments" "jambonz_mini" {
+  compartment_id = var.compartment_id
+  instance_id    = oci_core_instance.jambonz_mini.id
+}
+
+data "oci_core_private_ips" "jambonz_mini" {
+  vnic_id = data.oci_core_vnic_attachments.jambonz_mini.vnic_attachments[0].vnic_id
+}
+
+resource "oci_core_public_ip" "jambonz_mini" {
+  compartment_id = var.compartment_id
+  lifetime       = "RESERVED"
+  display_name   = "${var.name_prefix}-jambonz-mini-ip"
+  private_ip_id  = data.oci_core_private_ips.jambonz_mini.private_ips[0].id
 
   freeform_tags = {
     environment = var.environment

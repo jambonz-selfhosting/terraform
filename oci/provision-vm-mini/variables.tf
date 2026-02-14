@@ -73,7 +73,7 @@ variable "availability_domain_number" {
 variable "image_par_url" {
   description = "Pre-Authenticated Request URL for the jambonz mini image (from Object Storage)"
   type        = string
-  default     = "https://id580apywcz8.objectstorage.us-ashburn-1.oci.customer-oci.com/p/-khjAVFGyYdtM66-d4DQ0-BoVSa8ECHe52nFZRmPvlql-jiDjWAzy2RMPx3nzZEL/n/id580apywcz8/b/jambonz-images/o/jambonz-mini-v10.0.4-dkms.oci"
+  default     = "https://id580apywcz8.objectstorage.us-ashburn-1.oci.customer-oci.com/p/KTgxwZEWZjce0kAERPvGx9cFNltZnYbAd2jlAVrWJLB4lAGNcVkx1rGe3yTfP1zU/n/id580apywcz8/b/jambonz-images/o/jambonz-mini-v10.0.4.oci"
 
   validation {
     condition     = can(regex("^https://.*", var.image_par_url))

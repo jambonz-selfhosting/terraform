@@ -1,12 +1,30 @@
-# OCI MySQL HeatWave Database System for jambonz medium cluster
+# OCI MySQL HeatWave Database System for jambonz large cluster
+
+# Custom MySQL configuration to disable reverse DNS lookups on client connections.
+# Without this, every connection incurs a ~10s timeout resolving private VCN IPs.
+resource "oci_mysql_mysql_configuration" "jambonz" {
+  compartment_id = var.compartment_id
+  shape_name     = var.mysql_shape
+  display_name   = "${var.name_prefix}-mysql-config"
+
+  variables {
+    skip_name_resolve = true
+  }
+
+  freeform_tags = {
+    environment = var.environment
+    service     = "jambonz"
+  }
+}
 
 resource "oci_mysql_mysql_db_system" "jambonz" {
   compartment_id      = var.compartment_id
   availability_domain = local.availability_domain
   display_name        = "${var.name_prefix}-mysql"
 
-  shape_name          = var.mysql_shape
-  subnet_id           = oci_core_subnet.private.id
+  shape_name       = var.mysql_shape
+  configuration_id = oci_mysql_mysql_configuration.jambonz.id
+  subnet_id        = oci_core_subnet.private.id
 
   admin_username = var.mysql_username
   admin_password = local.db_password

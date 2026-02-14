@@ -86,18 +86,20 @@ web_monitoring_memory_in_gbs = 8
 web_monitoring_disk_size     = 200
 
 # SBC Servers
+# To add more SBCs, increase sbc_count and re-run terraform apply
 sbc_shape         = "VM.Standard.E4.Flex"
 sbc_ocpus         = 4
 sbc_memory_in_gbs = 8
 sbc_disk_size     = 200
-sbc_count         = 2
+sbc_count         = 1
 
 # Feature Servers
+# To add more feature servers, increase feature_server_count and re-run terraform apply
 feature_server_shape         = "VM.Standard.E4.Flex"
 feature_server_ocpus         = 4
 feature_server_memory_in_gbs = 8
 feature_server_disk_size     = 200
-feature_server_count         = 2
+feature_server_count         = 1
 
 # Recording Servers (only used if deploy_recording_cluster = true)
 recording_shape         = "VM.Standard.E4.Flex"
@@ -121,17 +123,6 @@ mysql_storage_size = 50
 # Database credentials
 mysql_username = "jambonz"
 # mysql_password = ""  # Leave empty to auto-generate
-
-# ------------------------------------------------------------------------------
-# REDIS CONFIGURATION (OCI Cache with Redis)
-# See https://docs.oracle.com/en-us/iaas/Content/redis/home.htm
-# ------------------------------------------------------------------------------
-
-# Number of Redis nodes (1-5)
-redis_node_count = 1
-
-# Memory per node in GB
-redis_memory_in_gbs = 4
 
 # ------------------------------------------------------------------------------
 # APIBAN (Optional)

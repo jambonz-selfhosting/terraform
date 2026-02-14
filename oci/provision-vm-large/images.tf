@@ -1,26 +1,49 @@
-# Image imports from PAR URLs for jambonz medium cluster on OCI
+# Image imports from PAR URLs for jambonz large cluster on OCI
 #
-# These import the jambonz images from Pre-Authenticated Request (PAR) URLs
-# into the user's compartment. The import happens once on first apply and
-# takes approximately 5-15 minutes per image.
+# Large deployment uses separate images for SIP, RTP, Web, and Monitoring
+# (unlike medium which uses combined SBC and web-monitoring images)
 
 # ------------------------------------------------------------------------------
-# SBC IMAGE (drachtio + rtpengine)
+# SIP IMAGE (drachtio only)
 # ------------------------------------------------------------------------------
 
-resource "oci_core_image" "sbc" {
+resource "oci_core_image" "sip" {
   compartment_id = var.compartment_id
-  display_name   = "${var.name_prefix}-jambonz-sbc"
+  display_name   = "${var.name_prefix}-jambonz-sip"
 
   image_source_details {
     source_type = "objectStorageUri"
-    source_uri  = var.sbc_image_par_url
+    source_uri  = var.sip_image_par_url
   }
 
   freeform_tags = {
     environment = var.environment
     service     = "jambonz"
-    role        = "sbc"
+    role        = "sip"
+  }
+
+  timeouts {
+    create = "30m"
+  }
+}
+
+# ------------------------------------------------------------------------------
+# RTP IMAGE (rtpengine only)
+# ------------------------------------------------------------------------------
+
+resource "oci_core_image" "rtp" {
+  compartment_id = var.compartment_id
+  display_name   = "${var.name_prefix}-jambonz-rtp"
+
+  image_source_details {
+    source_type = "objectStorageUri"
+    source_uri  = var.rtp_image_par_url
+  }
+
+  freeform_tags = {
+    environment = var.environment
+    service     = "jambonz"
+    role        = "rtp"
   }
 
   timeouts {
@@ -53,22 +76,46 @@ resource "oci_core_image" "feature_server" {
 }
 
 # ------------------------------------------------------------------------------
-# WEB/MONITORING IMAGE (portal, API, Grafana, Homer, Jaeger)
+# WEB IMAGE (portal, API, webapp)
 # ------------------------------------------------------------------------------
 
-resource "oci_core_image" "web_monitoring" {
+resource "oci_core_image" "web" {
   compartment_id = var.compartment_id
-  display_name   = "${var.name_prefix}-jambonz-web-monitoring"
+  display_name   = "${var.name_prefix}-jambonz-web"
 
   image_source_details {
     source_type = "objectStorageUri"
-    source_uri  = var.web_monitoring_image_par_url
+    source_uri  = var.web_image_par_url
   }
 
   freeform_tags = {
     environment = var.environment
     service     = "jambonz"
-    role        = "web-monitoring"
+    role        = "web"
+  }
+
+  timeouts {
+    create = "30m"
+  }
+}
+
+# ------------------------------------------------------------------------------
+# MONITORING IMAGE (Grafana, Homer, Jaeger, InfluxDB)
+# ------------------------------------------------------------------------------
+
+resource "oci_core_image" "monitoring" {
+  compartment_id = var.compartment_id
+  display_name   = "${var.name_prefix}-jambonz-monitoring"
+
+  image_source_details {
+    source_type = "objectStorageUri"
+    source_uri  = var.monitoring_image_par_url
+  }
+
+  freeform_tags = {
+    environment = var.environment
+    service     = "jambonz"
+    role        = "monitoring"
   }
 
   timeouts {

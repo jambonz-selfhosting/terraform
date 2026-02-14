@@ -415,17 +415,19 @@ def main(terraform_dir, config, verbose):
         print()
 
     # Extract relevant IPs and info based on provider
-    # OCI mini uses 'public_ip', others use 'web_monitoring_public_ip'
-    web_ip = tf_outputs.get('web_monitoring_public_ip') or tf_outputs.get('public_ip')
-    sbc_ips = tf_outputs.get('sbc_public_ips') or tf_outputs.get('sbc_ips', [])
+    # OCI mini uses 'public_ip', medium uses 'web_monitoring_public_ip',
+    # large (split) uses 'web_public_ip'
+    web_ip = tf_outputs.get('web_monitoring_public_ip') or tf_outputs.get('web_public_ip') or tf_outputs.get('public_ip')
+    sbc_ips = tf_outputs.get('sbc_public_ips') or tf_outputs.get('sip_public_ips') or tf_outputs.get('sbc_ips', [])
     feature_server_mig = tf_outputs.get('feature_server_mig_name')
     recording_mig = tf_outputs.get('recording_mig_name')
 
-    # Check for mini deployment (single VM that includes all services)
+    # Check for mini and large deployments
     is_mini = 'mini' in str(tf_dir).lower()
+    is_large = 'large' in str(tf_dir).lower()
 
     if not web_ip:
-        print("❌ Could not find web_monitoring_public_ip or public_ip in terraform outputs")
+        print("❌ Could not find web_monitoring_public_ip, web_public_ip, or public_ip in terraform outputs")
         sys.exit(1)
 
     # For mini deployments, the single VM handles everything - no separate SBCs
@@ -434,14 +436,18 @@ def main(terraform_dir, config, verbose):
 
     if is_mini:
         print(f"✓ Mini server IP: {web_ip} (all-in-one)")
+    elif is_large:
+        print(f"✓ Web Server IP: {web_ip}")
+        if sbc_ips:
+            print(f"✓ SIP IPs: {', '.join(sbc_ips)}")
     else:
         print(f"✓ Web/Monitoring IP: {web_ip}")
         if sbc_ips:
             print(f"✓ SBC IPs: {', '.join(sbc_ips)}")
-        if feature_server_mig:
-            print(f"✓ Feature Server MIG: {feature_server_mig}")
-        if recording_mig and recording_mig != "Not deployed":
-            print(f"✓ Recording MIG: {recording_mig}")
+    if feature_server_mig:
+        print(f"✓ Feature Server MIG: {feature_server_mig}")
+    if recording_mig and recording_mig != "Not deployed":
+        print(f"✓ Recording MIG: {recording_mig}")
     print()
 
     # Track results
@@ -451,6 +457,8 @@ def main(terraform_dir, config, verbose):
     print("=" * 70)
     if is_mini:
         print("Test 1: Mini Server (All-in-one)")
+    elif is_large:
+        print("Test 1: Web Server")
     else:
         print("Test 1: Web/Monitoring Server")
     print("=" * 70)
@@ -476,6 +484,8 @@ def main(terraform_dir, config, verbose):
     # Get expected services from server types config
     if is_mini:
         server_type = server_types.get('mini', {})
+    elif is_large:
+        server_type = server_types.get('web', {})
     else:
         server_type = server_types.get('web-monitoring', {})
     expected_systemd = server_type.get('systemd_services', [])
@@ -513,7 +523,8 @@ def main(terraform_dir, config, verbose):
 
     print()
 
-    # Test 2: SBC Servers (skip for mini deployments)
+    # Test 2: SBC/SIP Servers (skip for mini deployments)
+    sbc_label = "SIP" if is_large else "SBC"
     if is_mini:
         print("=" * 70)
         print("Test 2: SBC Servers - SKIPPED (mini deployment has all-in-one)")
@@ -521,12 +532,12 @@ def main(terraform_dir, config, verbose):
         print()
     elif sbc_ips:
         print("=" * 70)
-        print(f"Test 2: SBC Servers ({len(sbc_ips)} instance(s))")
+        print(f"Test 2: {sbc_label} Servers ({len(sbc_ips)} instance(s))")
         print("=" * 70)
         print()
 
         for idx, sbc_ip in enumerate(sbc_ips, 1):
-            print(f"SBC {idx}: {sbc_ip}")
+            print(f"{sbc_label} {idx}: {sbc_ip}")
             print("-" * 70)
 
             print(f"Testing SSH connectivity...")
@@ -547,7 +558,7 @@ def main(terraform_dir, config, verbose):
             print()
 
             # Get expected services from server types config
-            sbc_type = server_types.get('sbc', {})
+            sbc_type = server_types.get('sip' if is_large else 'sbc', {})
             expected_systemd = sbc_type.get('systemd_services', [])
             expected_pm2 = sbc_type.get('pm2_processes', [])
 

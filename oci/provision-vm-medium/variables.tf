@@ -159,8 +159,7 @@ variable "allowed_rtp_cidr" {
 variable "sbc_image_par_url" {
   description = "PAR URL for the SBC image (drachtio + rtpengine)"
   type        = string
-  # TODO: Add official PAR URL once SBC image is exported
-  # default     = "https://objectstorage..."
+  default     = "https://id580apywcz8.objectstorage.us-ashburn-1.oci.customer-oci.com/p/_idK5bFYOon2gmvVT0wm7v2g-yxtV4jeuBArgSU44n4K--5lV-3PQvJw4XCoQ9p5/n/id580apywcz8/b/jambonz-images/o/jambonz-sip-rtp-v10.0.4.oci"
 
   validation {
     condition     = can(regex("^https://.*", var.sbc_image_par_url))
@@ -171,8 +170,7 @@ variable "sbc_image_par_url" {
 variable "feature_server_image_par_url" {
   description = "PAR URL for the Feature Server image (FreeSWITCH)"
   type        = string
-  # TODO: Add official PAR URL once Feature Server image is exported
-  # default     = "https://objectstorage..."
+  default     = "https://id580apywcz8.objectstorage.us-ashburn-1.oci.customer-oci.com/p/yhBcJMMJPW1lwhoLr4wgIbkcfCv5uOQycMpzaWwwiaIzfDJO-AJbbQUt3A7VQa_b/n/id580apywcz8/b/jambonz-images/o/jambonz-fs-v10.0.4.oci"
 
   validation {
     condition     = can(regex("^https://.*", var.feature_server_image_par_url))
@@ -183,8 +181,7 @@ variable "feature_server_image_par_url" {
 variable "web_monitoring_image_par_url" {
   description = "PAR URL for the Web/Monitoring image (portal, API, Grafana, Homer, Jaeger)"
   type        = string
-  # TODO: Add official PAR URL once Web/Monitoring image is exported
-  # default     = "https://objectstorage..."
+  default     = "https://id580apywcz8.objectstorage.us-ashburn-1.oci.customer-oci.com/p/kIZgkX_bUH-SlPrAJSZHm67GGHgYaBVVR7qLHsQmOHA229VLAIp9Lpg9_G14cO1k/n/id580apywcz8/b/jambonz-images/o/jambonz-web-monitoring-v10.0.4.oci"
 
   validation {
     condition     = can(regex("^https://.*", var.web_monitoring_image_par_url))
@@ -195,9 +192,7 @@ variable "web_monitoring_image_par_url" {
 variable "recording_image_par_url" {
   description = "PAR URL for the Recording Server image (optional, only if deploy_recording_cluster is true)"
   type        = string
-  # TODO: Add official PAR URL once Recording image is exported
-  # default     = "https://objectstorage..."
-  default     = ""
+  default     = "https://id580apywcz8.objectstorage.us-ashburn-1.oci.customer-oci.com/p/UK83YeE0eRKUSGV_U8bQcP6kliqD6ZfBcsUKYwFtNlqCFtbgKfKXDR_AMvGW-QCq/n/id580apywcz8/b/jambonz-images/o/jambonz-recording-v10.0.4.oci"
 }
 
 # ------------------------------------------------------------------------------
@@ -404,10 +399,19 @@ variable "ssh_public_key" {
 variable "mysql_shape" {
   description = "OCI MySQL HeatWave shape"
   type        = string
-  default     = "MySQL.VM.Standard.E4.1.8GB"
+  default     = "VM.Standard.E2.1"
 
   validation {
     condition = contains([
+      "VM.Standard.E2.1",
+      "VM.Standard.E2.2",
+      "VM.Standard.E2.4",
+      "VM.Standard.E2.8",
+      "MySQL.2",
+      "MySQL.4",
+      "MySQL.8",
+      "MySQL.16",
+      "MySQL.32",
       "MySQL.VM.Standard.E3.1.8GB",
       "MySQL.VM.Standard.E3.1.16GB",
       "MySQL.VM.Standard.E3.2.32GB",
@@ -443,32 +447,6 @@ variable "mysql_password" {
   type        = string
   default     = ""
   sensitive   = true
-}
-
-# ------------------------------------------------------------------------------
-# REDIS CONFIGURATION (OCI Cache with Redis)
-# ------------------------------------------------------------------------------
-
-variable "redis_node_count" {
-  description = "Number of Redis nodes (1-5)"
-  type        = number
-  default     = 1
-
-  validation {
-    condition     = var.redis_node_count >= 1 && var.redis_node_count <= 5
-    error_message = "Redis node count must be between 1 and 5."
-  }
-}
-
-variable "redis_memory_in_gbs" {
-  description = "Memory per Redis node in GB"
-  type        = number
-  default     = 8
-
-  validation {
-    condition     = var.redis_memory_in_gbs >= 2 && var.redis_memory_in_gbs <= 500
-    error_message = "Redis memory must be between 2 and 500 GB."
-  }
 }
 
 # ------------------------------------------------------------------------------

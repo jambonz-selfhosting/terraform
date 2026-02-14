@@ -1,4 +1,5 @@
 # Variables for jambonz large cluster deployment on Oracle Cloud Infrastructure (OCI)
+# Large deployment splits SIP/RTP and Web/Monitoring into separate server roles
 
 # ------------------------------------------------------------------------------
 # OCI CREDENTIALS
@@ -92,7 +93,7 @@ variable "public_subnet_cidr" {
 }
 
 variable "private_subnet_cidr" {
-  description = "CIDR block for the private subnet (database/redis)"
+  description = "CIDR block for the private subnet (database)"
   type        = string
   default     = "172.20.20.0/24"
 
@@ -129,7 +130,7 @@ variable "allowed_http_cidr" {
 }
 
 variable "allowed_sip_cidr" {
-  description = "CIDR block allowed SIP access to SBC"
+  description = "CIDR block allowed SIP access to SIP servers"
   type        = string
   default     = "0.0.0.0/0"
 
@@ -140,7 +141,7 @@ variable "allowed_sip_cidr" {
 }
 
 variable "allowed_rtp_cidr" {
-  description = "CIDR block allowed RTP access to SBC"
+  description = "CIDR block allowed RTP access to RTP servers"
   type        = string
   default     = "0.0.0.0/0"
 
@@ -152,18 +153,27 @@ variable "allowed_rtp_cidr" {
 
 # ------------------------------------------------------------------------------
 # JAMBONZ IMAGE CONFIGURATION
-# Images are imported from Pre-Authenticated Request (PAR) URLs
-# Default PAR URLs point to official jambonz images
+# Large deployment uses separate SIP, RTP, Web, and Monitoring images
 # ------------------------------------------------------------------------------
 
-variable "sbc_image_par_url" {
-  description = "PAR URL for the SBC image (drachtio + rtpengine)"
+variable "sip_image_par_url" {
+  description = "PAR URL for the SIP image (drachtio only)"
   type        = string
-  # TODO: Add official PAR URL once SBC image is exported
-  # default     = "https://objectstorage..."
+  default     = "https://id580apywcz8.objectstorage.us-ashburn-1.oci.customer-oci.com/p/svcJNZ0AelJQxGg5ej00_hqbH5hhZtvGSvnI1W4lLY4XWOr6gFMRf6HeYHNEgOLu/n/id580apywcz8/b/jambonz-images/o/jambonz-sip-v10.0.4.oci"
 
   validation {
-    condition     = can(regex("^https://.*", var.sbc_image_par_url))
+    condition     = can(regex("^https://.*", var.sip_image_par_url))
+    error_message = "Image PAR URL must be a valid HTTPS URL."
+  }
+}
+
+variable "rtp_image_par_url" {
+  description = "PAR URL for the RTP image (rtpengine only)"
+  type        = string
+  default     = "https://id580apywcz8.objectstorage.us-ashburn-1.oci.customer-oci.com/p/Lbi6PbgQbsLznxIOYjKEelVReVfzgIk4iX3Fu1bjEh-UPQLcyD4xPR2_p-yzK_Ck/n/id580apywcz8/b/jambonz-images/o/jambonz-rtp-v10.0.4.oci"
+
+  validation {
+    condition     = can(regex("^https://.*", var.rtp_image_par_url))
     error_message = "Image PAR URL must be a valid HTTPS URL."
   }
 }
@@ -171,8 +181,7 @@ variable "sbc_image_par_url" {
 variable "feature_server_image_par_url" {
   description = "PAR URL for the Feature Server image (FreeSWITCH)"
   type        = string
-  # TODO: Add official PAR URL once Feature Server image is exported
-  # default     = "https://objectstorage..."
+  default     = "https://id580apywcz8.objectstorage.us-ashburn-1.oci.customer-oci.com/p/yhBcJMMJPW1lwhoLr4wgIbkcfCv5uOQycMpzaWwwiaIzfDJO-AJbbQUt3A7VQa_b/n/id580apywcz8/b/jambonz-images/o/jambonz-fs-v10.0.4.oci"
 
   validation {
     condition     = can(regex("^https://.*", var.feature_server_image_par_url))
@@ -180,14 +189,24 @@ variable "feature_server_image_par_url" {
   }
 }
 
-variable "web_monitoring_image_par_url" {
-  description = "PAR URL for the Web/Monitoring image (portal, API, Grafana, Homer, Jaeger)"
+variable "web_image_par_url" {
+  description = "PAR URL for the Web image (portal, API, webapp)"
   type        = string
-  # TODO: Add official PAR URL once Web/Monitoring image is exported
-  # default     = "https://objectstorage..."
+  default     = "https://id580apywcz8.objectstorage.us-ashburn-1.oci.customer-oci.com/p/gavUFcl6K9gtIS0u5i2qD3IwythX75PkdXcTd8eTXmuy41cYiZKTKb6Ana0l8gjx/n/id580apywcz8/b/jambonz-images/o/jambonz-web-v10.0.4.oci"
 
   validation {
-    condition     = can(regex("^https://.*", var.web_monitoring_image_par_url))
+    condition     = can(regex("^https://.*", var.web_image_par_url))
+    error_message = "Image PAR URL must be a valid HTTPS URL."
+  }
+}
+
+variable "monitoring_image_par_url" {
+  description = "PAR URL for the Monitoring image (Grafana, Homer, Jaeger, InfluxDB)"
+  type        = string
+  default     = "https://id580apywcz8.objectstorage.us-ashburn-1.oci.customer-oci.com/p/0yTUv4t9a1vy8sVcHvVN7MMdIGF4db0wgnr-pgy7cHH8-GUp6vSzTfx6ffFpGJ8R/n/id580apywcz8/b/jambonz-images/o/jambonz-monitoring-v10.0.4.oci"
+
+  validation {
+    condition     = can(regex("^https://.*", var.monitoring_image_par_url))
     error_message = "Image PAR URL must be a valid HTTPS URL."
   }
 }
@@ -195,18 +214,16 @@ variable "web_monitoring_image_par_url" {
 variable "recording_image_par_url" {
   description = "PAR URL for the Recording Server image (optional, only if deploy_recording_cluster is true)"
   type        = string
-  # TODO: Add official PAR URL once Recording image is exported
-  # default     = "https://objectstorage..."
-  default     = ""
+  default     = "https://id580apywcz8.objectstorage.us-ashburn-1.oci.customer-oci.com/p/UK83YeE0eRKUSGV_U8bQcP6kliqD6ZfBcsUKYwFtNlqCFtbgKfKXDR_AMvGW-QCq/n/id580apywcz8/b/jambonz-images/o/jambonz-recording-v10.0.4.oci"
 }
 
 # ------------------------------------------------------------------------------
 # VM SHAPE CONFIGURATION
 # ------------------------------------------------------------------------------
 
-# SBC Configuration
-variable "sbc_shape" {
-  description = "OCI compute shape for SBC instances (flexible shapes recommended)"
+# SIP Server Configuration
+variable "sip_shape" {
+  description = "OCI compute shape for SIP server instances"
   type        = string
   default     = "VM.Standard.E4.Flex"
 
@@ -216,37 +233,83 @@ variable "sbc_shape" {
       "VM.Standard.E5.Flex",
       "VM.Standard3.Flex",
       "VM.Optimized3.Flex",
-    ], var.sbc_shape)
+    ], var.sip_shape)
     error_message = "Shape must be a supported flexible shape."
   }
 }
 
-variable "sbc_ocpus" {
-  description = "Number of OCPUs for SBC instances"
+variable "sip_ocpus" {
+  description = "Number of OCPUs for SIP server instances"
   type        = number
   default     = 4
 }
 
-variable "sbc_memory_in_gbs" {
-  description = "Memory in GB for SBC instances"
+variable "sip_memory_in_gbs" {
+  description = "Memory in GB for SIP server instances"
   type        = number
   default     = 8
 }
 
-variable "sbc_disk_size" {
-  description = "Boot volume size in GB for SBC instances"
+variable "sip_disk_size" {
+  description = "Boot volume size in GB for SIP server instances"
   type        = number
-  default     = 200
+  default     = 100
 }
 
-variable "sbc_count" {
-  description = "Number of SBC instances to deploy (each gets a static public IP)"
+variable "sip_count" {
+  description = "Number of SIP server instances to deploy (each gets a static public IP)"
   type        = number
-  default     = 4
+  default     = 2
 
   validation {
-    condition     = var.sbc_count >= 1 && var.sbc_count <= 20
-    error_message = "SBC count must be between 1 and 20."
+    condition     = var.sip_count >= 1 && var.sip_count <= 20
+    error_message = "SIP server count must be between 1 and 20."
+  }
+}
+
+# RTP Server Configuration
+variable "rtp_shape" {
+  description = "OCI compute shape for RTP server instances"
+  type        = string
+  default     = "VM.Standard.E4.Flex"
+
+  validation {
+    condition = contains([
+      "VM.Standard.E4.Flex",
+      "VM.Standard.E5.Flex",
+      "VM.Standard3.Flex",
+      "VM.Optimized3.Flex",
+    ], var.rtp_shape)
+    error_message = "Shape must be a supported flexible shape."
+  }
+}
+
+variable "rtp_ocpus" {
+  description = "Number of OCPUs for RTP server instances"
+  type        = number
+  default     = 4
+}
+
+variable "rtp_memory_in_gbs" {
+  description = "Memory in GB for RTP server instances"
+  type        = number
+  default     = 8
+}
+
+variable "rtp_disk_size" {
+  description = "Boot volume size in GB for RTP server instances"
+  type        = number
+  default     = 100
+}
+
+variable "rtp_count" {
+  description = "Number of RTP server instances"
+  type        = number
+  default     = 2
+
+  validation {
+    condition     = var.rtp_count >= 1 && var.rtp_count <= 20
+    error_message = "RTP server count must be between 1 and 20."
   }
 }
 
@@ -270,19 +333,19 @@ variable "feature_server_shape" {
 variable "feature_server_ocpus" {
   description = "Number of OCPUs for Feature Server instances"
   type        = number
-  default     = 4
+  default     = 8
 }
 
 variable "feature_server_memory_in_gbs" {
   description = "Memory in GB for Feature Server instances"
   type        = number
-  default     = 8
+  default     = 16
 }
 
 variable "feature_server_disk_size" {
   description = "Boot volume size in GB for Feature Server instances"
   type        = number
-  default     = 200
+  default     = 100
 }
 
 variable "feature_server_count" {
@@ -296,9 +359,9 @@ variable "feature_server_count" {
   }
 }
 
-# Web/Monitoring Configuration
-variable "web_monitoring_shape" {
-  description = "OCI compute shape for Web/Monitoring instance"
+# Web Server Configuration
+variable "web_shape" {
+  description = "OCI compute shape for Web server instance"
   type        = string
   default     = "VM.Standard.E4.Flex"
 
@@ -308,25 +371,60 @@ variable "web_monitoring_shape" {
       "VM.Standard.E5.Flex",
       "VM.Standard3.Flex",
       "VM.Optimized3.Flex",
-    ], var.web_monitoring_shape)
+    ], var.web_shape)
     error_message = "Shape must be a supported flexible shape."
   }
 }
 
-variable "web_monitoring_ocpus" {
-  description = "Number of OCPUs for Web/Monitoring instance"
+variable "web_ocpus" {
+  description = "Number of OCPUs for Web server instance"
   type        = number
   default     = 4
 }
 
-variable "web_monitoring_memory_in_gbs" {
-  description = "Memory in GB for Web/Monitoring instance"
+variable "web_memory_in_gbs" {
+  description = "Memory in GB for Web server instance"
   type        = number
   default     = 8
 }
 
-variable "web_monitoring_disk_size" {
-  description = "Boot volume size in GB for Web/Monitoring instance"
+variable "web_disk_size" {
+  description = "Boot volume size in GB for Web server instance"
+  type        = number
+  default     = 100
+}
+
+# Monitoring Server Configuration
+variable "monitoring_shape" {
+  description = "OCI compute shape for Monitoring server instance"
+  type        = string
+  default     = "VM.Standard.E4.Flex"
+
+  validation {
+    condition = contains([
+      "VM.Standard.E4.Flex",
+      "VM.Standard.E5.Flex",
+      "VM.Standard3.Flex",
+      "VM.Optimized3.Flex",
+    ], var.monitoring_shape)
+    error_message = "Shape must be a supported flexible shape."
+  }
+}
+
+variable "monitoring_ocpus" {
+  description = "Number of OCPUs for Monitoring server instance"
+  type        = number
+  default     = 4
+}
+
+variable "monitoring_memory_in_gbs" {
+  description = "Memory in GB for Monitoring server instance"
+  type        = number
+  default     = 16
+}
+
+variable "monitoring_disk_size" {
+  description = "Boot volume size in GB for Monitoring server instance"
   type        = number
   default     = 200
 }
@@ -404,10 +502,19 @@ variable "ssh_public_key" {
 variable "mysql_shape" {
   description = "OCI MySQL HeatWave shape"
   type        = string
-  default     = "MySQL.VM.Standard.E4.2.32GB"
+  default     = "VM.Standard.E2.2"
 
   validation {
     condition = contains([
+      "VM.Standard.E2.1",
+      "VM.Standard.E2.2",
+      "VM.Standard.E2.4",
+      "VM.Standard.E2.8",
+      "MySQL.2",
+      "MySQL.4",
+      "MySQL.8",
+      "MySQL.16",
+      "MySQL.32",
       "MySQL.VM.Standard.E3.1.8GB",
       "MySQL.VM.Standard.E3.1.16GB",
       "MySQL.VM.Standard.E3.2.32GB",
@@ -443,32 +550,6 @@ variable "mysql_password" {
   type        = string
   default     = ""
   sensitive   = true
-}
-
-# ------------------------------------------------------------------------------
-# REDIS CONFIGURATION (OCI Cache with Redis)
-# ------------------------------------------------------------------------------
-
-variable "redis_node_count" {
-  description = "Number of Redis nodes (1-5)"
-  type        = number
-  default     = 3
-
-  validation {
-    condition     = var.redis_node_count >= 1 && var.redis_node_count <= 5
-    error_message = "Redis node count must be between 1 and 5."
-  }
-}
-
-variable "redis_memory_in_gbs" {
-  description = "Memory per Redis node in GB"
-  type        = number
-  default     = 16
-
-  validation {
-    condition     = var.redis_memory_in_gbs >= 2 && var.redis_memory_in_gbs <= 500
-    error_message = "Redis memory must be between 2 and 500 GB."
-  }
 }
 
 # ------------------------------------------------------------------------------

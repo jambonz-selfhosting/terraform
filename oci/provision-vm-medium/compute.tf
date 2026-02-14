@@ -34,10 +34,10 @@ resource "oci_core_instance" "web_monitoring" {
   metadata = {
     ssh_authorized_keys = var.ssh_public_key
     user_data           = base64encode(templatefile("${path.module}/cloud-init-web-monitoring.yaml", {
-      mysql_host               = oci_mysql_mysql_db_system.jambonz.endpoints[0].hostname
+      mysql_host               = oci_mysql_mysql_db_system.jambonz.ip_address
       mysql_user               = var.mysql_username
       mysql_password           = local.db_password
-      redis_host               = oci_redis_redis_cluster.jambonz.primary_endpoint_ip_address
+      redis_host               = "127.0.0.1"
       redis_port               = 6379
       jwt_secret               = random_password.encryption_secret.result
       url_portal               = var.url_portal
@@ -53,8 +53,7 @@ resource "oci_core_instance" "web_monitoring" {
   }
 
   depends_on = [
-    oci_mysql_mysql_db_system.jambonz,
-    oci_redis_redis_cluster.jambonz
+    oci_mysql_mysql_db_system.jambonz
   ]
 }
 
@@ -83,7 +82,7 @@ resource "oci_core_instance" "sbc" {
 
   create_vnic_details {
     subnet_id                 = oci_core_subnet.public.id
-    assign_public_ip          = true
+    assign_public_ip          = false
     display_name              = "${var.name_prefix}-sbc-${count.index}-vnic"
     hostname_label            = "sbc${count.index}"
     nsg_ids                   = [oci_core_network_security_group.sbc.id]
@@ -94,10 +93,10 @@ resource "oci_core_instance" "sbc" {
   metadata = {
     ssh_authorized_keys = var.ssh_public_key
     user_data           = base64encode(templatefile("${path.module}/cloud-init-sbc.yaml", {
-      mysql_host                = oci_mysql_mysql_db_system.jambonz.endpoints[0].hostname
+      mysql_host                = oci_mysql_mysql_db_system.jambonz.ip_address
       mysql_user                = var.mysql_username
       mysql_password            = local.db_password
-      redis_host                = oci_redis_redis_cluster.jambonz.primary_endpoint_ip_address
+      redis_host                = oci_core_instance.web_monitoring.private_ip
       redis_port                = 6379
       jwt_secret                = random_password.encryption_secret.result
       web_monitoring_private_ip = oci_core_instance.web_monitoring.private_ip
@@ -116,6 +115,32 @@ resource "oci_core_instance" "sbc" {
   }
 
   depends_on = [oci_core_instance.web_monitoring]
+}
+
+# Reserved public IPs for SBC servers (static IPs that persist across instance recreation)
+data "oci_core_vnic_attachments" "sbc" {
+  count          = var.sbc_count
+  compartment_id = var.compartment_id
+  instance_id    = oci_core_instance.sbc[count.index].id
+}
+
+data "oci_core_private_ips" "sbc" {
+  count   = var.sbc_count
+  vnic_id = data.oci_core_vnic_attachments.sbc[count.index].vnic_attachments[0].vnic_id
+}
+
+resource "oci_core_public_ip" "sbc" {
+  count          = var.sbc_count
+  compartment_id = var.compartment_id
+  lifetime       = "RESERVED"
+  display_name   = "${var.name_prefix}-sbc-${count.index}-ip"
+  private_ip_id  = data.oci_core_private_ips.sbc[count.index].private_ips[0].id
+
+  freeform_tags = {
+    environment = var.environment
+    service     = "jambonz"
+    role        = "sbc"
+  }
 }
 
 # ------------------------------------------------------------------------------
@@ -154,10 +179,10 @@ resource "oci_core_instance" "feature_server" {
   metadata = {
     ssh_authorized_keys = var.ssh_public_key
     user_data           = base64encode(templatefile("${path.module}/cloud-init-feature-server.yaml", {
-      mysql_host                = oci_mysql_mysql_db_system.jambonz.endpoints[0].hostname
+      mysql_host                = oci_mysql_mysql_db_system.jambonz.ip_address
       mysql_user                = var.mysql_username
       mysql_password            = local.db_password
-      redis_host                = oci_redis_redis_cluster.jambonz.primary_endpoint_ip_address
+      redis_host                = oci_core_instance.web_monitoring.private_ip
       redis_port                = 6379
       jwt_secret                = random_password.encryption_secret.result
       web_monitoring_private_ip = oci_core_instance.web_monitoring.private_ip
@@ -200,7 +225,7 @@ resource "oci_core_instance" "recording" {
   }
 
   create_vnic_details {
-    subnet_id                 = oci_core_subnet.public.id
+    subnet_id                 = oci_core_subnet.private.id
     assign_public_ip          = false
     display_name              = "${var.name_prefix}-recording-${count.index}-vnic"
     hostname_label            = "recording${count.index}"
@@ -212,7 +237,7 @@ resource "oci_core_instance" "recording" {
   metadata = {
     ssh_authorized_keys = var.ssh_public_key
     user_data           = base64encode(templatefile("${path.module}/cloud-init-recording.yaml", {
-      mysql_host                = oci_mysql_mysql_db_system.jambonz.endpoints[0].hostname
+      mysql_host                = oci_mysql_mysql_db_system.jambonz.ip_address
       mysql_user                = var.mysql_username
       mysql_password            = local.db_password
       jwt_secret                = random_password.encryption_secret.result
