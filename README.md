@@ -4,31 +4,18 @@ Terraform configurations for deploying jambonz on various cloud providers.
 
 ## Cloud Providers
 
-| Provider | Kubernetes | VM (Mini) | VM (Medium) |
-|----------|------------|-----------|-------------|
-| **AWS** | [EKS](aws/provision-eks-cluster/) | - | - |
-| **Azure** | [AKS](azure/provision-aks-cluster/) | [VM Mini](azure/provision-vm-mini/) | [VM Medium](azure/provision-vm-medium/) |
-| **GCP** | [GKE](gcp/provision-gke-cluster/) | - | [VM Medium](gcp/provision-vm-medium/) |
-| **Exoscale** | [SKS](exoscale/provision-sks-cluster/) | [VM Mini](exoscale/provision-vm-mini/) | [VM Medium](exoscale/provision-vm-medium/) |
+| Provider | VM (Mini) | VM (Medium) | VM (Large) |
+|----------|-----------|-------------|------------|
+| **Azure** | [VM Mini](azure/provision-vm-mini/) | [VM Medium](azure/provision-vm-medium/) | [VM Large](azure/provision-vm-large/) |
+| **GCP** | - | [VM Medium](gcp/provision-vm-medium/) | [VM Large](gcp/provision-vm-large/) |
+| **OCI** | [VM Mini](oci/provision-vm-mini/) | [VM Medium](oci/provision-vm-medium/) | [VM Large](oci/provision-vm-large/) |
+| **Exoscale** | [VM Mini](exoscale/provision-vm-mini/) | [VM Medium](exoscale/provision-vm-medium/) | - |
 
 ## Deployment Types
 
-### Kubernetes Clusters
-
-Production-ready deployments using managed Kubernetes services with dedicated node pools for VoIP workloads:
-
-- **System nodes** - General workloads (private subnets)
-- **SIP nodes** - SIP signaling with public IPs (drachtio-server)
-- **RTP nodes** - Media processing with public IPs (rtpengine, freeswitch)
-
-After provisioning the cluster, deploy jambonz using the Helm chart.
-
-### VM Deployments
-
-Single-VM or multi-VM deployments for smaller installations:
-
 - **Mini** - All-in-one single VM deployment
-- **Medium** - Multi-VM deployment with dedicated servers for SBC, feature server, and web/monitoring
+- **Medium** - Multi-VM with combined SBC (SIP+RTP) and web/monitoring servers
+- **Large** - Multi-VM with fully separated SIP, RTP, web, and monitoring servers
 
 ## Quick Start
 

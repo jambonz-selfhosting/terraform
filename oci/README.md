@@ -7,8 +7,8 @@ This directory contains Terraform configurations for deploying jambonz on Oracle
 | Deployment | Description | Use Case |
 |------------|-------------|----------|
 | [provision-vm-mini](provision-vm-mini/) | Single all-in-one VM | Development, testing, small deployments |
-| [provision-vm-medium](provision-vm-medium/) | Multi-VM with managed MySQL/Redis | Production, moderate traffic |
-| [provision-vm-large](provision-vm-large/) | Scaled multi-VM cluster | High-volume production |
+| [provision-vm-medium](provision-vm-medium/) | Multi-VM with combined SBC and web/monitoring | Production, moderate traffic |
+| [provision-vm-large](provision-vm-large/) | Fully separated SIP, RTP, web, monitoring | High-volume production |
 
 ## OCI Authentication
 
@@ -188,15 +188,25 @@ jambonz images for OCI are distributed via **Pre-Authenticated Request (PAR) URL
 
 The mini deployment includes a default PAR URL pointing to the official jambonz mini image. No additional configuration needed.
 
-### Medium/Large Deployments
+### Medium Deployment
 
-Medium and large deployments require separate images for each role:
+Medium deployments use separate images for each combined role:
 - SBC (drachtio + rtpengine)
 - Feature Server (FreeSWITCH)
-- Web/Monitoring (portal, API, Grafana, Homer, Jaeger)
+- Web/Monitoring (portal, API, Grafana, Homer, Jaeger, Redis)
 - Recording (optional)
 
-Contact [support@jambonz.org](mailto:support@jambonz.org) for PAR URLs for multi-VM deployments.
+### Large Deployment
+
+Large deployments use fully separated images:
+- SIP (drachtio only)
+- RTP (rtpengine only)
+- Web (portal, API, webapp)
+- Monitoring (Grafana, Homer, Jaeger, InfluxDB, Redis)
+- Feature Server (FreeSWITCH)
+- Recording (optional)
+
+Default PAR URLs are included in the Terraform variables for all deployment sizes.
 
 ## Supported Regions
 

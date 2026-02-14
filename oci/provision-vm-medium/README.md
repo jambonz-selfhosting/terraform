@@ -6,12 +6,11 @@ This Terraform configuration deploys a multi-VM jambonz cluster on Oracle Cloud 
 
 | Component | Description |
 |-----------|-------------|
-| Web/Monitoring | Portal, API, Grafana, Homer, Jaeger |
+| Web/Monitoring | Portal, API, Grafana, Homer, Jaeger, Redis |
 | SBC | drachtio SIP server, rtpengine RTP proxy |
 | Feature Server | FreeSWITCH, jambonz apps |
-| Recording | Recording server (optional) |
+| Recording | Recording server (optional, on private subnet) |
 | MySQL | OCI MySQL HeatWave (managed) |
-| Redis | OCI Cache with Redis (managed) |
 
 Default: 1 SBC + 1 Feature Server + 1 Web/Monitoring (+ optional Recording)
 
@@ -160,13 +159,6 @@ jambonz images are distributed via **Pre-Authenticated Request (PAR) URLs** from
 | `mysql_username` | `jambonz` | Database username |
 | `mysql_password` | `""` | Password (auto-generated if empty) |
 
-### Redis Configuration
-
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `redis_node_count` | `1` | Number of Redis nodes (1-5) |
-| `redis_memory_in_gbs` | `8` | Memory per node |
-
 ### Supported Regions
 
 jambonz can be deployed to any OCI region. See [OCI Regions](https://docs.oracle.com/en-us/iaas/Content/General/Concepts/regions.htm) for the full list.
@@ -183,7 +175,7 @@ After deployment, Terraform will output:
 - **sbc_ips**: List of SBC public IPs
 - **feature_server_ips**: List of Feature Server IPs
 - **mysql_endpoint**: MySQL connection endpoint
-- **redis_endpoint**: Redis connection endpoint
+- **redis_endpoint**: Redis endpoint (web/monitoring server private IP)
 
 View outputs anytime:
 ```bash
@@ -219,7 +211,7 @@ If you see `401-NotAuthenticated`:
 
 ### Check logs on any server
 ```bash
-ssh opc@<server_ip>
+ssh jambonz@<server_ip>
 sudo cat /var/log/jambonz-setup.log
 sudo cat /var/log/cloud-init-output.log
 ```
@@ -229,4 +221,3 @@ sudo cat /var/log/cloud-init-output.log
 - [jambonz Documentation](https://docs.jambonz.org/)
 - [OCI Terraform Provider](https://registry.terraform.io/providers/oracle/oci/latest/docs)
 - [OCI MySQL HeatWave](https://docs.oracle.com/en-us/iaas/mysql-database/index.html)
-- [OCI Cache with Redis](https://docs.oracle.com/en-us/iaas/Content/redis/home.htm)
