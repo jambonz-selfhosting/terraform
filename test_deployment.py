@@ -134,6 +134,8 @@ def detect_provider(terraform_dir: Path) -> str:
         return 'azure'
     elif 'exoscale' in dir_name:
         return 'exoscale'
+    elif 'oci' in dir_name:
+        return 'oci'
     else:
         # Default to gcp if can't detect
         print("⚠️  Could not detect provider from directory, assuming GCP")
@@ -207,7 +209,7 @@ def check_startup_script(host: str, provider: str, ssh_config: dict, server_type
         return (False, f"SSH error: {e}")
 
 
-def check_systemd_services(host: str, expected_services: list, ssh_config: dict, optional_services: list = None, jump_host: str = None) -> tuple:
+def check_systemd_services(host: str, expected_services: list, ssh_config: dict, optional_services: list = None, service_aliases: dict = None, jump_host: str = None) -> tuple:
     """
     Check if expected systemd services are running.
 
@@ -215,29 +217,41 @@ def check_systemd_services(host: str, expected_services: list, ssh_config: dict,
         (success: bool, message: str, details: dict)
     """
     optional_services = optional_services or []
+    service_aliases = service_aliases or {}
     results = {}
     failed_required = []
 
     for service in expected_services:
-        try:
-            stdout, stderr, exit_code = run_ssh_command(
-                host=host,
-                command=f"systemctl is-active {service}",
-                ssh_config=ssh_config,
-                jump_host=jump_host,
-                timeout=10
-            )
+        # Build list of service names to try (primary + aliases)
+        services_to_try = [service]
+        if service in service_aliases:
+            services_to_try.extend(service_aliases[service])
 
-            is_active = stdout.strip() == "active"
-            results[service] = "active" if is_active else stdout.strip()
+        is_active = False
+        last_status = "unknown"
 
-            if not is_active and service not in optional_services:
-                failed_required.append(service)
+        for svc_name in services_to_try:
+            try:
+                stdout, stderr, exit_code = run_ssh_command(
+                    host=host,
+                    command=f"systemctl is-active {svc_name}",
+                    ssh_config=ssh_config,
+                    jump_host=jump_host,
+                    timeout=10
+                )
 
-        except SSHError as e:
-            results[service] = f"error: {e}"
-            if service not in optional_services:
-                failed_required.append(service)
+                last_status = stdout.strip()
+                if last_status == "active":
+                    is_active = True
+                    break  # Found an active alias, no need to check more
+
+            except SSHError as e:
+                last_status = f"error: {e}"
+
+        results[service] = "active" if is_active else last_status
+
+        if not is_active and service not in optional_services:
+            failed_required.append(service)
 
     if failed_required:
         return (False, f"Inactive services: {', '.join(failed_required)}", results)
@@ -345,6 +359,7 @@ def main(terraform_dir, config, verbose):
     server_types = server_types_config.get('server_types', {})
     optional_systemd = server_types_config.get('optional_services', {}).get('systemd', [])
     optional_pm2 = server_types_config.get('optional_services', {}).get('pm2', [])
+    systemd_aliases = server_types_config.get('service_aliases', {}).get('systemd', {})
 
     # Load SSH config - try multiple locations
     if config:
@@ -399,22 +414,36 @@ def main(terraform_dir, config, verbose):
         print(json.dumps(tf_outputs, indent=2))
         print()
 
-    # Extract relevant IPs and info
-    web_ip = tf_outputs.get('web_monitoring_public_ip')
-    sbc_ips = tf_outputs.get('sbc_public_ips', [])
+    # Extract relevant IPs and info based on provider
+    # OCI mini uses 'public_ip', medium uses 'web_monitoring_public_ip',
+    # large (split) uses 'web_public_ip'
+    web_ip = tf_outputs.get('web_monitoring_public_ip') or tf_outputs.get('web_public_ip') or tf_outputs.get('public_ip')
+    sbc_ips = tf_outputs.get('sbc_public_ips') or tf_outputs.get('sip_public_ips') or tf_outputs.get('sbc_ips', [])
     feature_server_mig = tf_outputs.get('feature_server_mig_name')
     recording_mig = tf_outputs.get('recording_mig_name')
 
+    # Check for mini and large deployments
+    is_mini = 'mini' in str(tf_dir).lower()
+    is_large = 'large' in str(tf_dir).lower()
+
     if not web_ip:
-        print("❌ Could not find web_monitoring_public_ip in terraform outputs")
+        print("❌ Could not find web_monitoring_public_ip, web_public_ip, or public_ip in terraform outputs")
         sys.exit(1)
 
-    if not sbc_ips:
-        print("❌ Could not find sbc_public_ips in terraform outputs")
-        sys.exit(1)
+    # For mini deployments, the single VM handles everything - no separate SBCs
+    if is_mini and not sbc_ips:
+        sbc_ips = []  # Mini has no separate SBC servers
 
-    print(f"✓ Web/Monitoring IP: {web_ip}")
-    print(f"✓ SBC IPs: {', '.join(sbc_ips)}")
+    if is_mini:
+        print(f"✓ Mini server IP: {web_ip} (all-in-one)")
+    elif is_large:
+        print(f"✓ Web Server IP: {web_ip}")
+        if sbc_ips:
+            print(f"✓ SIP IPs: {', '.join(sbc_ips)}")
+    else:
+        print(f"✓ Web/Monitoring IP: {web_ip}")
+        if sbc_ips:
+            print(f"✓ SBC IPs: {', '.join(sbc_ips)}")
     if feature_server_mig:
         print(f"✓ Feature Server MIG: {feature_server_mig}")
     if recording_mig and recording_mig != "Not deployed":
@@ -424,9 +453,14 @@ def main(terraform_dir, config, verbose):
     # Track results
     all_passed = True
 
-    # Test 1: Web/Monitoring Server
+    # Test 1: Web/Monitoring Server (or Mini all-in-one)
     print("=" * 70)
-    print("Test 1: Web/Monitoring Server")
+    if is_mini:
+        print("Test 1: Mini Server (All-in-one)")
+    elif is_large:
+        print("Test 1: Web Server")
+    else:
+        print("Test 1: Web/Monitoring Server")
     print("=" * 70)
     print()
 
@@ -448,22 +482,26 @@ def main(terraform_dir, config, verbose):
     print()
 
     # Get expected services from server types config
-    web_monitoring_type = server_types.get('web-monitoring', {})
-    expected_systemd = web_monitoring_type.get('systemd_services', [])
-    expected_pm2 = web_monitoring_type.get('pm2_processes', [])
+    if is_mini:
+        server_type = server_types.get('mini', {})
+    elif is_large:
+        server_type = server_types.get('web', {})
+    else:
+        server_type = server_types.get('web-monitoring', {})
+    expected_systemd = server_type.get('systemd_services', [])
+    expected_pm2 = server_type.get('pm2_processes', [])
 
     if expected_systemd:
         print("Checking systemd services...")
-        success, message, details = check_systemd_services(web_ip, expected_systemd, ssh_config, optional_systemd)
+        success, message, details = check_systemd_services(web_ip, expected_systemd, ssh_config, optional_systemd, systemd_aliases)
         if success:
             print(f"✅ {message}")
         else:
             print(f"❌ {message}")
-            if verbose:
-                print("  Service status:")
-                for svc, status in details.items():
-                    symbol = "✅" if status == "active" else "❌"
-                    print(f"    {symbol} {svc}: {status}")
+            print("  Service status:")
+            for svc, status in details.items():
+                symbol = "✅" if status == "active" else "❌"
+                print(f"    {symbol} {svc}: {status}")
             all_passed = False
         print()
 
@@ -485,70 +523,76 @@ def main(terraform_dir, config, verbose):
 
     print()
 
-    # Test 2: SBC Servers
-    print("=" * 70)
-    print(f"Test 2: SBC Servers ({len(sbc_ips)} instance(s))")
-    print("=" * 70)
-    print()
-
-    for idx, sbc_ip in enumerate(sbc_ips, 1):
-        print(f"SBC {idx}: {sbc_ip}")
-        print("-" * 70)
-
-        print(f"Testing SSH connectivity...")
-        if test_ssh_connectivity_wrapper(sbc_ip, ssh_config):
-            print("✅ SSH connectivity OK")
-        else:
-            print("❌ SSH connectivity FAILED")
-            all_passed = False
+    # Test 2: SBC/SIP Servers (skip for mini deployments)
+    sbc_label = "SIP" if is_large else "SBC"
+    if is_mini:
+        print("=" * 70)
+        print("Test 2: SBC Servers - SKIPPED (mini deployment has all-in-one)")
+        print("=" * 70)
+        print()
+    elif sbc_ips:
+        print("=" * 70)
+        print(f"Test 2: {sbc_label} Servers ({len(sbc_ips)} instance(s))")
+        print("=" * 70)
         print()
 
-        print("Checking startup script...")
-        success, message = check_startup_script(sbc_ip, provider, ssh_config, server_types_config)
-        if success:
-            print(f"✅ {message}")
-        else:
-            print(f"❌ {message}")
-            all_passed = False
-        print()
+        for idx, sbc_ip in enumerate(sbc_ips, 1):
+            print(f"{sbc_label} {idx}: {sbc_ip}")
+            print("-" * 70)
 
-        # Get expected services from server types config
-        sbc_type = server_types.get('sbc', {})
-        expected_systemd = sbc_type.get('systemd_services', [])
-        expected_pm2 = sbc_type.get('pm2_processes', [])
+            print(f"Testing SSH connectivity...")
+            if test_ssh_connectivity_wrapper(sbc_ip, ssh_config):
+                print("✅ SSH connectivity OK")
+            else:
+                print("❌ SSH connectivity FAILED")
+                all_passed = False
+            print()
 
-        if expected_systemd:
-            print("Checking systemd services...")
-            success, message, details = check_systemd_services(sbc_ip, expected_systemd, ssh_config, optional_systemd)
+            print("Checking startup script...")
+            success, message = check_startup_script(sbc_ip, provider, ssh_config, server_types_config)
             if success:
                 print(f"✅ {message}")
             else:
                 print(f"❌ {message}")
-                if verbose:
+                all_passed = False
+            print()
+
+            # Get expected services from server types config
+            sbc_type = server_types.get('sip' if is_large else 'sbc', {})
+            expected_systemd = sbc_type.get('systemd_services', [])
+            expected_pm2 = sbc_type.get('pm2_processes', [])
+
+            if expected_systemd:
+                print("Checking systemd services...")
+                success, message, details = check_systemd_services(sbc_ip, expected_systemd, ssh_config, optional_systemd, systemd_aliases)
+                if success:
+                    print(f"✅ {message}")
+                else:
+                    print(f"❌ {message}")
                     print("  Service status:")
                     for svc, status in details.items():
                         symbol = "✅" if status == "active" else "❌"
                         print(f"    {symbol} {svc}: {status}")
-                all_passed = False
-            print()
-
-        if expected_pm2:
-            print("Checking PM2 services...")
-            success, message, pm2_details = check_pm2_services(sbc_ip, expected_pm2, ssh_config, optional_pm2)
-            if success:
-                print(f"✅ {message}")
-            else:
-                print(f"❌ {message}")
-                all_passed = False
-
-            if verbose and pm2_details:
+                    all_passed = False
                 print()
-                print("PM2 Status:")
-                print("-" * 70)
-                print(pm2_details)
-                print("-" * 70)
 
-        print()
+            if expected_pm2:
+                print("Checking PM2 services...")
+                success, message, pm2_details = check_pm2_services(sbc_ip, expected_pm2, ssh_config, optional_pm2)
+                if success:
+                    print(f"✅ {message}")
+                else:
+                    print(f"❌ {message}")
+                    all_passed = False
+
+                if verbose and pm2_details:
+                    print()
+                    print("PM2 Status:")
+                    print("-" * 70)
+                    print(pm2_details)
+                    print("-" * 70)
+
+            print()
 
     # Test 3: Feature Servers (MIG instances)
     if provider.lower() == 'gcp' and feature_server_mig:
@@ -604,16 +648,15 @@ def main(terraform_dir, config, verbose):
 
                 if expected_systemd:
                     print("Checking systemd services...")
-                    success, message, details = check_systemd_services(private_ip, expected_systemd, ssh_config, optional_systemd, jump_host=web_ip)
+                    success, message, details = check_systemd_services(private_ip, expected_systemd, ssh_config, optional_systemd, systemd_aliases, jump_host=web_ip)
                     if success:
                         print(f"✅ {message}")
                     else:
                         print(f"❌ {message}")
-                        if verbose:
-                            print("  Service status:")
-                            for svc, status in details.items():
-                                symbol = "✅" if status == "active" else "❌"
-                                print(f"    {symbol} {svc}: {status}")
+                        print("  Service status:")
+                        for svc, status in details.items():
+                            symbol = "✅" if status == "active" else "❌"
+                            print(f"    {symbol} {svc}: {status}")
                         all_passed = False
                     print()
 
@@ -680,16 +723,15 @@ def main(terraform_dir, config, verbose):
 
                 if expected_systemd:
                     print("Checking systemd services...")
-                    success, message, details = check_systemd_services(private_ip, expected_systemd, ssh_config, optional_systemd, jump_host=web_ip)
+                    success, message, details = check_systemd_services(private_ip, expected_systemd, ssh_config, optional_systemd, systemd_aliases, jump_host=web_ip)
                     if success:
                         print(f"✅ {message}")
                     else:
                         print(f"❌ {message}")
-                        if verbose:
-                            print("  Service status:")
-                            for svc, status in details.items():
-                                symbol = "✅" if status == "active" else "❌"
-                                print(f"    {symbol} {svc}: {status}")
+                        print("  Service status:")
+                        for svc, status in details.items():
+                            symbol = "✅" if status == "active" else "❌"
+                            print(f"    {symbol} {svc}: {status}")
                         all_passed = False
                     print()
 

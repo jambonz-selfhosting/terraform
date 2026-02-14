@@ -1,0 +1,280 @@
+#cloud-config
+# Cloud-init configuration for jambonz Web server on OCI (Large deployment)
+# Handles API server, webapp, and public-apps only (no monitoring stack)
+
+package_update: false
+package_upgrade: false
+
+write_files:
+  - path: /tmp/jambonz-setup.sh
+    permissions: '0755'
+    content: |
+      #!/bin/bash -xe
+
+      # Variables passed from Terraform
+      MYSQL_HOST="${mysql_host}"
+      MYSQL_USER="${mysql_user}"
+      MYSQL_PASSWORD="${mysql_password}"
+      REDIS_HOST="${redis_host}"
+      REDIS_PORT="${redis_port}"
+      JWT_SECRET="${jwt_secret}"
+      URL_PORTAL="${url_portal}"
+      VPC_CIDR="${vpc_cidr}"
+      MONITORING_PRIVATE_IP="${monitoring_private_ip}"
+      DEPLOY_RECORDING_CLUSTER="${deploy_recording_cluster}"
+
+      echo "Starting jambonz Web server configuration for OCI large deployment"
+
+      # Detecting the Linux distribution
+      if grep -q 'ID="ol"' /etc/os-release 2>/dev/null || grep -q 'ID="rhel"' /etc/os-release 2>/dev/null || grep -q 'ID=ol' /etc/os-release 2>/dev/null || grep -q 'ID=rhel' /etc/os-release 2>/dev/null; then
+          DEFAULT_USER=admin
+          NGINX_CONFIG=/etc/nginx/conf.d/default.conf
+
+          # Install MySQL client if not present (needed for remote MySQL HeatWave)
+          if ! command -v mysql &>/dev/null; then
+              echo "Installing MySQL client..."
+              sudo dnf install -y mysql 2>/dev/null || sudo yum install -y mysql || true
+          fi
+
+          echo "Disabling firewalld"
+          sudo systemctl stop firewalld || true
+          sudo systemctl disable firewalld || true
+      else
+          DEFAULT_USER=admin
+          NGINX_CONFIG=/etc/nginx/sites-available/default
+      fi
+
+      # Always use jambonz user for apps
+      USER=jambonz
+      HOME=/home/jambonz
+
+      # Copy SSH authorized_keys from opc user to jambonz user
+      if [ -f /home/opc/.ssh/authorized_keys ] && [ -d /home/jambonz ]; then
+          echo "Copying SSH keys from opc to jambonz user..."
+          mkdir -p /home/jambonz/.ssh
+          cp /home/opc/.ssh/authorized_keys /home/jambonz/.ssh/authorized_keys
+          chown -R jambonz:jambonz /home/jambonz/.ssh
+          chmod 700 /home/jambonz/.ssh
+          chmod 600 /home/jambonz/.ssh/authorized_keys
+      fi
+
+      # Get instance metadata from OCI IMDS
+      echo "Getting instance metadata from OCI IMDS..."
+      PRIVATE_IP=$(curl -s -H "Authorization: Bearer Oracle" http://169.254.169.254/opc/v2/vnics/ 2>/dev/null | jq -r '.[0].privateIp' || hostname -I | awk '{print $1}')
+      INSTANCE_ID=$(curl -s -H "Authorization: Bearer Oracle" http://169.254.169.254/opc/v2/instance/id 2>/dev/null || hostname)
+
+      if [ -z "$PRIVATE_IP" ] || [ "$PRIVATE_IP" = "null" ]; then
+          PRIVATE_IP=$(hostname -I | awk '{print $1}')
+      fi
+      if [ -z "$INSTANCE_ID" ] || [ "$INSTANCE_ID" = "null" ]; then
+          INSTANCE_ID=$(hostname)
+      fi
+
+      PUBLIC_IP=$(curl -s https://api.ipify.org 2>/dev/null || echo "")
+
+      echo "Public IP: $PUBLIC_IP"
+      echo "Private IP: $PRIVATE_IP"
+      echo "Instance ID: $INSTANCE_ID"
+
+      echo "Seeding database..."
+      mysql -h $MYSQL_HOST -u $MYSQL_USER -p$MYSQL_PASSWORD -e "CREATE DATABASE IF NOT EXISTS jambones"
+      DEFAULT_ACCOUNT_SID=$(uuidgen)
+      DEFAULT_TOKEN=$(uuidgen)
+      sudo sed -i "s/9351f46a-678c-43f5-b8a6-d4eb58d131af/$DEFAULT_ACCOUNT_SID/g" $HOME/apps/api-server/db/seed-production-database-open-source.sql
+      sudo sed -i "s/38700987-c7a4-4685-a5bb-af378f9734de/$DEFAULT_TOKEN/g" $HOME/apps/api-server/db/seed-production-database-open-source.sql
+      mysql -h $MYSQL_HOST -u $MYSQL_USER -D jambones -p$MYSQL_PASSWORD < $HOME/apps/api-server/db/jambones-sql.sql || true
+      sudo sed -i "s/public-apps.jambonz.cloud/public-apps.$URL_PORTAL/g" $HOME/apps/api-server/db/seed-production-database-open-source.sql
+      mysql -h $MYSQL_HOST -u $MYSQL_USER -D jambones -p$MYSQL_PASSWORD < $HOME/apps/api-server/db/seed-production-database-open-source.sql || true
+
+      # Reset admin password
+      JAMBONES_ADMIN_INITIAL_PASSWORD=$INSTANCE_ID \
+      JAMBONES_MYSQL_HOST=$MYSQL_HOST \
+      JAMBONES_MYSQL_USER=$MYSQL_USER \
+      JAMBONES_MYSQL_PASSWORD=$MYSQL_PASSWORD \
+      JAMBONES_MYSQL_DATABASE=jambones \
+      $HOME/apps/api-server/db/reset_admin_password.js || true
+
+      # Add row to system information table
+      mysql -h $MYSQL_HOST -u $MYSQL_USER -D jambones -p$MYSQL_PASSWORD -e "insert into system_information (domain_name, sip_domain_name, monitoring_domain_name) values ('$URL_PORTAL', 'sip.$URL_PORTAL', 'grafana.$URL_PORTAL')" || true
+
+      # Configure webapp
+      echo "Configuring webapp..."
+      echo "VITE_API_BASE_URL=http://$URL_PORTAL/api/v1" > $HOME/apps/webapp/.env
+      API_BASE_URL="http://$URL_PORTAL/api/v1"
+      TAG="<script>window.JAMBONZ = { API_BASE_URL: '$API_BASE_URL'};</script>"
+      sed -i -e "\@</head>@i\ $TAG" $HOME/apps/webapp/dist/index.html || true
+
+      echo "Writing $HOME/apps/ecosystem.config.js..."
+      cat << EOF > $HOME/apps/ecosystem.config.js
+      module.exports = {
+        apps : [
+        {
+          name: 'api-server',
+          cwd: '$HOME/apps/api-server',
+          script: 'app.js',
+          out_file: '$HOME/.pm2/logs/api-server.log',
+          err_file: '$HOME/.pm2/logs/api-server.log',
+          combine_logs: true,
+          instance_var: 'INSTANCE_ID',
+          exec_mode: 'cluster',
+          instances: 0,
+          autorestart: true,
+          watch: false,
+          max_memory_restart: '2G',
+          env: {
+            JAMBONES_LOGLEVEL: 'info',
+            JWT_SECRET: '$JWT_SECRET',
+            AUTHENTICATION_KEY: '$JWT_SECRET',
+            JAMBONES_MYSQL_HOST: '$MYSQL_HOST',
+            JAMBONES_MYSQL_USER: '$MYSQL_USER',
+            JAMBONES_MYSQL_PASSWORD: '$MYSQL_PASSWORD',
+            JAMBONES_MYSQL_DATABASE: 'jambones',
+            JAMBONES_MYSQL_CONNECTION_LIMIT: 10,
+            JAMBONES_REDIS_HOST: '$REDIS_HOST',
+            JAMBONES_REDIS_PORT: $REDIS_PORT,
+            JAMBONE_API_VERSION: 'v1',
+            JAMBONES_TIME_SERIES_HOST: '$MONITORING_PRIVATE_IP',
+            ENABLE_METRICS: 1,
+            STATS_HOST: '127.0.0.1',
+            STATS_PORT: 8125,
+            STATS_PROTOCOL: 'tcp',
+            STATS_TELEGRAF: 1,
+            STATS_SAMPLE_RATE: 1,
+            HTTP_PORT: 3000,
+            JAEGER_BASE_URL: 'http://$MONITORING_PRIVATE_IP:16686',
+            HOMER_BASE_URL: 'http://$MONITORING_PRIVATE_IP:9080',
+            HOMER_USERNAME: 'admin',
+            HOMER_PASSWORD: 'sipcapture',
+            JAMBONZ_RECORD_WS_USERNAME: 'jambonz',
+            JAMBONZ_RECORD_WS_PASSWORD: '$JWT_SECRET',
+            JAMBONES_DISABLE_TTS_STREAMING: true
+            },
+        },
+        {
+          name: 'webapp',
+          script: 'npm',
+          cwd: '$HOME/apps/webapp',
+          args: 'run serve'
+        },
+        {
+          name: 'public-apps',
+          cwd: '$HOME/apps/public-apps',
+          script: 'app.js',
+          out_file: '$HOME/.pm2/logs/public-apps',
+          err_file: '$HOME/.pm2/logs/public-apps',
+          combine_logs: true,
+          instance_var: 'INSTANCE_ID',
+          exec_mode: 'fork',
+          instances: 1,
+          autorestart: true,
+          watch: false,
+          max_memory_restart: '1G',
+          env: {
+            LOGLEVEL: 'info',
+            HTTP_PORT: 3011,
+            NRC_TIME_SERVICE_DID: '+16137451576'
+          }
+        }]
+      };
+      EOF
+
+      echo "Finished writing config file"
+
+      sudo -u $USER bash -c "pm2 start $HOME/apps/ecosystem.config.js"
+      sudo env PATH=$PATH:/usr/bin /usr/lib/node_modules/pm2/bin/pm2 startup systemd -u $USER --hp $HOME
+      sudo -u $USER bash -c "pm2 save"
+      sudo systemctl enable pm2-$USER.service
+
+      # Configure telegraf to send to the monitoring server
+      sudo sed -i -e "s/influxdb:8086/$MONITORING_PRIVATE_IP:8086/g" /etc/telegraf/telegraf.conf
+      sudo systemctl restart telegraf
+
+      # Configure nginx (web-only: portal, API, public-apps; proxy grafana/homer to monitoring server)
+      sudo cat << EOF > $NGINX_CONFIG
+      server {
+          listen 80;
+          server_name $URL_PORTAL;
+          location /api/ {
+              rewrite ^/api/(.*)$ /\$1 break;
+              proxy_pass http://127.0.0.1:3000;
+              proxy_set_header Host \$host;
+          }
+          location / {
+              proxy_pass http://127.0.0.1:3001;
+              proxy_set_header Host \$host;
+          }
+      }
+      server {
+          listen 80;
+          server_name api.$URL_PORTAL;
+          location / {
+              proxy_pass http://127.0.0.1:3000;
+              proxy_set_header Host \$host;
+          }
+      }
+      server {
+        listen 80;
+        server_name grafana.$URL_PORTAL;
+        location / {
+          proxy_pass http://$MONITORING_PRIVATE_IP:3010;
+          proxy_http_version 1.1;
+          proxy_set_header Upgrade \$http_upgrade;
+          proxy_set_header Connection 'upgrade';
+          proxy_set_header Host \$host;
+          proxy_cache_bypass \$http_upgrade;
+        }
+      }
+      server {
+        listen 80;
+        server_name homer.$URL_PORTAL;
+        location / {
+          proxy_pass http://$MONITORING_PRIVATE_IP:9080;
+          proxy_http_version 1.1;
+          proxy_set_header Upgrade \$http_upgrade;
+          proxy_set_header Connection 'upgrade';
+          proxy_set_header Host \$host;
+          proxy_cache_bypass \$http_upgrade;
+        }
+      }
+      server {
+        listen 80;
+        server_name public-apps.$URL_PORTAL;
+        location / {
+          proxy_pass http://127.0.0.1:3011;
+          proxy_http_version 1.1;
+          proxy_set_header Upgrade \$http_upgrade;
+          proxy_set_header Connection 'upgrade';
+          proxy_set_header Host \$host;
+          proxy_cache_bypass \$http_upgrade;
+        }
+      }
+      EOF
+
+      sudo systemctl restart nginx
+
+      # Configure upload_recordings service
+      sudo sed -i -e "s/MYSQL_HOST=/MYSQL_HOST=$MYSQL_HOST/g" /etc/systemd/system/upload_recordings.service
+      sudo sed -i -e "s/MYSQL_USER=/MYSQL_USER=$MYSQL_USER/g" /etc/systemd/system/upload_recordings.service
+      sudo sed -i -e "s/MYSQL_PASSWORD=/MYSQL_PASSWORD=$MYSQL_PASSWORD/g" /etc/systemd/system/upload_recordings.service
+      sudo sed -i -e "s/MYSQL_DATABASE=/MYSQL_DATABASE=jambones/g" /etc/systemd/system/upload_recordings.service
+      sudo sed -i -e "s/BASIC_AUTH_USERNAME=/BASIC_AUTH_USERNAME=jambonz/g" /etc/systemd/system/upload_recordings.service
+      sudo sed -i -e "s/BASIC_AUTH_PASSWORD=/BASIC_AUTH_PASSWORD=$JWT_SECRET/g" /etc/systemd/system/upload_recordings.service
+      sudo sed -i -e "s/ENCRYPTION_SECRET=/ENCRYPTION_SECRET=$JWT_SECRET/g" /etc/systemd/system/upload_recordings.service
+
+      sudo systemctl daemon-reload
+      sudo systemctl enable upload_recordings
+      sudo systemctl start upload_recordings
+
+      # Check if recording cluster is deployed
+      if [[ "$DEPLOY_RECORDING_CLUSTER" == "true" ]]; then
+        echo "Recording cluster is deployed, disabling local upload_recordings service"
+        sudo systemctl stop upload_recordings 2>/dev/null || true
+        sudo systemctl disable upload_recordings 2>/dev/null || true
+      fi
+
+      echo "Web server setup complete!"
+
+runcmd:
+  - /tmp/jambonz-setup.sh > /var/log/jambonz-setup.log 2>&1
+
+final_message: "jambonz Web server cloud-init configuration complete after $UPTIME seconds"

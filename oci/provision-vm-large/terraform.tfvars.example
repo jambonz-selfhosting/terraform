@@ -1,0 +1,156 @@
+# Example Terraform variables for jambonz large cluster deployment on OCI
+# Copy this file to terraform.tfvars and fill in your values
+#
+# Large deployment uses fully separated architecture:
+#   - SIP servers (drachtio only)
+#   - RTP servers (rtpengine only)
+#   - Web server (portal, API, webapp)
+#   - Monitoring server (Redis, Grafana, Homer, Jaeger, InfluxDB)
+#   - Feature servers (FreeSWITCH)
+#   - Recording servers (optional)
+
+# ------------------------------------------------------------------------------
+# OCI CREDENTIALS
+# Get these from OCI Console -> Identity -> Users -> API Keys
+# ------------------------------------------------------------------------------
+
+tenancy_ocid     = "ocid1.tenancy.oc1..aaaaaaa..."
+user_ocid        = "ocid1.user.oc1..aaaaaaa..."
+fingerprint      = "aa:bb:cc:dd:ee:ff:00:11:22:33:44:55:66:77:88:99"
+private_key_path = "~/.oci/oci_api_key.pem"
+compartment_id   = "ocid1.compartment.oc1..aaaaaaa..."
+region           = "us-ashburn-1"
+
+# ------------------------------------------------------------------------------
+# JAMBONZ IMAGE PAR URLs (Optional)
+# Default uses the official jambonz images. Override only if using custom images.
+# Large deployment uses separate images for each role (SIP, RTP, Web, Monitoring)
+# ------------------------------------------------------------------------------
+
+# sip_image_par_url            = "https://objectstorage.us-ashburn-1.oraclecloud.com/p/xxxxx/n/namespace/b/bucket/o/jambonz-sip-v10.0.4.oci"
+# rtp_image_par_url            = "https://objectstorage.us-ashburn-1.oraclecloud.com/p/xxxxx/n/namespace/b/bucket/o/jambonz-rtp-v10.0.4.oci"
+# web_image_par_url            = "https://objectstorage.us-ashburn-1.oraclecloud.com/p/xxxxx/n/namespace/b/bucket/o/jambonz-web-v10.0.4.oci"
+# monitoring_image_par_url     = "https://objectstorage.us-ashburn-1.oraclecloud.com/p/xxxxx/n/namespace/b/bucket/o/jambonz-monitoring-v10.0.4.oci"
+# feature_server_image_par_url = "https://objectstorage.us-ashburn-1.oraclecloud.com/p/xxxxx/n/namespace/b/bucket/o/jambonz-fs-v10.0.4.oci"
+# recording_image_par_url      = "https://objectstorage.us-ashburn-1.oraclecloud.com/p/xxxxx/n/namespace/b/bucket/o/jambonz-recording-v10.0.4.oci"
+
+# ------------------------------------------------------------------------------
+# SSH ACCESS
+# Your SSH public key for VM access
+# ------------------------------------------------------------------------------
+
+ssh_public_key = "ssh-rsa AAAA... user@host"
+
+# ------------------------------------------------------------------------------
+# JAMBONZ CONFIGURATION
+# ------------------------------------------------------------------------------
+
+url_portal = "jambonz.example.com"
+
+# Enable PCAP capture for SIP traffic
+enable_pcaps = true
+
+# Deploy the recording server cluster
+deploy_recording_cluster = true
+
+# ------------------------------------------------------------------------------
+# DEPLOYMENT CONFIGURATION
+# ------------------------------------------------------------------------------
+
+# Prefix for resource names (lowercase alphanumeric, 2-10 chars)
+name_prefix = "jambonz"
+
+# Environment label
+environment = "production"
+
+# ------------------------------------------------------------------------------
+# NETWORK CONFIGURATION
+# ------------------------------------------------------------------------------
+
+# VCN and subnet CIDRs
+vcn_cidr            = "172.20.0.0/16"
+public_subnet_cidr  = "172.20.10.0/24"
+private_subnet_cidr = "172.20.20.0/24"
+
+# ------------------------------------------------------------------------------
+# NETWORK ACCESS CONTROLS
+# Use x.x.x.x/32 for a single IP, or 0.0.0.0/0 for any IP (less secure)
+# ------------------------------------------------------------------------------
+
+allowed_ssh_cidr  = "0.0.0.0/0"
+allowed_http_cidr = "0.0.0.0/0"
+allowed_sip_cidr  = "0.0.0.0/0"
+allowed_rtp_cidr  = "0.0.0.0/0"
+
+# ------------------------------------------------------------------------------
+# INSTANCE CONFIGURATION
+# OCI uses flexible shapes - specify OCPUs and memory separately
+# Common shapes: VM.Standard.E4.Flex, VM.Standard.E5.Flex, VM.Standard3.Flex
+# See https://docs.oracle.com/en-us/iaas/Content/Compute/References/computeshapes.htm
+# ------------------------------------------------------------------------------
+
+# SIP Servers (drachtio only)
+sip_shape         = "VM.Standard.E4.Flex"
+sip_ocpus         = 4
+sip_memory_in_gbs = 8
+sip_disk_size     = 100
+sip_count         = 2
+
+# RTP Servers (rtpengine only)
+rtp_shape         = "VM.Standard.E4.Flex"
+rtp_ocpus         = 4
+rtp_memory_in_gbs = 8
+rtp_disk_size     = 100
+rtp_count         = 2
+
+# Web Server (portal, API, webapp)
+web_shape         = "VM.Standard.E4.Flex"
+web_ocpus         = 4
+web_memory_in_gbs = 8
+web_disk_size     = 100
+
+# Monitoring Server (Redis, Grafana, Homer, Jaeger, InfluxDB)
+monitoring_shape         = "VM.Standard.E4.Flex"
+monitoring_ocpus         = 4
+monitoring_memory_in_gbs = 16
+monitoring_disk_size     = 200
+
+# Feature Servers (FreeSWITCH)
+feature_server_shape         = "VM.Standard.E4.Flex"
+feature_server_ocpus         = 8
+feature_server_memory_in_gbs = 16
+feature_server_disk_size     = 100
+feature_server_count         = 4
+
+# Recording Servers (only used if deploy_recording_cluster = true)
+recording_shape         = "VM.Standard.E4.Flex"
+recording_ocpus         = 4
+recording_memory_in_gbs = 8
+recording_disk_size     = 200
+recording_count         = 2
+
+# ------------------------------------------------------------------------------
+# DATABASE CONFIGURATION (OCI MySQL HeatWave)
+# See https://docs.oracle.com/en-us/iaas/mysql-database/doc/db-systems.html
+# ------------------------------------------------------------------------------
+
+# MySQL shape - determines CPU and memory
+# Common shapes: MySQL.VM.Standard.E4.1.8GB, MySQL.VM.Standard.E4.2.32GB, etc.
+mysql_shape = "MySQL.VM.Standard.E4.2.32GB"
+
+# Database storage size in GB
+mysql_storage_size = 100
+
+# Database credentials
+mysql_username = "jambonz"
+# mysql_password = ""  # Leave empty to auto-generate
+
+# ------------------------------------------------------------------------------
+# APIBAN (Optional)
+# Get a free key at https://apiban.org/getkey.html
+# Or use client credentials for multi-key mode
+# ------------------------------------------------------------------------------
+
+# apiban_key           = "your-apiban-api-key"
+# apiban_client_id     = ""
+# apiban_client_secret = ""

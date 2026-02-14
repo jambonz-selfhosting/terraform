@@ -1,63 +1,46 @@
-# Variables for jambonz mini deployment on Azure
+# Variables for jambonz mini deployment on Oracle Cloud Infrastructure (OCI)
 
 # ------------------------------------------------------------------------------
-# AZURE CREDENTIALS
+# OCI CREDENTIALS
 # ------------------------------------------------------------------------------
 
-variable "subscription_id" {
-  description = "Azure subscription ID"
+variable "tenancy_ocid" {
+  description = "OCI tenancy OCID"
   type        = string
   sensitive   = true
 }
 
-variable "tenant_id" {
-  description = "Azure tenant ID"
+variable "user_ocid" {
+  description = "OCI user OCID"
   type        = string
   sensitive   = true
+}
+
+variable "fingerprint" {
+  description = "Fingerprint of the OCI API signing key"
+  type        = string
+  sensitive   = true
+}
+
+variable "private_key_path" {
+  description = "Path to the OCI API private key file"
+  type        = string
+}
+
+variable "compartment_id" {
+  description = "OCI compartment OCID where resources will be created"
+  type        = string
+}
+
+variable "region" {
+  description = "OCI region (e.g., us-ashburn-1, eu-frankfurt-1)"
+  type        = string
+  default     = "us-ashburn-1"
 }
 
 # ------------------------------------------------------------------------------
 # DEPLOYMENT CONFIGURATION
 # ------------------------------------------------------------------------------
-
-variable "location" {
-  description = "Azure region to deploy in. See README for supported regions."
-  type        = string
-  default     = "eastus"
-
-  validation {
-    condition = contains([
-      # Americas
-      "eastus",
-      "eastus2",
-      "westus2",
-      "westus3",
-      "centralus",
-      "northcentralus",
-      "southcentralus",
-      "canadacentral",
-      "brazilsouth",
-      # Europe
-      "northeurope",
-      "westeurope",
-      "uksouth",
-      "francecentral",
-      "germanywestcentral",
-      "swedencentral",
-      # Asia Pacific
-      "australiaeast",
-      "southeastasia",
-      "japaneast",
-      "koreacentral",
-      "centralindia",
-      # Africa
-      "southafricanorth",
-      # Middle East
-      "uaenorth",
-    ], var.location)
-    error_message = "Location must be a supported Azure region. Supported regions: eastus, eastus2, westus2, westus3, centralus, northcentralus, southcentralus, canadacentral, brazilsouth, northeurope, westeurope, uksouth, francecentral, germanywestcentral, swedencentral, australiaeast, southeastasia, japaneast, koreacentral, centralindia, southafricanorth, uaenorth. Contact support@jambonz.org if you need a different region."
-  }
-}
 
 variable "name_prefix" {
   description = "Prefix for all resource names"
@@ -71,68 +54,83 @@ variable "environment" {
   default     = "production"
 }
 
-# ------------------------------------------------------------------------------
-# JAMBONZ IMAGE CONFIGURATION
-# Images are pulled from the jambonz Azure Community Gallery
-# ------------------------------------------------------------------------------
+variable "availability_domain_number" {
+  description = "Availability domain number (1, 2, or 3). If not specified, the first AD is used."
+  type        = number
+  default     = 1
 
-variable "jambonz_version" {
-  description = "jambonz version to deploy (image version in community gallery)"
-  type        = string
-  default     = "10.0.4"
+  validation {
+    condition     = var.availability_domain_number >= 1 && var.availability_domain_number <= 3
+    error_message = "Availability domain number must be 1, 2, or 3."
+  }
 }
 
-variable "community_gallery_name" {
-  description = "Name of the Azure Community Gallery containing jambonz images"
+# ------------------------------------------------------------------------------
+# JAMBONZ IMAGE CONFIGURATION
+# Images are imported from a Pre-Authenticated Request (PAR) URL
+# ------------------------------------------------------------------------------
+
+variable "image_par_url" {
+  description = "Pre-Authenticated Request URL for the jambonz mini image (from Object Storage)"
   type        = string
-  default     = "jambonz-8962e4f5-da0f-41ee-b094-8680ad38d302"
+  default     = "https://id580apywcz8.objectstorage.us-ashburn-1.oci.customer-oci.com/p/KTgxwZEWZjce0kAERPvGx9cFNltZnYbAd2jlAVrWJLB4lAGNcVkx1rGe3yTfP1zU/n/id580apywcz8/b/jambonz-images/o/jambonz-mini-v10.0.4.oci"
+
+  validation {
+    condition     = can(regex("^https://.*", var.image_par_url))
+    error_message = "Image PAR URL must be a valid HTTPS URL."
+  }
 }
 
 # ------------------------------------------------------------------------------
 # INSTANCE CONFIGURATION
 # ------------------------------------------------------------------------------
 
-variable "vm_size" {
-  description = "Azure VM size"
+variable "shape" {
+  description = "OCI compute shape (flexible shapes recommended)"
   type        = string
-  default     = "Standard_D2s_v3"
+  default     = "VM.Standard.E4.Flex"
 
   validation {
     condition = contains([
-      "Standard_B2s",
-      "Standard_B2ms",
-      "Standard_B4ms",
-      "Standard_D2s_v3",
-      "Standard_D4s_v3",
-      "Standard_D8s_v3",
-      "Standard_D2s_v4",
-      "Standard_D4s_v4",
-      "Standard_D8s_v4",
-      "Standard_D2s_v5",
-      "Standard_D4s_v5",
-      "Standard_D8s_v5",
-      "Standard_E2s_v3",
-      "Standard_E4s_v3",
-      "Standard_E2s_v4",
-      "Standard_E4s_v4",
-      "Standard_E2s_v5",
-      "Standard_E4s_v5",
-      "Standard_F2s_v2",
-      "Standard_F4s_v2",
-      "Standard_F8s_v2",
-    ], var.vm_size)
-    error_message = "VM size must be a valid Azure VM size."
+      "VM.Standard.E4.Flex",
+      "VM.Standard.E5.Flex",
+      "VM.Standard3.Flex",
+      "VM.Optimized3.Flex",
+    ], var.shape)
+    error_message = "Shape must be a supported flexible shape."
+  }
+}
+
+variable "ocpus" {
+  description = "Number of OCPUs for flexible shapes"
+  type        = number
+  default     = 4
+
+  validation {
+    condition     = var.ocpus >= 1 && var.ocpus <= 64
+    error_message = "OCPUs must be between 1 and 64."
+  }
+}
+
+variable "memory_in_gbs" {
+  description = "Memory in GB for flexible shapes"
+  type        = number
+  default     = 8
+
+  validation {
+    condition     = var.memory_in_gbs >= 1 && var.memory_in_gbs <= 1024
+    error_message = "Memory must be between 1 and 1024 GB."
   }
 }
 
 variable "disk_size" {
-  description = "OS disk size in GB"
+  description = "Boot volume size in GB"
   type        = number
-  default     = 50
+  default     = 200
 
   validation {
-    condition     = var.disk_size >= 30 && var.disk_size <= 1024
-    error_message = "Disk size must be between 30 and 1024 GB."
+    condition     = var.disk_size >= 50 && var.disk_size <= 32768
+    error_message = "Disk size must be between 50 and 32768 GB."
   }
 }
 
@@ -147,6 +145,32 @@ variable "ssh_public_key" {
   validation {
     condition     = length(var.ssh_public_key) > 0 && can(regex("^ssh-(rsa|ed25519|ecdsa)", var.ssh_public_key))
     error_message = "SSH public key is required and must start with ssh-rsa, ssh-ed25519, or ssh-ecdsa."
+  }
+}
+
+# ------------------------------------------------------------------------------
+# NETWORK CONFIGURATION
+# ------------------------------------------------------------------------------
+
+variable "vcn_cidr" {
+  description = "CIDR block for the VCN"
+  type        = string
+  default     = "10.0.0.0/16"
+
+  validation {
+    condition     = can(cidrhost(var.vcn_cidr, 0))
+    error_message = "Must be a valid CIDR block."
+  }
+}
+
+variable "public_subnet_cidr" {
+  description = "CIDR block for the public subnet"
+  type        = string
+  default     = "10.0.1.0/24"
+
+  validation {
+    condition     = can(cidrhost(var.public_subnet_cidr, 0))
+    error_message = "Must be a valid CIDR block."
   }
 }
 

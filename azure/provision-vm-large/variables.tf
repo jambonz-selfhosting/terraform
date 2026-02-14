@@ -55,8 +55,12 @@ variable "location" {
       "japaneast",
       "koreacentral",
       "centralindia",
+      # Africa
+      "southafricanorth",
+      # Middle East
+      "uaenorth",
     ], var.location)
-    error_message = "Location must be a supported Azure region. Supported regions: eastus, eastus2, westus2, westus3, centralus, northcentralus, southcentralus, canadacentral, brazilsouth, northeurope, westeurope, uksouth, francecentral, germanywestcentral, swedencentral, australiaeast, southeastasia, japaneast, koreacentral, centralindia. Contact support@jambonz.org if you need a different region."
+    error_message = "Location must be a supported Azure region. Supported regions: eastus, eastus2, westus2, westus3, centralus, northcentralus, southcentralus, canadacentral, brazilsouth, northeurope, westeurope, uksouth, francecentral, germanywestcentral, swedencentral, australiaeast, southeastasia, japaneast, koreacentral, centralindia, southafricanorth, uaenorth. Contact support@jambonz.org if you need a different region."
   }
 }
 
