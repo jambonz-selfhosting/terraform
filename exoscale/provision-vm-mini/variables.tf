@@ -55,16 +55,10 @@ variable "environment" {
 # INSTANCE CONFIGURATION
 # ------------------------------------------------------------------------------
 
-variable "template_name" {
-  description = "Name of the jambonz template (custom image) in Exoscale. Used if template_id is not set."
+variable "jambonz_version" {
+  description = "Jambonz version for template lookup (e.g., 10.0.4)"
   type        = string
-  default     = ""
-}
-
-variable "template_id" {
-  description = "ID of the jambonz template (custom image) in Exoscale. Takes precedence over template_name."
-  type        = string
-  default     = ""
+  default     = "10.0.4"
 }
 
 variable "instance_type" {

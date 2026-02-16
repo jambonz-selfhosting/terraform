@@ -29,11 +29,6 @@ environment = "production"
 # INSTANCE CONFIGURATION
 # ------------------------------------------------------------------------------
 
-# Jambonz template ID in Exoscale (UUID)
-# You'll need to create this template first using Packer
-# Use: exo compute template list --zone ch-gva-2 --visibility private
-template_id = "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
-
 # Instance type - see https://www.exoscale.com/pricing/
 # Recommended: standard.medium or larger for production
 instance_type = "standard.medium"
@@ -46,11 +41,11 @@ instance_type = "standard.medium"
 # Use EITHER ssh_key_name (existing key) OR ssh_public_key (create new key)
 # ------------------------------------------------------------------------------
 
-# Option 1: Name of existing SSH key in Exoscale
-ssh_key_name = "my-ssh-key"
+# Option 1: SSH public key content (creates new key — recommended)
+ssh_public_key = "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAAB... user@host"
 
-# Option 2: SSH public key content (creates new key)
-# ssh_public_key = "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAAB... user@host"
+# Option 2: Name of existing SSH key in Exoscale
+# ssh_key_name = "my-ssh-key"
 
 # ------------------------------------------------------------------------------
 # NETWORK ACCESS CONTROLS
@@ -58,7 +53,7 @@ ssh_key_name = "my-ssh-key"
 # ------------------------------------------------------------------------------
 
 # SSH access - IMPORTANT: Restrict this for security
-allowed_ssh_cidr = "0.0.0.0/0/32"
+allowed_ssh_cidr = "0.0.0.0/0"
 
 # HTTP/HTTPS access
 allowed_http_cidr = "0.0.0.0/0"

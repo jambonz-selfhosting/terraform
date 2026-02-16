@@ -47,3 +47,10 @@ CLAUDE.md
 aws/provision-eks-cluster/
 azure/provision-aks-cluster/
 gcp/provision-gke-cluster/
+
+# Exoscale internal scripts (not for end users)
+exoscale/upload-to-sos.sh
+exoscale/test-ssh-key/
+
+# Planning docs (not for end users)
+ovhcloud-terraform-plan.md

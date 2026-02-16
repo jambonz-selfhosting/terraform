@@ -1,10 +1,30 @@
 # =============================================================================
-# Template ID Lookup
+# Template Lookups
 # =============================================================================
-# Note: Exoscale provider does not have a data source for templates.
-# You must provide template IDs (not names) in terraform.tfvars.
-# Use: exo compute template list --zone ch-gva-2 --visibility private
-# to get the template IDs.
+
+data "exoscale_template" "jambonz_web_monitoring" {
+  zone       = var.zone
+  name       = "jambonz-web-monitoring-v${var.jambonz_version}"
+  visibility = "private"
+}
+
+data "exoscale_template" "jambonz_sip_rtp" {
+  zone       = var.zone
+  name       = "jambonz-sip-rtp-v${var.jambonz_version}"
+  visibility = "private"
+}
+
+data "exoscale_template" "jambonz_fs" {
+  zone       = var.zone
+  name       = "jambonz-fs-v${var.jambonz_version}"
+  visibility = "private"
+}
+
+data "exoscale_template" "jambonz_recording" {
+  zone       = var.zone
+  name       = "jambonz-recording-v${var.jambonz_version}"
+  visibility = "private"
+}
 
 # =============================================================================
 # Web/Monitoring Server
@@ -31,7 +51,7 @@ resource "exoscale_compute_instance" "web_monitoring" {
   name = "${var.name_prefix}-web-monitoring"
 
   type        = var.instance_type_web
-  template_id = var.template_web_monitoring
+  template_id = data.exoscale_template.jambonz_web_monitoring.id
   disk_size   = var.disk_size_web
   ssh_keys    = local.ssh_keys
 
@@ -39,6 +59,7 @@ resource "exoscale_compute_instance" "web_monitoring" {
 
   network_interface {
     network_id = exoscale_private_network.jambonz.id
+    ip_address = local.web_monitoring_private_ip
   }
 
   security_group_ids = [
@@ -53,8 +74,8 @@ resource "exoscale_compute_instance" "web_monitoring" {
     mysql_user               = data.exoscale_database_uri.mysql.username
     mysql_password           = data.exoscale_database_uri.mysql.password
     mysql_database           = data.exoscale_database_uri.mysql.db_name
-    redis_host               = data.exoscale_database_uri.valkey.host
-    redis_port               = data.exoscale_database_uri.valkey.port
+    redis_host               = "127.0.0.1"
+    redis_port               = 6379
     jwt_secret               = random_password.encryption_secret.result
     url_portal               = var.url_portal
     vpc_cidr                 = var.vpc_cidr
@@ -96,7 +117,7 @@ resource "exoscale_compute_instance" "sbc" {
   name  = "${var.name_prefix}-sbc-${count.index + 1}"
 
   type        = var.instance_type_sbc
-  template_id = var.template_sbc
+  template_id = data.exoscale_template.jambonz_sip_rtp.id
   disk_size   = var.disk_size_sbc
   ssh_keys    = local.ssh_keys
 
@@ -118,8 +139,8 @@ resource "exoscale_compute_instance" "sbc" {
     mysql_user           = data.exoscale_database_uri.mysql.username
     mysql_password       = data.exoscale_database_uri.mysql.password
     mysql_database       = data.exoscale_database_uri.mysql.db_name
-    redis_host           = data.exoscale_database_uri.valkey.host
-    redis_port           = data.exoscale_database_uri.valkey.port
+    redis_host           = local.web_monitoring_private_ip
+    redis_port           = 6379
     jwt_secret           = random_password.encryption_secret.result
     url_portal           = var.url_portal
     vpc_cidr             = var.vpc_cidr
@@ -145,7 +166,7 @@ resource "exoscale_instance_pool" "feature_server" {
   zone = var.zone
   name = "${var.name_prefix}-feature-server-pool"
 
-  template_id   = var.template_feature_server
+  template_id   = data.exoscale_template.jambonz_fs.id
   size          = var.feature_server_count
   instance_type = var.instance_type_feature
   disk_size     = var.disk_size_feature
@@ -169,8 +190,8 @@ resource "exoscale_instance_pool" "feature_server" {
     mysql_user               = data.exoscale_database_uri.mysql.username
     mysql_password           = data.exoscale_database_uri.mysql.password
     mysql_database           = data.exoscale_database_uri.mysql.db_name
-    redis_host               = data.exoscale_database_uri.valkey.host
-    redis_port               = data.exoscale_database_uri.valkey.port
+    redis_host               = local.web_monitoring_private_ip
+    redis_port               = 6379
     jwt_secret               = random_password.encryption_secret.result
     url_portal               = var.url_portal
     vpc_cidr                 = var.vpc_cidr
@@ -193,7 +214,7 @@ resource "exoscale_instance_pool" "recording" {
   zone = var.zone
   name = "${var.name_prefix}-recording-pool"
 
-  template_id   = var.template_recording
+  template_id   = data.exoscale_template.jambonz_recording.id
   size          = var.recording_server_count
   instance_type = var.instance_type_recording
   disk_size     = var.disk_size_recording
@@ -217,8 +238,8 @@ resource "exoscale_instance_pool" "recording" {
     mysql_user     = data.exoscale_database_uri.mysql.username
     mysql_password = data.exoscale_database_uri.mysql.password
     mysql_database = data.exoscale_database_uri.mysql.db_name
-    redis_host     = data.exoscale_database_uri.valkey.host
-    redis_port     = data.exoscale_database_uri.valkey.port
+    redis_host     = local.web_monitoring_private_ip
+    redis_port     = 6379
     jwt_secret     = random_password.encryption_secret.result
     url_portal     = var.url_portal
     vpc_cidr       = var.vpc_cidr

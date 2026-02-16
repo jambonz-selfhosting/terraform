@@ -11,12 +11,11 @@ locals {
   ssh_keys = [local.ssh_key]
 
   # SSH public key content for cloud-init - read from local file if using ssh_key_name
-  # User must have the public key in ~/.ssh/ directory
   ssh_public_key = var.ssh_public_key != "" ? var.ssh_public_key : file("~/.ssh/id_rsa.pub")
 
-  # Static private IP for web-monitoring VM (below DHCP range which starts at offset 10)
-  # Redis runs on this VM; SBC and feature servers connect to it via this IP
-  web_monitoring_private_ip = cidrhost(var.vpc_cidr, 5)
+  # Static private IP for monitoring VM (below DHCP range which starts at offset 10)
+  # Redis runs on this VM; all other servers connect to it via this IP
+  monitoring_private_ip = cidrhost(var.vpc_cidr, 5)
 }
 
 # =============================================================================
@@ -60,7 +59,7 @@ resource "exoscale_ssh_key" "jambonz" {
 resource "exoscale_private_network" "jambonz" {
   zone        = var.zone
   name        = "${var.name_prefix}-private-network"
-  description = "Private network for Jambonz medium cluster"
+  description = "Private network for Jambonz large cluster"
 
   # Start and end IP for DHCP range
   start_ip = cidrhost(var.vpc_cidr, 10)
@@ -124,14 +123,14 @@ resource "exoscale_security_group_rule" "internal_icmp" {
   description            = "Internal ICMP (ping)"
 }
 
-# Web/Monitoring Security Group
-resource "exoscale_security_group" "web_monitoring" {
-  name        = "${var.name_prefix}-sg-web-monitoring"
-  description = "Security group for web/monitoring server"
+# Web Security Group
+resource "exoscale_security_group" "web" {
+  name        = "${var.name_prefix}-sg-web"
+  description = "Security group for web server"
 }
 
 resource "exoscale_security_group_rule" "web_http" {
-  security_group_id = exoscale_security_group.web_monitoring.id
+  security_group_id = exoscale_security_group.web.id
   type              = "INGRESS"
   protocol          = "TCP"
   start_port        = 80
@@ -141,7 +140,7 @@ resource "exoscale_security_group_rule" "web_http" {
 }
 
 resource "exoscale_security_group_rule" "web_https" {
-  security_group_id = exoscale_security_group.web_monitoring.id
+  security_group_id = exoscale_security_group.web.id
   type              = "INGRESS"
   protocol          = "TCP"
   start_port        = 443
@@ -150,90 +149,142 @@ resource "exoscale_security_group_rule" "web_https" {
   description       = "HTTPS access"
 }
 
-resource "exoscale_security_group_rule" "web_grafana" {
-  security_group_id = exoscale_security_group.web_monitoring.id
-  type              = "INGRESS"
-  protocol          = "TCP"
-  start_port        = 3000
-  end_port          = 3000
-  cidr              = var.allowed_http_cidr
-  description       = "Grafana access"
+# Monitoring Security Group
+resource "exoscale_security_group" "monitoring" {
+  name        = "${var.name_prefix}-sg-monitoring"
+  description = "Security group for monitoring server"
 }
 
-resource "exoscale_security_group_rule" "web_homer" {
-  security_group_id = exoscale_security_group.web_monitoring.id
-  type              = "INGRESS"
-  protocol          = "TCP"
-  start_port        = 9080
-  end_port          = 9080
-  cidr              = var.allowed_http_cidr
-  description       = "Homer web access"
+resource "exoscale_security_group_rule" "monitoring_influxdb" {
+  security_group_id      = exoscale_security_group.monitoring.id
+  type                   = "INGRESS"
+  protocol               = "TCP"
+  start_port             = 8086
+  end_port               = 8086
+  user_security_group_id = exoscale_security_group.internal.id
+  description            = "InfluxDB from internal"
 }
 
-# SBC Security Group
-resource "exoscale_security_group" "sbc" {
-  name        = "${var.name_prefix}-sg-sbc"
-  description = "Security group for SBC servers"
+resource "exoscale_security_group_rule" "monitoring_jaeger" {
+  security_group_id      = exoscale_security_group.monitoring.id
+  type                   = "INGRESS"
+  protocol               = "TCP"
+  start_port             = 14268
+  end_port               = 14268
+  user_security_group_id = exoscale_security_group.internal.id
+  description            = "Jaeger collector from internal"
 }
 
-resource "exoscale_security_group_rule" "sbc_sip_tcp" {
-  security_group_id = exoscale_security_group.sbc.id
+resource "exoscale_security_group_rule" "monitoring_jaeger_query" {
+  security_group_id      = exoscale_security_group.monitoring.id
+  type                   = "INGRESS"
+  protocol               = "TCP"
+  start_port             = 16686
+  end_port               = 16686
+  user_security_group_id = exoscale_security_group.internal.id
+  description            = "Jaeger query from internal"
+}
+
+resource "exoscale_security_group_rule" "monitoring_hep_udp" {
+  security_group_id      = exoscale_security_group.monitoring.id
+  type                   = "INGRESS"
+  protocol               = "UDP"
+  start_port             = 9060
+  end_port               = 9060
+  user_security_group_id = exoscale_security_group.internal.id
+  description            = "HEP/Homer from internal"
+}
+
+resource "exoscale_security_group_rule" "monitoring_homer_web" {
+  security_group_id      = exoscale_security_group.monitoring.id
+  type                   = "INGRESS"
+  protocol               = "TCP"
+  start_port             = 9080
+  end_port               = 9080
+  user_security_group_id = exoscale_security_group.internal.id
+  description            = "Homer web from internal"
+}
+
+resource "exoscale_security_group_rule" "monitoring_grafana" {
+  security_group_id      = exoscale_security_group.monitoring.id
+  type                   = "INGRESS"
+  protocol               = "TCP"
+  start_port             = 3010
+  end_port               = 3010
+  user_security_group_id = exoscale_security_group.internal.id
+  description            = "Grafana from internal"
+}
+
+# SIP Security Group
+resource "exoscale_security_group" "sip" {
+  name        = "${var.name_prefix}-sg-sip"
+  description = "Security group for SIP servers"
+}
+
+resource "exoscale_security_group_rule" "sip_tcp" {
+  security_group_id = exoscale_security_group.sip.id
   type              = "INGRESS"
   protocol          = "TCP"
   start_port        = 5060
   end_port          = 5060
-  cidr              = var.allowed_sbc_cidr
+  cidr              = var.allowed_sip_cidr
   description       = "SIP TCP"
 }
 
-resource "exoscale_security_group_rule" "sbc_sip_udp" {
-  security_group_id = exoscale_security_group.sbc.id
+resource "exoscale_security_group_rule" "sip_udp" {
+  security_group_id = exoscale_security_group.sip.id
   type              = "INGRESS"
   protocol          = "UDP"
   start_port        = 5060
   end_port          = 5060
-  cidr              = var.allowed_sbc_cidr
+  cidr              = var.allowed_sip_cidr
   description       = "SIP UDP"
 }
 
-resource "exoscale_security_group_rule" "sbc_sip_tls" {
-  security_group_id = exoscale_security_group.sbc.id
+resource "exoscale_security_group_rule" "sip_tls" {
+  security_group_id = exoscale_security_group.sip.id
   type              = "INGRESS"
   protocol          = "TCP"
   start_port        = 5061
   end_port          = 5061
-  cidr              = var.allowed_sbc_cidr
+  cidr              = var.allowed_sip_cidr
   description       = "SIP TLS"
 }
 
-resource "exoscale_security_group_rule" "sbc_sip_wss" {
-  security_group_id = exoscale_security_group.sbc.id
+resource "exoscale_security_group_rule" "sip_wss" {
+  security_group_id = exoscale_security_group.sip.id
   type              = "INGRESS"
   protocol          = "TCP"
   start_port        = 8443
   end_port          = 8443
-  cidr              = var.allowed_sbc_cidr
+  cidr              = var.allowed_sip_cidr
   description       = "SIP WebSocket Secure"
 }
 
-resource "exoscale_security_group_rule" "sbc_rtp" {
-  security_group_id = exoscale_security_group.sbc.id
-  type              = "INGRESS"
-  protocol          = "UDP"
-  start_port        = 40000
-  end_port          = 60000
-  cidr              = var.allowed_sbc_cidr
-  description       = "RTP media"
-}
-
-resource "exoscale_security_group_rule" "sbc_http_internal" {
-  security_group_id = exoscale_security_group.sbc.id
+resource "exoscale_security_group_rule" "sip_http_internal" {
+  security_group_id = exoscale_security_group.sip.id
   type              = "INGRESS"
   protocol          = "TCP"
   start_port        = 3000
   end_port          = 3009
   cidr              = var.vpc_cidr
   description       = "HTTP internal ports"
+}
+
+# RTP Security Group
+resource "exoscale_security_group" "rtp" {
+  name        = "${var.name_prefix}-sg-rtp"
+  description = "Security group for RTP servers"
+}
+
+resource "exoscale_security_group_rule" "rtp_media" {
+  security_group_id = exoscale_security_group.rtp.id
+  type              = "INGRESS"
+  protocol          = "UDP"
+  start_port        = 40000
+  end_port          = 60000
+  cidr              = "0.0.0.0/0"
+  description       = "RTP media"
 }
 
 # Feature Server Security Group

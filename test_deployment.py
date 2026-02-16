@@ -417,7 +417,7 @@ def main(terraform_dir, config, verbose):
     # Extract relevant IPs and info based on provider
     # OCI mini uses 'public_ip', medium uses 'web_monitoring_public_ip',
     # large (split) uses 'web_public_ip'
-    web_ip = tf_outputs.get('web_monitoring_public_ip') or tf_outputs.get('web_public_ip') or tf_outputs.get('public_ip')
+    web_ip = tf_outputs.get('web_monitoring_public_ip') or tf_outputs.get('web_public_ip') or tf_outputs.get('public_ip') or tf_outputs.get('server_ip')
     sbc_ips = tf_outputs.get('sbc_public_ips') or tf_outputs.get('sip_public_ips') or tf_outputs.get('sbc_ips', [])
     feature_server_mig = tf_outputs.get('feature_server_mig_name')
     recording_mig = tf_outputs.get('recording_mig_name')
@@ -427,7 +427,7 @@ def main(terraform_dir, config, verbose):
     is_large = 'large' in str(tf_dir).lower()
 
     if not web_ip:
-        print("❌ Could not find web_monitoring_public_ip, web_public_ip, or public_ip in terraform outputs")
+        print("❌ Could not find web_monitoring_public_ip, web_public_ip, public_ip, or server_ip in terraform outputs")
         sys.exit(1)
 
     # For mini deployments, the single VM handles everything - no separate SBCs

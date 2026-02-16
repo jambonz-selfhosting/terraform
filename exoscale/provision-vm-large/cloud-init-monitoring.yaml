@@ -1,0 +1,66 @@
+#cloud-config
+# Cloud-init for Jambonz Monitoring Server on Exoscale (Large deployment)
+# Handles Grafana, Homer, Jaeger, InfluxDB, Cassandra, HEPlify
+
+# Merge SSH keys into existing jambonz user
+users:
+  - name: jambonz
+    ssh_authorized_keys:
+      - "${ssh_public_key}"
+
+# Configure network interfaces (both public and private)
+network:
+  version: 2
+  ethernets:
+    eth0:
+      dhcp4: true
+    eth1:
+      dhcp4: true
+
+write_files:
+  - path: /tmp/configure-monitoring.sh
+    permissions: '0755'
+    content: |
+      #!/bin/bash -xe
+      # Configuration script for jambonz Monitoring server
+
+      # Variables from Terraform
+      URL_PORTAL="${url_portal}"
+      VPC_CIDR="${vpc_cidr}"
+
+      echo "Starting jambonz Monitoring server configuration for Exoscale"
+
+      USER=jambonz
+      HOME=/home/jambonz
+
+      # Get instance metadata
+      echo "Getting instance metadata..."
+      PRIVATE_IP=$(ip -4 addr show eth1 | grep -oP '(?<=inet\s)\d+(\.\d+){3}' || echo "172.20.0.1")
+      INSTANCE_ID=$(curl -s http://169.254.169.254/latest/meta-data/instance-id 2>/dev/null || hostname)
+      PUBLIC_IP=$(curl -s https://api.ipify.org)
+
+      echo "Public IP: $PUBLIC_IP"
+      echo "Private IP: $PRIVATE_IP (eth1)"
+      echo "Instance ID: $INSTANCE_ID"
+
+      # Configure telegraf to send locally (this IS the monitoring server)
+      sudo sed -i -e "s/influxdb:8086/127.0.0.1:8086/g" /etc/telegraf/telegraf.conf
+      sudo systemctl restart telegraf
+
+      # Start/restart HEPlify server (receives HEP packets from SIP/RTP servers)
+      sudo systemctl restart heplify-server.service || true
+
+      # Restart cassandra and give it time to come up
+      echo "Restarting cassandra..."
+      sudo systemctl restart cassandra.service || true
+      sleep 60
+      echo "Restarting jaeger"
+      sudo systemctl restart jaeger-collector.service || true
+      sudo systemctl restart jaeger-query.service || true
+
+      echo "Monitoring server configuration complete!"
+
+runcmd:
+  - /tmp/configure-monitoring.sh
+
+final_message: "Jambonz Monitoring server is ready!"

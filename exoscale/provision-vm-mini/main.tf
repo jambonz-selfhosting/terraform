@@ -25,15 +25,10 @@ provider "exoscale" {
 # DATA SOURCES
 # ------------------------------------------------------------------------------
 
-# Look up the jambonz template (custom image) by name or use ID directly
-data "exoscale_template" "jambonz" {
-  count = var.template_id == "" ? 1 : 0
-  zone  = var.zone
-  name  = var.template_name
-}
-
-locals {
-  template_id = var.template_id != "" ? var.template_id : data.exoscale_template.jambonz[0].id
+data "exoscale_template" "jambonz_mini" {
+  zone       = var.zone
+  name       = "jambonz-mini-v${var.jambonz_version}"
+  visibility = "private"
 }
 
 # ------------------------------------------------------------------------------
@@ -199,7 +194,7 @@ resource "exoscale_ssh_key" "jambonz" {
 resource "exoscale_compute_instance" "jambonz" {
   zone               = var.zone
   name               = "${var.name_prefix}-jambonz-mini"
-  template_id        = local.template_id
+  template_id        = data.exoscale_template.jambonz_mini.id
   type               = var.instance_type
   disk_size          = var.disk_size
   ssh_keys           = [var.ssh_public_key != "" ? exoscale_ssh_key.jambonz[0].name : var.ssh_key_name]

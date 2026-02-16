@@ -1,8 +1,8 @@
 #cloud-config
-# Cloud-init for Jambonz Web/Monitoring Server on Exoscale
+# Cloud-init for Jambonz Web Server on Exoscale (Large deployment)
+# Handles API server, webapp, public-apps, nginx (proxies Grafana/Homer to monitoring)
 
 # Merge SSH keys into existing jambonz user
-# Note: jambonz user already exists in the template, we're just adding SSH keys
 users:
   - name: jambonz
     ssh_authorized_keys:
@@ -18,11 +18,11 @@ network:
       dhcp4: true
 
 write_files:
-  - path: /tmp/configure-jambonz.sh
+  - path: /tmp/configure-web.sh
     permissions: '0755'
     content: |
       #!/bin/bash -xe
-      # Configuration script for jambonz Web/Monitoring server
+      # Configuration script for jambonz Web server
 
       # Variables from Terraform
       MYSQL_HOST="${mysql_host}"
@@ -35,18 +35,16 @@ write_files:
       JWT_SECRET="${jwt_secret}"
       URL_PORTAL="${url_portal}"
       VPC_CIDR="${vpc_cidr}"
+      MONITORING_PRIVATE_IP="${monitoring_private_ip}"
       DEPLOY_RECORDING_CLUSTER="${deploy_recording_cluster}"
-      APIBAN_KEY="${apiban_key}"
 
-      echo "Starting jambonz Web/Monitoring server configuration for Exoscale"
+      echo "Starting jambonz Web server configuration for Exoscale"
 
-      # Always use jambonz user for apps
       USER=jambonz
       HOME=/home/jambonz
 
-      # Get instance metadata from Exoscale Metadata Service
+      # Get instance metadata
       echo "Getting instance metadata..."
-      # Get private IP from eth1 (private network interface)
       PRIVATE_IP=$(ip -4 addr show eth1 | grep -oP '(?<=inet\s)\d+(\.\d+){3}' || echo "172.20.0.1")
       INSTANCE_ID=$(curl -s http://169.254.169.254/latest/meta-data/instance-id 2>/dev/null || hostname)
       PUBLIC_IP=$(curl -s https://api.ipify.org)
@@ -128,7 +126,7 @@ write_files:
             JAMBONES_REDIS_HOST: 'REDIS_HOST_PLACEHOLDER',
             JAMBONES_REDIS_PORT: REDIS_PORT_PLACEHOLDER,
             JAMBONE_API_VERSION: 'v1',
-            JAMBONES_TIME_SERIES_HOST: '127.0.0.1',
+            JAMBONES_TIME_SERIES_HOST: 'MONITORING_IP_PLACEHOLDER',
             ENABLE_METRICS: 1,
             STATS_HOST: '127.0.0.1',
             STATS_PORT: 8125,
@@ -136,13 +134,14 @@ write_files:
             STATS_TELEGRAF: 1,
             STATS_SAMPLE_RATE: 1,
             HTTP_PORT: 3000,
-            JAEGER_BASE_URL: 'http://127.0.0.1:16686',
-            HOMER_BASE_URL: 'http://127.0.0.1:9080',
+            JAEGER_BASE_URL: 'http://MONITORING_IP_PLACEHOLDER:16686',
+            HOMER_BASE_URL: 'http://MONITORING_IP_PLACEHOLDER:9080',
             HOMER_USERNAME: 'admin',
             HOMER_PASSWORD: 'sipcapture',
+            GRAFANA_BASE_URL: 'http://MONITORING_IP_PLACEHOLDER:3010',
             JAMBONZ_RECORD_WS_USERNAME: 'jambonz',
             JAMBONZ_RECORD_WS_PASSWORD: 'JWT_SECRET_PLACEHOLDER',
-            }
+          }
         },
         {
           name: 'webapp',
@@ -154,8 +153,8 @@ write_files:
           name: 'public-apps',
           cwd: '/home/jambonz/apps/public-apps',
           script: 'app.js',
-          out_file: '/home/jambonz/.pm2/logs/public-apps.log',
-          err_file: '/home/jambonz/.pm2/logs/public-apps.log',
+          out_file: '/home/jambonz/.pm2/logs/public-apps',
+          err_file: '/home/jambonz/.pm2/logs/public-apps',
           combine_logs: true,
           instance_var: 'INSTANCE_ID',
           exec_mode: 'fork',
@@ -180,23 +179,84 @@ write_files:
       sed -i "s/MYSQL_DATABASE_PLACEHOLDER/$MYSQL_DATABASE/g" $HOME/apps/ecosystem.config.js
       sed -i "s/REDIS_HOST_PLACEHOLDER/$REDIS_HOST/g" $HOME/apps/ecosystem.config.js
       sed -i "s/REDIS_PORT_PLACEHOLDER/$REDIS_PORT/g" $HOME/apps/ecosystem.config.js
+      sed -i "s/MONITORING_IP_PLACEHOLDER/$MONITORING_PRIVATE_IP/g" $HOME/apps/ecosystem.config.js
 
-      # Configure nginx
+      # Configure nginx (proxy grafana/homer to monitoring server)
       echo "Configuring nginx..."
-      sed -i "s/PLACEHOLDER_DOMAIN/$URL_PORTAL/g" /etc/nginx/sites-available/default || true
+      sudo cat << EOF > /etc/nginx/sites-available/default
+      server {
+          listen 80;
+          server_name $URL_PORTAL;
+          location /api/ {
+              rewrite ^/api/(.*)$ /\$1 break;
+              proxy_pass http://127.0.0.1:3000;
+              proxy_set_header Host \$host;
+          }
+          location / {
+              proxy_pass http://127.0.0.1:3001;
+              proxy_set_header Host \$host;
+          }
+      }
+      server {
+          listen 80;
+          server_name api.$URL_PORTAL;
+          location / {
+              proxy_pass http://127.0.0.1:3000;
+              proxy_set_header Host \$host;
+          }
+      }
+      server {
+        listen 80;
+        server_name grafana.$URL_PORTAL;
+        location / {
+          proxy_pass http://$MONITORING_PRIVATE_IP:3010;
+          proxy_http_version 1.1;
+          proxy_set_header Upgrade \$http_upgrade;
+          proxy_set_header Connection 'upgrade';
+          proxy_set_header Host \$host;
+          proxy_cache_bypass \$http_upgrade;
+        }
+      }
+      server {
+        listen 80;
+        server_name homer.$URL_PORTAL;
+        location / {
+          proxy_pass http://$MONITORING_PRIVATE_IP:9080;
+          proxy_http_version 1.1;
+          proxy_set_header Upgrade \$http_upgrade;
+          proxy_set_header Connection 'upgrade';
+          proxy_set_header Host \$host;
+          proxy_cache_bypass \$http_upgrade;
+        }
+      }
+      server {
+        listen 80;
+        server_name public-apps.$URL_PORTAL;
+        location / {
+          proxy_pass http://127.0.0.1:3011;
+          proxy_http_version 1.1;
+          proxy_set_header Upgrade \$http_upgrade;
+          proxy_set_header Connection 'upgrade';
+          proxy_set_header Host \$host;
+          proxy_cache_bypass \$http_upgrade;
+        }
+      }
+      EOF
 
-      # Start services
-      echo "Starting services..."
-      systemctl restart nginx
+      sudo systemctl restart nginx
 
       # Start PM2 apps
       su - $USER -c "pm2 delete all || true"
       su - $USER -c "pm2 start $HOME/apps/ecosystem.config.js"
       su - $USER -c "pm2 save"
 
-      echo "Web/Monitoring server configuration complete!"
+      # Configure telegraf to send to the monitoring server
+      sudo sed -i -e "s/influxdb:8086/$MONITORING_PRIVATE_IP:8086/g" /etc/telegraf/telegraf.conf
+      sudo systemctl restart telegraf
+
+      echo "Web server configuration complete!"
 
 runcmd:
-  - /tmp/configure-jambonz.sh
+  - /tmp/configure-web.sh
 
-final_message: "Jambonz Web/Monitoring server is ready!"
+final_message: "Jambonz Web server is ready!"
