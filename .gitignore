@@ -36,8 +36,7 @@ terraform.rc
 testing/config.yaml
 testing/*.log
 testing/.test-state-*.yaml
-testing/__pycache__/
-testing/lib/__pycache__/
+__pycache__/
 
 .vscode
 
