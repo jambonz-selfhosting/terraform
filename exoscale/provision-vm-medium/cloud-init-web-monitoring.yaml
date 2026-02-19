@@ -66,13 +66,18 @@ write_files:
       DEFAULT_ACCOUNT_SID=$(uuidgen)
       DEFAULT_TOKEN=$(uuidgen)
 
+      # Exoscale DBaaS MySQL requires primary keys on all tables and uses
+      # ANSI_QUOTES SQL mode (double quotes = identifiers). Fix both for import.
+      MYSQL_OPTS="-h $MYSQL_HOST --port=$MYSQL_PORT -u $MYSQL_USER -D $MYSQL_DATABASE -p$MYSQL_PASSWORD"
+      SQL_PREAMBLE="SET SESSION sql_require_primary_key = 0; SET SESSION sql_mode = 'NO_ENGINE_SUBSTITUTION';"
+
       # Seed database
       cd $HOME/apps/api-server/db
       sed -i "s/9351f46a-678c-43f5-b8a6-d4eb58d131af/$DEFAULT_ACCOUNT_SID/g" seed-production-database-open-source.sql
       sed -i "s/38700987-c7a4-4685-a5bb-af378f9734de/$DEFAULT_TOKEN/g" seed-production-database-open-source.sql
-      mysql -h $MYSQL_HOST --port=$MYSQL_PORT -u $MYSQL_USER -D $MYSQL_DATABASE -p$MYSQL_PASSWORD < jambones-sql.sql || true
+      echo "$SQL_PREAMBLE" | cat - jambones-sql.sql | mysql $MYSQL_OPTS || true
       sed -i "s/public-apps.jambonz.cloud/public-apps.$URL_PORTAL/g" seed-production-database-open-source.sql
-      mysql -h $MYSQL_HOST --port=$MYSQL_PORT -u $MYSQL_USER -D $MYSQL_DATABASE -p$MYSQL_PASSWORD < seed-production-database-open-source.sql || true
+      echo "$SQL_PREAMBLE" | cat - seed-production-database-open-source.sql | mysql $MYSQL_OPTS || true
 
       # Reset admin password
       JAMBONES_ADMIN_INITIAL_PASSWORD=$INSTANCE_ID \
@@ -84,7 +89,7 @@ write_files:
       $HOME/apps/api-server/db/reset_admin_password.js || true
 
       # Add system information
-      mysql -h $MYSQL_HOST --port=$MYSQL_PORT -u $MYSQL_USER -D $MYSQL_DATABASE -p$MYSQL_PASSWORD -e "INSERT INTO system_information (domain_name, sip_domain_name, monitoring_domain_name) VALUES ('$URL_PORTAL', 'sip.$URL_PORTAL', 'grafana.$URL_PORTAL')" || true
+      mysql $MYSQL_OPTS -e "INSERT INTO system_information (domain_name, sip_domain_name, monitoring_domain_name) VALUES ('$URL_PORTAL', 'sip.$URL_PORTAL', 'grafana.$URL_PORTAL')" || true
 
       # Configure webapp
       echo "Configuring webapp..."
@@ -135,7 +140,33 @@ write_files:
             HOMER_BASE_URL: 'http://127.0.0.1:9080',
             HOMER_USERNAME: 'admin',
             HOMER_PASSWORD: 'sipcapture',
-            GRAFANA_BASE_URL: 'http://127.0.0.1:3010'
+            JAMBONZ_RECORD_WS_USERNAME: 'jambonz',
+            JAMBONZ_RECORD_WS_PASSWORD: 'JWT_SECRET_PLACEHOLDER',
+            }
+        },
+        {
+          name: 'webapp',
+          script: 'npm',
+          cwd: '/home/jambonz/apps/webapp',
+          args: 'run serve'
+        },
+        {
+          name: 'public-apps',
+          cwd: '/home/jambonz/apps/public-apps',
+          script: 'app.js',
+          out_file: '/home/jambonz/.pm2/logs/public-apps.log',
+          err_file: '/home/jambonz/.pm2/logs/public-apps.log',
+          combine_logs: true,
+          instance_var: 'INSTANCE_ID',
+          exec_mode: 'fork',
+          instances: 1,
+          autorestart: true,
+          watch: false,
+          max_memory_restart: '1G',
+          env: {
+            LOGLEVEL: 'info',
+            HTTP_PORT: 3011,
+            NRC_TIME_SERVICE_DID: '+16137451576'
           }
         }]
       };
@@ -152,7 +183,7 @@ write_files:
 
       # Configure nginx
       echo "Configuring nginx..."
-      sed -i "s/PLACEHOLDER_DOMAIN/$URL_PORTAL/g" /etc/nginx/sites-available/jambonz || true
+      sed -i "s/PLACEHOLDER_DOMAIN/$URL_PORTAL/g" /etc/nginx/sites-available/default || true
 
       # Start services
       echo "Starting services..."

@@ -17,14 +17,6 @@ zone = "ch-gva-2"
 # Domain name for the portal (DNS A records will need to be created)
 url_portal = "jambonz.example.com"
 
-# Custom Exoscale template IDs (must be created via Packer before deployment)
-# Use: exo compute template list --zone ch-gva-2 --visibility private
-# to get the template IDs (UUIDs)
-template_web_monitoring = "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"  # jambonz-web-monitoring template ID
-template_sbc            = "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"  # jambonz-sbc template ID
-template_feature_server = "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"  # jambonz-feature-server template ID
-template_recording      = "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"  # jambonz-recording template ID
-
 # =============================================================================
 # SSH KEY CONFIGURATION (choose one method)
 # =============================================================================
@@ -48,8 +40,8 @@ ssh_public_key = "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQC... your-email@example.
 #deploy_recording_cluster = false  # Disable recording to save costs
 
 ## Database Plans (Hobbyist tier - lowest cost)
-#mysql_plan  = "hobbyist-2"  # ~€42/month (note: both use hobbyist-2)
-#valkey_plan = "hobbyist-2"  # ~€35/month
+#mysql_plan  = "hobbyist-2"  # ~€42/month
+# Note: Redis runs locally on the web-monitoring VM (no DBaaS needed)
 
 ## Instance Types (Standard Medium - 2 vCPU, 4GB RAM)
 #instance_type_web       = "standard.medium"
@@ -76,8 +68,8 @@ recording_server_count   = 2      # 2 Recording servers
 deploy_recording_cluster = true   # Enable recording cluster
 
 ## Database Plans (Business tier - 99.99% SLA, HA)
-mysql_plan  = "business-8"   # 8GB RAM, high performance
-valkey_plan = "business-4"   # 4GB RAM, high performance
+mysql_plan = "business-8"   # 8GB RAM, high performance
+# Note: Redis runs locally on the web-monitoring VM (no DBaaS needed)
 
 ## Instance Types (Standard Large - 4 vCPU, 8GB RAM)
 instance_type_web       = "standard.large"
@@ -153,15 +145,7 @@ scale_in_timeout_seconds = 900  # 15 minutes
 # NOTES
 # =============================================================================
 #
-# 1. CUSTOM TEMPLATES REQUIRED:
-#    Before running terraform apply, you must create four custom Exoscale
-#    templates using Packer:
-#    - jambonz-web-monitoring
-#    - jambonz-sbc
-#    - jambonz-feature-server
-#    - jambonz-recording
-#
-# 2. DNS CONFIGURATION:
+# 1. DNS CONFIGURATION:
 #    After deployment, create DNS A records pointing to the outputted IPs:
 #    - jambonz.example.com → Web/Monitoring IP
 #    - api.jambonz.example.com → Web/Monitoring IP
@@ -169,16 +153,16 @@ scale_in_timeout_seconds = 900  # 15 minutes
 #    - homer.jambonz.example.com → Web/Monitoring IP
 #    - sip.jambonz.example.com → First SBC IP
 #
-# 3. COST OPTIMIZATION:
+# 2. COST OPTIMIZATION:
 #    For testing, use the minimal configuration (commented out above).
 #    You can start with hobbyist DB plans and scale up as needed.
 #
-# 4. SSH ACCESS:
+# 3. SSH ACCESS:
 #    - Web/Monitoring and SBC servers have public IPs
 #    - Feature and Recording servers have private IPs only
 #    - Use SBC as a jump/bastion server to access private servers:
 #      ssh -J jambonz@<sbc-ip> jambonz@<feature-server-private-ip>
 #
-# 5. SCALING:
+# 4. SCALING:
 #    You can scale Feature Servers (1-10) and Recording Servers (1-10)
 #    by updating the counts in this file and running terraform apply.

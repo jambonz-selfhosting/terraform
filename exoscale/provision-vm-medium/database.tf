@@ -50,42 +50,12 @@ resource "exoscale_dbaas" "mysql" {
     # - Zone-wide CIDR ranges for instance pool members (ephemeral public IPs)
     ip_filter = local.dbaas_allowed_ips
 
-    # MySQL settings - commented out due to Exoscale API validation errors
-    # Use exo dbaas type show mysql --settings=mysql to see available options
-    # mysql_settings = jsonencode({
-    #   max_connections = 300
-    #   sql_mode        = "TRADITIONAL"
-    # })
-  }
-}
-
-# =============================================================================
-# Exoscale DBaaS Valkey (Redis-compatible)
-# =============================================================================
-
-resource "exoscale_dbaas" "valkey" {
-  zone = var.zone
-  name = "${var.name_prefix}-valkey"
-  type = "valkey"
-  plan = var.valkey_plan
-
-  maintenance_dow  = "sunday"
-  maintenance_time = "04:00:00"
-
-  termination_protection = false
-
-  valkey {
-    # Allow connections from:
-    # - Elastic IPs for web/monitoring and SBC servers (predictable, specific /32)
-    # - Zone-wide CIDR ranges for instance pool members (ephemeral public IPs)
-    ip_filter = local.dbaas_allowed_ips
-
-    # Valkey settings - commented out, can be configured after deployment
-    # Use exo dbaas type show valkey --settings=valkey to see available options
-    # valkey_settings = jsonencode({
-    #   valkey_maxmemory_policy = "allkeys-lru"
-    #   valkey_timeout          = 300
-    # })
+    # Exoscale DBaaS defaults to ANSI_QUOTES sql_mode which treats double quotes
+    # as identifier quotes, breaking standard SQL like WHERE name = "admin".
+    # Set TRADITIONAL to use standard MySQL quoting behavior.
+    mysql_settings = jsonencode({
+      sql_mode = "TRADITIONAL"
+    })
   }
 }
 
@@ -100,9 +70,8 @@ data "exoscale_database_uri" "mysql" {
   type = "mysql"
 }
 
-# Get Valkey connection URI
-data "exoscale_database_uri" "valkey" {
-  zone = var.zone
-  name = exoscale_dbaas.valkey.name
-  type = "valkey"
-}
+# =============================================================================
+# Redis runs locally on the web-monitoring VM (not DBaaS)
+# Exoscale DBaaS Valkey requires TLS which jambonz apps don't support.
+# SBC and feature servers connect to Redis on the web-monitoring private IP.
+# =============================================================================

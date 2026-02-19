@@ -423,8 +423,8 @@ def main(terraform_dir, email, config, skip_dns, skip_tls, skip_webapp, staging)
     tf_outputs = run_terraform_output(tf_dir)
 
     portal_url = tf_outputs.get('portal_url', '').replace('http://', '').replace('https://', '')
-    # Support medium (web_monitoring_public_ip), large split (web_public_ip), and mini (public_ip)
-    web_ip = tf_outputs.get('web_monitoring_public_ip') or tf_outputs.get('web_public_ip') or tf_outputs.get('public_ip')
+    # Support medium (web_monitoring_public_ip), large split (web_public_ip), mini (public_ip), and exoscale (server_ip)
+    web_ip = tf_outputs.get('web_monitoring_public_ip') or tf_outputs.get('web_public_ip') or tf_outputs.get('public_ip') or tf_outputs.get('server_ip')
     sbc_ips = tf_outputs.get('sbc_public_ips') or tf_outputs.get('sip_public_ips', [])
     # For mini deployments, the single VM handles SBC too
     is_mini = 'mini' in str(tf_dir).lower()

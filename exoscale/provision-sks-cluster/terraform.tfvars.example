@@ -21,17 +21,17 @@ cni           = "calico"  # "calico", "cilium", or "" for none
 auto_upgrade  = true
 
 # System Node Pool (general workloads, Kubernetes system components)
-system_instance_type = "standard.medium"
+system_instance_type = "standard.large"
 system_node_count    = 2
 system_disk_size     = 50
 
 # SIP Node Pool (SIP signaling - drachtio-server)
-sip_instance_type = "standard.medium"
+sip_instance_type = "standard.large"
 sip_node_count    = 1
 sip_disk_size     = 50
 
 # RTP Node Pool (RTP media - rtpengine, freeswitch)
-rtp_instance_type = "standard.medium"
+rtp_instance_type = "standard.large"
 rtp_node_count    = 1
 rtp_disk_size     = 50
 

@@ -1,0 +1,33 @@
+# Example Terraform Variables
+# Copy this file to terraform.tfvars and customize the values
+# terraform.tfvars is gitignored and won't be committed to version control
+
+# Basic Configuration
+resource_group_name = "voip-k8s-rg"
+location            = "eastus"
+cluster_name        = "voip-k8s-cluster"
+dns_prefix          = "voip-k8s"
+
+# Network Configuration
+vnet_address_space   = "10.0.0.0/16"
+system_subnet_prefix = "10.0.1.0/24"
+sip_subnet_prefix    = "10.0.2.0/24"
+rtp_subnet_prefix    = "10.0.3.0/24"
+service_cidr         = "172.16.0.0/16"
+dns_service_ip       = "172.16.0.10"
+
+# System Node Pool Configuration
+system_node_count = 2
+system_vm_size    = "Standard_D2s_v3"
+
+# SIP Node Pool Configuration
+sip_vm_size    = "Standard_D2s_v3"
+sip_node_count = 1
+sip_min_count  = 1
+sip_max_count  = 10
+
+# RTP Node Pool Configuration
+rtp_vm_size    = "Standard_D2s_v3"
+rtp_node_count = 1
+rtp_min_count  = 1
+rtp_max_count  = 10

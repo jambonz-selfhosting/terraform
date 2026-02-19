@@ -13,6 +13,10 @@ locals {
   # SSH public key content for cloud-init - read from local file if using ssh_key_name
   # User must have the public key in ~/.ssh/ directory
   ssh_public_key = var.ssh_public_key != "" ? var.ssh_public_key : file("~/.ssh/id_rsa.pub")
+
+  # Static private IP for web-monitoring VM (below DHCP range which starts at offset 10)
+  # Redis runs on this VM; SBC and feature servers connect to it via this IP
+  web_monitoring_private_ip = cidrhost(var.vpc_cidr, 5)
 }
 
 # =============================================================================

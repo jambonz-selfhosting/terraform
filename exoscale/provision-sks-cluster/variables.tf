@@ -97,7 +97,7 @@ variable "auto_upgrade" {
 variable "system_instance_type" {
   description = "Instance type for system node pool"
   type        = string
-  default     = "standard.medium"
+  default     = "standard.large"
 
   validation {
     condition = contains([
@@ -138,7 +138,7 @@ variable "system_disk_size" {
 variable "sip_instance_type" {
   description = "Instance type for SIP node pool"
   type        = string
-  default     = "standard.medium"
+  default     = "standard.large"
 
   validation {
     condition = contains([
@@ -179,7 +179,7 @@ variable "sip_disk_size" {
 variable "rtp_instance_type" {
   description = "Instance type for RTP node pool"
   type        = string
-  default     = "standard.medium"
+  default     = "standard.large"
 
   validation {
     condition = contains([

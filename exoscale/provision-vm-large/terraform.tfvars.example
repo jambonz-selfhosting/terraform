@@ -1,0 +1,169 @@
+# =============================================================================
+# Jambonz Large Cluster on Exoscale - Example Configuration
+# =============================================================================
+# Copy this file to terraform.tfvars and customize for your deployment
+
+# =============================================================================
+# REQUIRED VARIABLES
+# =============================================================================
+
+# Resource naming prefix (used for all resource names)
+name_prefix = "jambonz-large"
+
+# Exoscale zone for deployment
+# Options: ch-gva-2, ch-dk-2, de-fra-1, de-muc-1, at-vie-1, at-vie-2, bg-sof-1
+zone = "ch-gva-2"
+
+# Domain name for the portal (DNS A records will need to be created)
+url_portal = "jambonz.example.com"
+
+# =============================================================================
+# SSH KEY CONFIGURATION (choose one method)
+# =============================================================================
+
+# Method 1: Provide your SSH public key directly
+ssh_public_key = "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQC... your-email@example.com"
+
+# Method 2: Use an existing Exoscale SSH key name (comment out ssh_public_key above)
+# ssh_key_name = "my-exoscale-key"
+
+# =============================================================================
+# DEFAULT CONFIGURATION (Starting point)
+# =============================================================================
+# Defaults to 1 of each server type. Scale up by increasing counts.
+
+## Instance Counts
+#sip_count                = 1      # 1 SIP server (default)
+#rtp_count                = 1      # 1 RTP server (default)
+#feature_server_count     = 1      # 1 Feature Server (default)
+#recording_server_count   = 1      # 1 Recording Server (default)
+#deploy_recording_cluster = true   # Enable recording cluster (default)
+
+## Database Plans (Hobbyist tier - lowest cost)
+#mysql_plan  = "hobbyist-2"  # ~€42/month
+# Note: Redis runs locally on the monitoring VM (no DBaaS needed)
+
+## Instance Types (Standard Medium - 2 vCPU, 4GB RAM)
+#instance_type_web        = "standard.medium"
+#instance_type_monitoring = "standard.medium"
+#instance_type_sip        = "standard.medium"
+#instance_type_rtp        = "standard.medium"
+#instance_type_feature    = "standard.medium"
+#instance_type_recording  = "standard.medium"
+
+# =============================================================================
+# PRODUCTION CONFIGURATION (High Availability)
+# =============================================================================
+# Recommended for production with redundancy and performance
+
+## Instance Counts
+sip_count                = 2      # 2 SIP servers for redundancy
+rtp_count                = 2      # 2 RTP servers for redundancy
+feature_server_count     = 4      # 4 Feature Servers for load distribution
+recording_server_count   = 2      # 2 Recording servers
+deploy_recording_cluster = true   # Enable recording cluster
+
+## Database Plans (Business tier - 99.99% SLA, HA)
+mysql_plan  = "business-8"   # 8GB RAM, high performance
+# Note: Redis runs locally on the monitoring VM (no DBaaS needed)
+
+## Instance Types (Standard Large - 4 vCPU, 8GB RAM)
+instance_type_web        = "standard.large"
+instance_type_monitoring = "standard.large"
+instance_type_sip        = "standard.large"
+instance_type_rtp        = "standard.large"
+instance_type_feature    = "standard.large"
+instance_type_recording  = "standard.medium"
+
+## Disk Sizes
+disk_size_web        = 100  # GB
+disk_size_monitoring = 200  # GB (monitoring data)
+disk_size_sip        = 100  # GB per SIP server
+disk_size_rtp        = 100  # GB per RTP server
+disk_size_feature    = 100  # GB per Feature Server
+disk_size_recording  = 100  # GB per Recording Server
+
+# =============================================================================
+# NETWORK CONFIGURATION
+# =============================================================================
+
+# Private network CIDR (default: 172.20.0.0/16)
+vpc_cidr = "172.20.0.0/16"
+
+# =============================================================================
+# SECURITY CONFIGURATION
+# =============================================================================
+
+# CIDR blocks for access control (use 0.0.0.0/0 for open access)
+# IMPORTANT: Restrict these to your IP ranges for production!
+
+allowed_ssh_cidr  = "0.0.0.0/0"  # SSH access to all servers
+allowed_sip_cidr  = "0.0.0.0/0"  # SIP traffic to SIP servers
+allowed_http_cidr = "0.0.0.0/0"  # HTTP/HTTPS to web server
+
+# For production, use specific IP ranges:
+# allowed_ssh_cidr  = "203.0.113.0/24"    # Your office IP range
+# allowed_sip_cidr  = "198.51.100.0/24"   # Your SIP provider IP range
+# allowed_http_cidr = "203.0.113.0/24"    # Your office/VPN IP range
+
+# =============================================================================
+# DATABASE CREDENTIALS
+# =============================================================================
+
+# MySQL username (default: admin)
+mysql_username = "admin"
+
+# MySQL password (leave empty for auto-generation - recommended)
+# mysql_password = ""  # Auto-generated if not provided
+
+# =============================================================================
+# OPTIONAL FEATURES
+# =============================================================================
+
+# APiBan API key for fraud/spam IP blocking (optional)
+# Get a free key from https://apiban.org
+# apiban_key = "your-apiban-api-key"
+
+# Enable PCAP capture via HEP to Homer (default: true)
+enable_pcaps = true
+
+# Graceful scale-in timeout for Feature Servers (seconds)
+scale_in_timeout_seconds = 900  # 15 minutes
+
+# =============================================================================
+# EXOSCALE API CREDENTIALS
+# =============================================================================
+# Exoscale API credentials should be provided via environment variables:
+#
+#   export EXOSCALE_API_KEY="your-api-key"
+#   export EXOSCALE_API_SECRET="your-api-secret"
+
+# =============================================================================
+# NOTES
+# =============================================================================
+#
+# 1. DNS CONFIGURATION:
+#    After deployment, create DNS A records pointing to the outputted IPs:
+#    - jambonz.example.com → Web server IP
+#    - api.jambonz.example.com → Web server IP
+#    - grafana.jambonz.example.com → Web server IP
+#    - homer.jambonz.example.com → Web server IP
+#    - public-apps.jambonz.example.com → Web server IP
+#    - sip.jambonz.example.com → First SIP server IP
+#
+# 2. ARCHITECTURE (Large vs Medium):
+#    Large deployment separates SBC into dedicated SIP and RTP servers,
+#    and separates Web from Monitoring. This allows independent scaling
+#    and better resource isolation.
+#
+# 3. SCALING:
+#    - SIP servers: Increase sip_count (1-10) for SIP capacity
+#    - RTP servers: Increase rtp_count (1-10) for media capacity
+#    - Feature Servers: Increase feature_server_count (1-10) via instance pool
+#    - Recording: Increase recording_server_count (1-10) via instance pool
+#
+# 4. SSH ACCESS:
+#    - Web, Monitoring, SIP, and RTP servers have public IPs (Elastic IPs)
+#    - Feature and Recording servers have private IPs only
+#    - Use SIP server as jump/bastion to access private servers:
+#      ssh -J jambonz@<sip-ip> jambonz@<feature-server-private-ip>

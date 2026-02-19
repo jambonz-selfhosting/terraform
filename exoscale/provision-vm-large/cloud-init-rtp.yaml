@@ -1,0 +1,112 @@
+#cloud-config
+# Cloud-init for Jambonz RTP Server on Exoscale (Large deployment)
+# Handles RTPEngine and RTP-related sidecars only (no Drachtio)
+
+# Merge SSH keys into existing jambonz user
+users:
+  - name: jambonz
+    ssh_authorized_keys:
+      - "${ssh_public_key}"
+
+# Configure network interfaces (both public and private)
+network:
+  version: 2
+  ethernets:
+    eth0:
+      dhcp4: true
+    eth1:
+      dhcp4: true
+
+write_files:
+  - path: /tmp/configure-rtp.sh
+    permissions: '0755'
+    content: |
+      #!/bin/bash -xe
+      # Configuration script for jambonz RTP server
+
+      # Variables from Terraform
+      VPC_CIDR="${vpc_cidr}"
+      MONITORING_PRIVATE_IP="${monitoring_private_ip}"
+      ENABLE_PCAPS="${enable_pcaps}"
+
+      echo "Starting jambonz RTP server configuration for Exoscale"
+
+      USER=jambonz
+      HOME=/home/jambonz
+
+      # Get instance metadata
+      echo "Getting instance metadata..."
+      PRIVATE_IP=$(ip -4 addr show eth1 | grep -oP '(?<=inet\s)\d+(\.\d+){3}' || echo "172.20.0.1")
+      INSTANCE_ID=$(curl -s http://169.254.169.254/latest/meta-data/instance-id 2>/dev/null || hostname)
+      PUBLIC_IP=$(curl -s https://api.ipify.org)
+
+      echo "Public IP: $PUBLIC_IP"
+      echo "Private IP: $PRIVATE_IP (eth1)"
+      echo "Instance ID: $INSTANCE_ID"
+
+      # Configure rtpengine
+      echo "Configuring rtpengine..."
+      sed -i "s/PRIVATE_IP_PLACEHOLDER/$PRIVATE_IP/g" /etc/rtpengine/rtpengine.conf || true
+      sed -i "s/PUBLIC_IP_PLACEHOLDER/$PUBLIC_IP/g" /etc/rtpengine/rtpengine.conf || true
+
+      # Point rtpengine to the HEP endpoint on the monitoring server
+      if [[ "$ENABLE_PCAPS" == "true" ]]; then
+        echo "Enabling PCAPs"
+        sudo sed -i -e "s/--delete-delay 0/--delete-delay 0 --homer=$MONITORING_PRIVATE_IP:9060 --homer-protocol=udp --homer-id=11/g" /etc/systemd/system/rtpengine.service
+      fi
+
+      sudo systemctl daemon-reload
+      sudo systemctl restart rtpengine
+
+      # Write PM2 ecosystem config for RTP sidecar
+      echo "Writing ecosystem.config.js for RTP server..."
+      cat << 'EOFECO' > $HOME/apps/ecosystem.config.js
+      module.exports = {
+        apps : [
+        {
+          name: 'sbc-rtpengine-sidecar',
+          cwd: '/home/jambonz/apps/sbc-rtpengine-sidecar',
+          script: 'app.js',
+          out_file: '/home/jambonz/.pm2/logs/sbc-rtpengine-sidecar.log',
+          err_file: '/home/jambonz/.pm2/logs/sbc-rtpengine-sidecar.log',
+          combine_logs: true,
+          autorestart: true,
+          watch: false,
+          max_memory_restart: '1G',
+          env: {
+            LOGLEVEL: 'info',
+            RTPENGINE_DTMF_LOG_PORT: 22223,
+            ENABLE_METRICS: 1,
+            STATS_HOST: '127.0.0.1',
+            STATS_PORT: 8125,
+            STATS_PROTOCOL: 'tcp',
+            STATS_SAMPLE_RATE: 1,
+            STATS_TELEGRAF: 1,
+            JAMBONES_REDIS_HOST: 'REDIS_HOST_PLACEHOLDER',
+            JAMBONES_REDIS_PORT: REDIS_PORT_PLACEHOLDER,
+            RTPENGINE_HOST: '127.0.0.1',
+            RTPENGINE_PORT: 22222
+          }
+        }]
+      };
+      EOFECO
+
+      # Replace placeholders
+      sed -i "s/REDIS_HOST_PLACEHOLDER/${redis_host}/g" $HOME/apps/ecosystem.config.js
+      sed -i "s/REDIS_PORT_PLACEHOLDER/${redis_port}/g" $HOME/apps/ecosystem.config.js
+
+      # Configure telegraf to send to the monitoring server
+      sudo sed -i -e "s/influxdb:8086/$MONITORING_PRIVATE_IP:8086/g" /etc/telegraf/telegraf.conf
+      sudo systemctl restart telegraf
+
+      # Start PM2 apps
+      su - $USER -c "pm2 delete all || true"
+      su - $USER -c "pm2 start $HOME/apps/ecosystem.config.js"
+      su - $USER -c "pm2 save"
+
+      echo "RTP server configuration complete!"
+
+runcmd:
+  - /tmp/configure-rtp.sh
+
+final_message: "Jambonz RTP server is ready!"

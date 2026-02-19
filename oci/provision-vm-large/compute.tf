@@ -152,6 +152,8 @@ resource "oci_core_instance" "rtp" {
       monitoring_private_ip = oci_core_instance.monitoring.private_ip
       vpc_cidr              = var.vcn_cidr
       enable_pcaps          = var.enable_pcaps
+      redis_host            = oci_core_instance.monitoring.private_ip
+      redis_port            = 6379
     }))
   }
 

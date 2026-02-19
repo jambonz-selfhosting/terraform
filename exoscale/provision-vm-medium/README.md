@@ -1,6 +1,6 @@
 # Jambonz Medium Cluster on Exoscale
 
-This Terraform configuration deploys a production-ready Jambonz medium cluster on Exoscale with managed MySQL and Valkey (Redis-compatible) database services.
+This Terraform configuration deploys a production-ready Jambonz medium cluster on Exoscale with managed MySQL database service and local Redis on the web-monitoring VM.
 
 ## Table of Contents
 
@@ -46,7 +46,7 @@ The medium cluster consists of:
 
 ### Managed Services
 - **Exoscale DBaaS MySQL** - Fully managed database (hobbyist to premium plans)
-- **Exoscale DBaaS Valkey** - Redis-compatible cache (hobbyist to premium plans)
+- **Redis** - Runs locally on the web-monitoring VM (all other servers connect via private network)
 
 ### Key Differences from Mini Cluster
 - **Mini**: Single VM with embedded MySQL/Redis, all components on one instance
@@ -54,16 +54,17 @@ The medium cluster consists of:
 
 ## Prerequisites
 
-### 1. Custom Exoscale Templates
+### 1. Register VM Templates
 
-You must create four custom Exoscale templates via Packer before deploying:
+Before running Terraform, you must register the jambonz VM templates into your Exoscale account. This is a one-time step per version per zone. See the [Exoscale README](../README.md) for full details.
 
-- `jambonz-web-monitoring` - Web, API, Grafana, Homer, Jaeger, InfluxDB components
-- `jambonz-sbc` - Drachtio SIP server and RTPEngine media processing
-- `jambonz-feature-server` - FreeSWITCH and feature server application
-- `jambonz-recording` - Recording upload service
+```bash
+cd exoscale/
+./prepare-images.sh
+# Select: 2) medium, then choose your target zone
+```
 
-> **Note**: These templates should be pre-built with all necessary Jambonz components installed. The cloud-init scripts will configure them to use the managed databases.
+This registers four templates: `jambonz-sip-rtp`, `jambonz-fs`, `jambonz-web-monitoring`, and `jambonz-recording`.
 
 ### 2. Exoscale Account and API Credentials
 
@@ -72,7 +73,7 @@ You must create four custom Exoscale templates via Packer before deploying:
   - Compute instances
   - Instance pools
   - Network load balancers
-  - DBaaS (MySQL and Valkey)
+  - DBaaS (MySQL)
   - Private networks and security groups
 
 Set environment variables:
@@ -260,9 +261,9 @@ sbc_count                = 1
 feature_server_count     = 1
 deploy_recording_cluster = false
 
-# Hobbyist database plans (~€77/month for both)
+# Hobbyist database plan
 mysql_plan  = "hobbyist-2"
-valkey_plan = "hobbyist-2"
+# Note: Redis runs locally on the web-monitoring VM (no DBaaS needed)
 
 # Standard medium instances (2 vCPU, 4GB RAM)
 instance_type_web     = "standard.medium"
@@ -285,9 +286,9 @@ feature_server_count     = 4
 recording_server_count   = 2
 deploy_recording_cluster = true
 
-# Business tier databases (99.99% SLA)
+# Business tier database (99.99% SLA)
 mysql_plan  = "business-8"
-valkey_plan = "business-4"
+# Note: Redis runs locally on the web-monitoring VM (no DBaaS needed)
 
 # Larger instance types (4 vCPU, 8GB RAM)
 instance_type_web     = "standard.large"
@@ -349,7 +350,7 @@ terraform plan -out=tfplan
 
 Review the plan carefully. You should see:
 - Private network and security groups
-- MySQL and Valkey databases
+- MySQL database
 - Web/monitoring server with elastic IP
 - SBC servers with elastic IPs
 - Feature server instance pool
@@ -544,7 +545,7 @@ exo compute instance list --zone ch-gva-2
 
 # Verify databases are accessible
 terraform output mysql_host
-terraform output valkey_host
+terraform output redis_host
 ```
 
 ### 2. Test SSH Access
@@ -569,8 +570,8 @@ From web/monitoring or feature server:
 mysql -h <mysql-host> -u admin -p
 # Password from: terraform output mysql_password
 
-# Valkey
-redis-cli -h <valkey-host> -p <valkey-port> PING
+# Redis (on web-monitoring VM)
+redis-cli -h <web-monitoring-private-ip> -p 6379 PING
 ```
 
 ### 4. Access Portal
@@ -639,9 +640,9 @@ terraform apply
 
 Feature servers support graceful scale-down to prevent call drops:
 
-1. **Set drain signal in Valkey**:
+1. **Set drain signal in Redis**:
    ```bash
-   redis-cli -h <valkey-host> -p <valkey-port> SET "drain:<instance-id>" 1
+   redis-cli -h <web-monitoring-private-ip> -p 6379 SET "drain:<instance-id>" 1
    ```
 
 2. **Feature server will**:
@@ -662,7 +663,6 @@ sbc_count                = 1
 feature_server_count     = 1
 deploy_recording_cluster = false
 mysql_plan               = "hobbyist-2"
-valkey_plan              = "hobbyist-2"
 instance_type_web        = "standard.medium"
 instance_type_sbc        = "standard.medium"
 instance_type_feature    = "standard.medium"
@@ -671,14 +671,13 @@ instance_type_feature    = "standard.medium"
 ### Cost Breakdown
 
 - **MySQL DBaaS** (hobbyist-2): ~€42/month
-- **Valkey DBaaS** (hobbyist-2): ~€35/month
 - **Web/Monitoring** (standard.medium): ~€25/month
 - **SBC** (standard.medium): ~€25/month
 - **Feature Server** (standard.medium): ~€25/month
 - **Elastic IPs** (2): ~€5/month
 - **Network**: ~€5/month
 
-**Total**: ~€162/month
+**Total**: ~€127/month
 
 ### Scaling Up Later
 
@@ -719,7 +718,7 @@ sudo tail -f /var/log/cloud-init-output.log
 2. **Test connectivity**:
    ```bash
    telnet <mysql-host> 3306
-   redis-cli -h <valkey-host> -p <valkey-port> PING
+   redis-cli -h <web-monitoring-private-ip> -p 6379 PING
    ```
 
 ### Feature Server Not in Pool
@@ -777,7 +776,7 @@ If scaling fails:
 
 ### Database Backups
 
-Both MySQL and Valkey have built-in backup retention (varies by plan):
+MySQL has built-in backup retention (varies by plan):
 
 - **Hobbyist**: 1 day
 - **Startup**: 2 days
@@ -808,7 +807,6 @@ To recover from complete failure:
 
 - [Exoscale Documentation](https://community.exoscale.com/documentation/)
 - [Exoscale DBaaS MySQL](https://www.exoscale.com/dbaas/mysql/)
-- [Exoscale DBaaS Valkey](https://www.exoscale.com/dbaas/valkey/)
 - [Jambonz Documentation](https://www.jambonz.org/docs/)
 
 ## Support

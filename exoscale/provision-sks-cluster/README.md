@@ -4,7 +4,7 @@ This Terraform configuration deploys an Exoscale SKS (Scalable Kubernetes Servic
 
 ## Architecture
 
-The cluster follows the same three-nodepool architecture as the GKE and AKS deployments:
+### Node Pools
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
@@ -24,17 +24,15 @@ The cluster follows the same three-nodepool architecture as the GKE and AKS depl
 └─────────────────────────────────────────────────────────────┘
 ```
 
-### Node Pools
-
-| Pool | Purpose | Taint | Label | Ports |
-|------|---------|-------|-------|-------|
-| system | General workloads, K8s system | None | `pool=system` | 80, 443, 30000-32767 |
-| sip | SIP signaling (drachtio-server) | `sip=true:NoSchedule` | `voip-environment=sip` | 5060, 5061, 8443 |
-| rtp | RTP media (rtpengine, freeswitch) | `rtp=true:NoSchedule` | `voip-environment=rtp` | 40000-60000 |
+| Node Pool | Purpose | Taint | Label | Key Ports |
+|-----------|---------|-------|-------|-----------|
+| **system** | General workloads, K8s system | None | `pool=system` | 80, 443, 30000-32767 |
+| **sip** | SIP signaling (drachtio-server) | `sip=true:NoSchedule` | `voip-environment=sip` | 5060, 5061, 8443 |
+| **rtp** | RTP media (rtpengine, freeswitch) | `rtp=true:NoSchedule` | `voip-environment=rtp` | 40000-60000 |
 
 ### Security Groups
 
-Each nodepool has dedicated security groups to control traffic:
+Each node pool has dedicated security groups to control traffic:
 
 - **internal**: All cluster-internal communication
 - **ssh**: SSH access (configurable CIDR)
@@ -44,207 +42,131 @@ Each nodepool has dedicated security groups to control traffic:
 
 ## Prerequisites
 
-1. **Exoscale Account**: Sign up at [exoscale.com](https://www.exoscale.com)
-2. **API Credentials**: Create an API key with full permissions
-3. **Terraform**: Version 1.5 or later
+- Exoscale account ([exoscale.com](https://www.exoscale.com))
+- API credentials (API key with full permissions)
+- Terraform >= 1.5
+- `kubectl` installed
 
-## Quick Start
+## Usage
 
-1. **Set Environment Variables**
+### 1. Set Environment Variables
 
-   ```bash
-   export EXOSCALE_API_KEY="your-api-key"
-   export EXOSCALE_API_SECRET="your-api-secret"
-   ```
+```bash
+export EXOSCALE_API_KEY="your-api-key"
+export EXOSCALE_API_SECRET="your-api-secret"
+```
 
-2. **Configure Variables**
+### 2. Configure Variables
 
-   ```bash
-   cp terraform.tfvars.example terraform.tfvars
-   # Edit terraform.tfvars with your settings
-   ```
+```bash
+cp terraform.tfvars.example terraform.tfvars
+# Edit terraform.tfvars with your settings
+```
 
-3. **Deploy**
+### 3. Initialize and Deploy
 
-   ```bash
-   terraform init
-   terraform plan
-   terraform apply
-   ```
+```bash
+terraform init
+terraform plan
+terraform apply
+```
 
-4. **Configure kubectl**
+### 4. Configure kubectl
 
-   ```bash
-   export KUBECONFIG=$(pwd)/kubeconfig
-   kubectl get nodes
-   ```
+```bash
+export KUBECONFIG=$(pwd)/kubeconfig
+kubectl get nodes
+```
 
-## Installing Traefik (Ingress Controller)
+### 5. Verify the Cluster
+
+```bash
+kubectl get nodes -L voip-environment
+kubectl describe nodes | grep -A5 Taints
+```
+
+### 6. Install Traefik Ingress Controller
 
 Traefik is used as the ingress controller for jambonz HTTP services (webapp, API, grafana, homer).
 
-**Important**: Because the cluster has multiple node pools (system, sip, rtp), the Exoscale Cloud Controller Manager (CCM) requires an annotation to specify which instance pool should receive LoadBalancer traffic.
-
-### Get the Instance Pool ID
-
-After running `terraform apply`, get the system nodepool's instance pool ID:
+Because the cluster has multiple node pools, the Exoscale Cloud Controller Manager (CCM) requires an annotation to specify which instance pool should receive LoadBalancer traffic. Without it you'll get an error about multiple Instance Pools being detected.
 
 ```bash
+# Get the system nodepool's instance pool ID
 terraform output system_nodepool_instance_pool_id
-```
-
-### Install Traefik with the Annotation
-
-```bash
-# Create the jambonz namespace
-kubectl create namespace jambonz
 
 # Add traefik helm repo
 helm repo add traefik https://traefik.github.io/charts
 helm repo update
 
-# Install traefik with the instance pool annotation
-# Replace <INSTANCE_POOL_ID> with the output from the terraform command above
+# Install traefik (replace <INSTANCE_POOL_ID> with the output above)
+kubectl create namespace jambonz
 helm install traefik traefik/traefik --namespace jambonz \
   --set "service.annotations.service\.beta\.kubernetes\.io/exoscale-loadbalancer-service-instancepool-id=<INSTANCE_POOL_ID>"
-```
 
-### Verify LoadBalancer
-
-```bash
+# Verify the LoadBalancer gets an external IP
 kubectl -n jambonz get svc traefik
-```
-
-You should see an `EXTERNAL-IP` assigned (this may take a minute). This IP is your Exoscale Network Load Balancer address.
-
-### Why This Annotation is Required
-
-The Exoscale CCM creates Network Load Balancers (NLBs) for Kubernetes `LoadBalancer` services. When a cluster has multiple node pools, the CCM needs to know which pool's instances should be the NLB targets. Without this annotation, you'll see the error:
-
-```
-Error syncing load balancer: multiple Instance Pools detected across cluster Nodes,
-an Instance Pool ID must be specified in Service manifest annotations
 ```
 
 ## Configuration Variables
 
-### Required
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `name_prefix` | Prefix for all resource names | `jambonz` |
+| `zone` | Exoscale zone | `ch-gva-2` |
+| `cluster_name` | Cluster name | `voip-sks-cluster` |
+| `service_level` | `starter` (free) or `pro` (HA) | `pro` |
+| `cni` | CNI plugin (`calico`, `cilium`, `""`) | `calico` |
+| `system_instance_type` | Instance type for system nodes | `standard.large` |
+| `system_node_count` | Number of system nodes | `2` |
+| `sip_instance_type` | Instance type for SIP nodes | `standard.large` |
+| `sip_node_count` | Number of SIP nodes | `1` |
+| `rtp_instance_type` | Instance type for RTP nodes | `standard.large` |
+| `rtp_node_count` | Number of RTP nodes | `1` |
+| `allowed_ssh_cidr` | CIDR for SSH access | `0.0.0.0/0` |
 
-No required variables - all have sensible defaults.
-
-### Optional
-
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `name_prefix` | `jambonz` | Prefix for all resource names |
-| `zone` | `ch-gva-2` | Exoscale zone |
-| `cluster_name` | `voip-sks-cluster` | Cluster name |
-| `service_level` | `pro` | `starter` (free) or `pro` (HA) |
-| `cni` | `calico` | CNI plugin (`calico`, `cilium`, `""`) |
-| `system_instance_type` | `standard.medium` | Instance type for system nodes |
-| `system_node_count` | `2` | Number of system nodes |
-| `sip_instance_type` | `standard.medium` | Instance type for SIP nodes |
-| `sip_node_count` | `1` | Number of SIP nodes |
-| `rtp_instance_type` | `standard.medium` | Instance type for RTP nodes |
-| `rtp_node_count` | `1` | Number of RTP nodes |
-| `allowed_ssh_cidr` | `0.0.0.0/0` | CIDR for SSH access |
-
-## VoIP Pod Configuration
-
-### SIP Pods
-
-SIP workloads (e.g., drachtio-server) must be configured to run on SIP nodes:
-
-```yaml
-apiVersion: v1
-kind: Pod
-metadata:
-  name: drachtio
-spec:
-  hostNetwork: true  # Required for VoIP - bind to node's public IP
-  nodeSelector:
-    voip-environment: sip
-  tolerations:
-  - key: "sip"
-    operator: "Equal"
-    value: "true"
-    effect: "NoSchedule"
-  containers:
-  - name: drachtio
-    image: drachtio/drachtio-server:latest
-    ports:
-    - containerPort: 5060
-      protocol: UDP
-    - containerPort: 5060
-      protocol: TCP
-```
-
-### RTP Pods
-
-RTP workloads (e.g., rtpengine, freeswitch) must be configured to run on RTP nodes:
-
-```yaml
-apiVersion: v1
-kind: Pod
-metadata:
-  name: rtpengine
-spec:
-  hostNetwork: true  # Required for VoIP - bind to node's public IP
-  nodeSelector:
-    voip-environment: rtp
-  tolerations:
-  - key: "rtp"
-    operator: "Equal"
-    value: "true"
-    effect: "NoSchedule"
-  containers:
-  - name: rtpengine
-    image: drachtio/rtpengine:latest
-    ports:
-    - containerPort: 22222
-      protocol: UDP
-```
+To scale node pools, update the `*_node_count` variables and run `terraform apply`.
 
 ## Outputs
-
-After deployment, Terraform provides these outputs:
 
 | Output | Description |
 |--------|-------------|
 | `cluster_endpoint` | Kubernetes API endpoint |
 | `kubeconfig_path` | Path to generated kubeconfig |
 | `kubectl_command` | Command to set KUBECONFIG |
+| `system_nodepool_instance_pool_id` | Instance pool ID for Traefik annotation |
 | `usage_instructions` | Detailed usage instructions |
 
-## Scaling
+## Deploying jambonz
 
-To scale node pools, update the `*_node_count` variables and apply:
-
-```bash
-# Edit terraform.tfvars
-sip_node_count = 2
-rtp_node_count = 3
-
-# Apply changes
-terraform apply
-```
+After the cluster is provisioned, deploy jambonz using the [jambonz Helm chart](https://github.com/jambonz-selfhosting/helm-chart). Refer to the Helm chart README for detailed installation instructions.
 
 ## Cleanup
 
-To destroy all resources:
+> **Important**: If you deployed jambonz via the Helm chart, the Kubernetes `LoadBalancer` services (e.g., traefik) will have created Exoscale Network Load Balancers (NLBs) outside of Terraform's control. You must delete these NLBs **before** running `terraform destroy`, otherwise the node pool deletion will fail with a "managed Instance Pool is locked by NLB" error.
+
+```bash
+# List NLBs in your zone
+exo compute load-balancer list --zone ch-gva-2
+
+# Delete each NLB
+exo compute load-balancer delete <NLB_ID> --zone ch-gva-2
+```
 
 ```bash
 terraform destroy
 ```
 
-## Differences from GKE/AKS
+## Notes
 
-| Feature | GKE | AKS | Exoscale SKS |
-|---------|-----|-----|--------------|
-| Multi-zone | Regional cluster | Availability zones | Single zone |
-| Autoscaling | Node autoscaler | Node autoscaler | Karpenter (Pro only) |
-| Public IPs | Cloud NAT | Per-pool setting | All nodes by default |
-| Security | Network tags + firewall | NSGs + manual VMSS | Security groups |
+### Differences from GKE/AKS/EKS
+
+| Feature | GKE | AKS | EKS | Exoscale SKS |
+|---------|-----|-----|-----|--------------|
+| Multi-zone | Regional cluster | Availability zones | Multi-AZ | Single zone |
+| Autoscaling | Node autoscaler | Node autoscaler | Node autoscaler | Karpenter (Pro only) |
+| Public IPs | Cloud NAT | Per-pool setting | Elastic IPs | All nodes by default |
+| Security | Network tags + firewall | NSGs + manual VMSS | Security groups | Security groups |
 
 ### Limitations
 

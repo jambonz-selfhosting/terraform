@@ -100,7 +100,6 @@ module.exports = {
       HOMER_PASSWORD: 'sipcapture',
       JAMBONZ_RECORD_WS_USERNAME: 'jambonz',
       JAMBONZ_RECORD_WS_PASSWORD: '$JWT_SECRET',
-      JAMBONES_DISABLE_TTS_STREAMING: true
       },
   },
   {

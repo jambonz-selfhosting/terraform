@@ -96,8 +96,8 @@ output "dbaas_connection_test" {
     # Test MySQL
     mysql -h ${data.exoscale_database_uri.mysql.host} -u ${data.exoscale_database_uri.mysql.username} -p -e "SELECT 1;"
 
-    # Test Valkey
-    redis-cli -h ${data.exoscale_database_uri.valkey.host} -p ${data.exoscale_database_uri.valkey.port} PING
+    # Test Redis (runs locally on web-monitoring VM)
+    redis-cli -h ${local.web_monitoring_private_ip} -p 6379 PING
 
     # Check your outbound public IP
     curl -4 ifconfig.me
@@ -130,15 +130,14 @@ output "mysql_username" {
   value       = data.exoscale_database_uri.mysql.username
 }
 
-output "valkey_host" {
-  description = "Valkey (Redis) hostname"
-  value       = data.exoscale_database_uri.valkey.host
-  sensitive   = true
+output "redis_host" {
+  description = "Redis hostname (runs on web-monitoring VM)"
+  value       = local.web_monitoring_private_ip
 }
 
-output "valkey_port" {
-  description = "Valkey (Redis) port"
-  value       = data.exoscale_database_uri.valkey.port
+output "redis_port" {
+  description = "Redis port"
+  value       = 6379
 }
 
 # =============================================================================
@@ -306,7 +305,7 @@ output "deployment_summary" {
     Recording Cluster:   ${var.deploy_recording_cluster ? "${var.recording_server_count} instance(s)" : "Not deployed"}
 
     MySQL:  ${data.exoscale_database_uri.mysql.uri}
-    Valkey: ${data.exoscale_database_uri.valkey.uri}
+    Redis:  ${local.web_monitoring_private_ip}:6379 (local on web-monitoring VM)
 
     DBaaS Access Configuration:
     - Web/Monitoring IP:     ${exoscale_elastic_ip.web_monitoring.ip_address}/32 (whitelisted)

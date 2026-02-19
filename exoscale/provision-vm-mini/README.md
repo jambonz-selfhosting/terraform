@@ -14,6 +14,14 @@ This Terraform configuration deploys a single-instance jambonz server on Exoscal
    brew install terraform  # macOS
    ```
 
+4. **Register VM Templates**: Before running Terraform, you must register the jambonz VM templates into your Exoscale account. This is a one-time step per version per zone. See the [Exoscale README](../README.md) for full details.
+
+   ```bash
+   cd exoscale/
+   ./prepare-images.sh
+   # Select: 1) mini, then choose your target zone
+   ```
+
 ## Quick Start
 
 1. **Clone and configure**:

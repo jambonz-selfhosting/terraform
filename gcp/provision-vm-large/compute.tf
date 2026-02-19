@@ -248,6 +248,8 @@ resource "google_compute_instance" "rtp" {
     monitoring_private_ip = google_compute_instance.monitoring.network_interface[0].network_ip
     vpc_cidr              = var.vpc_cidr
     enable_pcaps          = var.enable_pcaps
+    redis_host            = google_redis_instance.jambonz.host
+    redis_port            = google_redis_instance.jambonz.port
   })
 
   labels = {

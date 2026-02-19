@@ -43,27 +43,10 @@ variable "url_portal" {
   }
 }
 
-# Custom Template Variables
-# Note: Must be template IDs (UUID format), not names
-# Use: exo compute template list --zone ch-gva-2 --visibility private
-variable "template_web_monitoring" {
-  description = "Custom Exoscale template ID for web/monitoring server (UUID format)"
+variable "jambonz_version" {
+  description = "Jambonz version for template lookup (e.g., 10.0.4)"
   type        = string
-}
-
-variable "template_sbc" {
-  description = "Custom Exoscale template ID for SBC servers (UUID format)"
-  type        = string
-}
-
-variable "template_feature_server" {
-  description = "Custom Exoscale template ID for feature servers (UUID format)"
-  type        = string
-}
-
-variable "template_recording" {
-  description = "Custom Exoscale template ID for recording servers (UUID format)"
-  type        = string
+  default     = "10.0.4"
 }
 
 # Instance Count Variables
@@ -115,17 +98,6 @@ variable "mysql_plan" {
   validation {
     condition     = can(regex("^(hobbyist-2|startup-(4|8|16|32|64|128|225)|business-(4|8|16|32|64|128|225)|premium-(4|8|16|32|64|128|225))$", var.mysql_plan))
     error_message = "mysql_plan must be a valid Exoscale DBaaS plan"
-  }
-}
-
-variable "valkey_plan" {
-  description = "Exoscale DBaaS Valkey plan (hobbyist-2, startup-4/8/16/32, business-4/8/16/32, premium-*)"
-  type        = string
-  default     = "hobbyist-2"
-
-  validation {
-    condition     = can(regex("^(hobbyist-2|startup-(4|8|16|32|64|128|225)|business-(1|4|8|16|32|64|128|225)|premium-(4|8|16|32|64|128|225))$", var.valkey_plan))
-    error_message = "valkey_plan must be a valid Exoscale DBaaS Valkey plan"
   }
 }
 
