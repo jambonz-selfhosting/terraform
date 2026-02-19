@@ -75,7 +75,6 @@ write_files:
           max_memory_restart: '1G',
           env: {
             LOGLEVEL: 'info',
-            DTMF_ONLY: true,
             RTPENGINE_DTMF_LOG_PORT: 22223,
             ENABLE_METRICS: 1,
             STATS_HOST: '127.0.0.1',

@@ -91,6 +91,25 @@ output "security_group_rtp_id" {
 }
 
 # =============================================================================
+# Elastic IP Outputs
+# =============================================================================
+
+output "sip_eip_addresses" {
+  description = "Elastic IP addresses for SIP nodes"
+  value       = exoscale_elastic_ip.sip[*].ip_address
+}
+
+output "eip_allocator_helm_values" {
+  description = "Helm values for eip-allocator init container (sbc.eipAllocator.*)"
+  value = {
+    sipEipGroupRoleKey   = "role"
+    sipEipGroupRole      = "sip-node"
+    exoscaleApiKeySecret = "exoscale-eip-creds"
+    exoscaleZone         = var.zone
+  }
+}
+
+# =============================================================================
 # Kubeconfig Outputs
 # =============================================================================
 
@@ -135,24 +154,30 @@ output "usage_instructions" {
       kubectl describe nodes | grep -A5 Taints
 
     ----------------------------------------
+    Elastic IPs (eip-allocator)
+    ----------------------------------------
+
+    SIP Elastic IPs: ${join(", ", exoscale_elastic_ip.sip[*].ip_address)}
+    EIP pool label:  role=sip-node
+    K8s secret:      exoscale-eip-creds (in jambonz namespace)
+
+    ----------------------------------------
     Installing Traefik (Ingress Controller)
     ----------------------------------------
 
     IMPORTANT: Due to multiple node pools, Exoscale CCM requires an annotation
     specifying which instance pool should receive LoadBalancer traffic.
 
-    1. Create the jambonz namespace:
+    1. Create the jambonz namespace and install Traefik with the required annotation:
 
       kubectl create namespace jambonz
-
-    2. Install Traefik with the required annotation:
 
       helm repo add traefik https://traefik.github.io/charts
       helm repo update
       helm install traefik traefik/traefik --namespace jambonz \
         --set "service.annotations.service\.beta\.kubernetes\.io/exoscale-loadbalancer-service-instancepool-id=${exoscale_sks_nodepool.system.instance_pool_id}"
 
-    3. Verify the LoadBalancer gets an external IP:
+    2. Verify the LoadBalancer gets an external IP:
 
       kubectl -n jambonz get svc traefik
 

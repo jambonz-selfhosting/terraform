@@ -155,6 +155,17 @@ resource "exoscale_sks_nodepool" "rtp" {
 }
 
 # =============================================================================
+# Elastic IPs for SIP Nodes
+# Used by eip-allocator init container to assign static IPs to SIP nodes
+# =============================================================================
+
+resource "exoscale_elastic_ip" "sip" {
+  count       = var.sip_node_count
+  zone        = var.zone
+  description = "role=sip-node"
+}
+
+# =============================================================================
 # Kubeconfig
 # Generate kubeconfig for cluster access
 # =============================================================================
@@ -181,4 +192,30 @@ resource "local_sensitive_file" "kubeconfig" {
   filename        = "${path.module}/kubeconfig"
   content         = exoscale_sks_kubeconfig.admin.kubeconfig
   file_permission = "0600"
+}
+
+# =============================================================================
+# EIP Allocator Secret
+# Create the jambonz namespace and exoscale-eip-creds secret via kubectl.
+# Using local-exec avoids destroy ordering issues — the kubernetes provider
+# would try to delete the namespace after the SKS cluster is already gone.
+# =============================================================================
+
+resource "terraform_data" "k8s_eip_secret" {
+  input = {
+    kubeconfig = local_sensitive_file.kubeconfig.filename
+    api_key    = var.exoscale_api_key
+    api_secret = var.exoscale_api_secret
+  }
+
+  provisioner "local-exec" {
+    command = <<-EOT
+      export KUBECONFIG="${self.input.kubeconfig}"
+      kubectl create namespace jambonz --dry-run=client -o yaml | kubectl apply -f -
+      kubectl -n jambonz create secret generic exoscale-eip-creds \
+        --from-literal=api-key="${self.input.api_key}" \
+        --from-literal=api-secret="${self.input.api_secret}" \
+        --dry-run=client -o yaml | kubectl apply -f -
+    EOT
+  }
 }

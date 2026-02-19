@@ -288,6 +288,9 @@ resource "azurerm_linux_virtual_machine" "rtp" {
     monitoring_private_ip = azurerm_network_interface.monitoring.private_ip_address
     vpc_cidr              = var.vpc_cidr
     key_vault_name        = azurerm_key_vault.jambonz.name
+    redis_host            = azurerm_redis_cache.jambonz.hostname
+    redis_port            = azurerm_redis_cache.jambonz.port
+    redis_password        = azurerm_redis_cache.jambonz.primary_access_key
   }))
 
   depends_on = [

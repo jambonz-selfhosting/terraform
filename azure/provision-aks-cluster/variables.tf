@@ -70,14 +70,14 @@ variable "system_node_count" {
 variable "system_vm_size" {
   description = "VM size for system node pool"
   type        = string
-  default     = "Standard_D2s_v3"
+  default     = "Standard_F4s_v2"
 }
 
 # SIP Node Pool Configuration
 variable "sip_vm_size" {
   description = "VM size for SIP node pool"
   type        = string
-  default     = "Standard_D2s_v3"
+  default     = "Standard_F4s_v2"
 }
 
 variable "sip_node_count" {
@@ -102,7 +102,7 @@ variable "sip_max_count" {
 variable "rtp_vm_size" {
   description = "VM size for RTP node pool"
   type        = string
-  default     = "Standard_D2s_v3"
+  default     = "Standard_F4s_v2"
 }
 
 variable "rtp_node_count" {
@@ -122,3 +122,16 @@ variable "rtp_max_count" {
   type        = number
   default     = 10
 }
+
+# Public IP Prefix Configuration
+variable "sip_public_ip_prefix_length" {
+  description = "Prefix length for SIP public IP prefix (/28 = 16 IPs, /29 = 8 IPs, /30 = 4 IPs)"
+  type        = number
+  default     = 30
+
+  validation {
+    condition     = var.sip_public_ip_prefix_length >= 24 && var.sip_public_ip_prefix_length <= 31
+    error_message = "sip_public_ip_prefix_length must be between 24 and 31"
+  }
+}
+

@@ -57,14 +57,14 @@ variable "services_cidr" {
 variable "system_machine_type" {
   description = "Machine type for system node pool"
   type        = string
-  default     = "e2-standard-2"
+  default     = "c2-standard-4"
 }
 
 # SIP Node Pool Configuration
 variable "sip_machine_type" {
   description = "Machine type for SIP node pool"
   type        = string
-  default     = "e2-standard-2"
+  default     = "c2-standard-4"
 }
 
 variable "sip_node_count" {
@@ -77,7 +77,7 @@ variable "sip_node_count" {
 variable "rtp_machine_type" {
   description = "Machine type for RTP node pool"
   type        = string
-  default     = "e2-standard-2"
+  default     = "c2-standard-4"
 }
 
 variable "rtp_node_count" {

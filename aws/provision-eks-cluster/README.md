@@ -4,13 +4,13 @@ This Terraform configuration deploys an AWS EKS (Elastic Kubernetes Service) clu
 
 ## Architecture
 
-The cluster uses three specialized node pools:
+### Node Pools
 
-| Node Pool | Purpose | Subnets | Public IP | Taint |
-|-----------|---------|---------|-----------|-------|
-| **system** | General workloads, K8s system components | Private | No (NAT) | None |
-| **sip** | SIP signaling (drachtio-server) | Public | Yes | `sip=true:NoSchedule` |
-| **rtp** | RTP media (rtpengine, freeswitch) | Public | Yes | `rtp=true:NoSchedule` |
+| Node Pool | Purpose | Subnets | Public IP | Taint | Label |
+|-----------|---------|---------|-----------|-------|-------|
+| **system** | General workloads, K8s system components | Private | No (NAT) | None | - |
+| **sip** | SIP signaling (drachtio-server) | Public | Yes | `sip=true:NoSchedule` | `voip-environment=sip` |
+| **rtp** | RTP media (rtpengine, freeswitch) | Public | Yes | `rtp=true:NoSchedule` | `voip-environment=rtp` |
 
 ### Network Architecture
 
@@ -49,8 +49,8 @@ This configuration creates dedicated Elastic IPs for the SIP and RTP nodes:
 
 | EIP | Tag | Purpose |
 |-----|-----|---------|
-| `${cluster_name}-sip-eip` | `role: ${cluster_name}-sip-node` | Static IP for SIP signaling |
-| `${cluster_name}-rtp-eip` | `role: ${cluster_name}-rtp-node` | Static IP for RTP media |
+| `${cluster_name}-sip-eip` | `role: sip-node` | Static IP for SIP signaling |
+| `${cluster_name}-rtp-eip` | `role: rtp-node` | Static IP for RTP media |
 
 These EIPs are automatically associated with the SIP and RTP nodes when the jambonz helm chart is deployed. The `ec2-eip-allocator` init container in the SBC pods matches EIPs to nodes using the `role` tag.
 
@@ -81,95 +81,32 @@ This allows the EIP allocator to work using the node's IAM role (via IMDSv2) wit
 
 ## Usage
 
-1. **Copy and configure variables:**
-   ```bash
-   cp terraform.tfvars.example terraform.tfvars
-   # Edit terraform.tfvars with your settings
-   ```
+### 1. Configure Variables
 
-2. **Initialize Terraform:**
-   ```bash
-   terraform init
-   ```
-
-3. **Review the plan:**
-   ```bash
-   terraform plan
-   ```
-
-4. **Apply the configuration:**
-   ```bash
-   terraform apply
-   ```
-
-5. **Configure kubectl:**
-   ```bash
-   aws eks update-kubeconfig --region <region> --name <cluster-name>
-   ```
-
-6. **Verify the cluster:**
-   ```bash
-   kubectl get nodes --show-labels
-   kubectl describe nodes | grep -A3 Taints
-   ```
-
-## Deploying jambonz
-
-After the EKS cluster is ready, deploy jambonz using the helm chart:
-
-1. **Install the helm chart:**
-   ```bash
-   helm install jambonz <path-to-helm-chart> \
-     -f <path-to-helm-chart>/values-aws.yaml \
-     --namespace jambonz \
-     --create-namespace
-   ```
-
-2. **Monitor the deployment:**
-   ```bash
-   kubectl get pods -n jambonz -w
-   ```
-
-3. **Verify EIP association:**
-
-   After the SBC pods start, the ec2-eip-allocator init container will assign the Elastic IPs to the nodes. Verify with:
-   ```bash
-   aws ec2 describe-addresses --region <region> \
-     --filters "Name=tag-key,Values=role" \
-     --query 'Addresses[*].{Name:Tags[?Key==`Name`].Value|[0],PublicIp:PublicIp,InstanceId:InstanceId}' \
-     --output table
-   ```
-
-4. **Access the jambonz portal:**
-
-   Get the ingress URL or configure DNS to point to your load balancer.
-
-## VoIP Pod Configuration
-
-### SIP Pods (drachtio-server)
-
-```yaml
-spec:
-  nodeSelector:
-    voip-environment: sip
-  tolerations:
-    - key: sip
-      value: "true"
-      effect: NoSchedule
-  hostNetwork: true
+```bash
+cp terraform.tfvars.example terraform.tfvars
+# Edit terraform.tfvars with your settings
 ```
 
-### RTP Pods (rtpengine, freeswitch)
+### 2. Initialize and Deploy
 
-```yaml
-spec:
-  nodeSelector:
-    voip-environment: rtp
-  tolerations:
-    - key: rtp
-      value: "true"
-      effect: NoSchedule
-  hostNetwork: true
+```bash
+terraform init
+terraform plan
+terraform apply
+```
+
+### 3. Configure kubectl
+
+```bash
+aws eks update-kubeconfig --region <region> --name <cluster-name>
+```
+
+### 4. Verify the Cluster
+
+```bash
+kubectl get nodes --show-labels
+kubectl describe nodes | grep -A3 Taints
 ```
 
 ## Configuration Variables
@@ -191,21 +128,33 @@ spec:
 
 ## Outputs
 
-After deployment, Terraform outputs:
+| Output | Description |
+|--------|-------------|
+| `cluster_name` | EKS cluster name |
+| `cluster_endpoint` | Kubernetes API endpoint |
+| `configure_kubectl` | Command to configure kubectl |
+| `vpc_id` | VPC identifier |
+| `sip_eip_public_ip` | Elastic IP address for SIP node |
+| `rtp_eip_public_ip` | Elastic IP address for RTP node |
+| `sip_eip_allocation_id` | SIP EIP allocation ID |
+| `rtp_eip_allocation_id` | RTP EIP allocation ID |
 
-- `cluster_name` - EKS cluster name
-- `cluster_endpoint` - Kubernetes API endpoint
-- `configure_kubectl` - Command to configure kubectl
-- `vpc_id` - VPC identifier
-- `sip_eip_public_ip` - Elastic IP address for SIP node
-- `rtp_eip_public_ip` - Elastic IP address for RTP node
-- `sip_eip_allocation_id` - SIP EIP allocation ID
-- `rtp_eip_allocation_id` - RTP EIP allocation ID
-- Various subnet and security group IDs
+## Deploying jambonz
+
+After the cluster is provisioned, deploy jambonz using the [jambonz Helm chart](https://github.com/jambonz-selfhosting/helm-chart). Refer to the Helm chart README for detailed installation instructions.
+
+After the SBC pods start, the `eip-allocator` init container will assign the Elastic IPs to the SIP and RTP nodes. Verify with:
+
+```bash
+aws ec2 describe-addresses --region <region> \
+  --filters "Name=tag-key,Values=role" \
+  --query 'Addresses[*].{Name:Tags[?Key==`Name`].Value|[0],PublicIp:PublicIp,InstanceId:InstanceId}' \
+  --output table
+```
 
 ## Cleanup
 
-Before destroying the cluster, you must clean up resources in the correct order.
+Before destroying the cluster, clean up resources in the correct order.
 
 **1. Uninstall jambonz helm chart:**
 ```bash
@@ -219,10 +168,7 @@ kubectl delete namespace jambonz
 
 **3. Delete any remaining Kubernetes LoadBalancer services:**
 ```bash
-# Delete all LoadBalancer services (this removes the ELBs they created)
 kubectl delete svc --all-namespaces --field-selector spec.type=LoadBalancer
-
-# If using ingresses with ALB controller
 kubectl delete ingress --all-namespaces
 
 # Wait for AWS to clean up the load balancers and ENIs
@@ -236,7 +182,7 @@ terraform destroy
 
 **If `terraform destroy` hangs:**
 
-This usually means orphaned load balancers or network interfaces still exist. To find them:
+This usually means orphaned load balancers or network interfaces still exist:
 
 ```bash
 # List classic ELBs
@@ -245,15 +191,13 @@ aws elb describe-load-balancers --region <region> --query 'LoadBalancerDescripti
 # List ALBs/NLBs
 aws elbv2 describe-load-balancers --region <region> --query 'LoadBalancers[*].[LoadBalancerName,VpcId]' --output table
 
-# Delete orphaned ELBs (the name often contains 'k8s' or a hash)
+# Delete orphaned ELBs
 aws elb delete-load-balancer --load-balancer-name <elb-name> --region <region>
 ```
 
 After cleaning up the load balancers, wait a minute for ENIs to be released, then retry `terraform destroy`.
 
-**If the VPC deletion hangs:**
-
-Kubernetes-created security groups (for load balancers) may still exist:
+If the VPC deletion hangs, Kubernetes-created security groups may still exist:
 
 ```bash
 # List security groups in the VPC
@@ -265,6 +209,6 @@ aws ec2 delete-security-group --group-id <sg-id> --region <region>
 
 ## Notes
 
-- SIP and RTP nodes are placed in public subnets with `map_public_ip_on_launch = true` to ensure VoIP traffic can reach them directly from carriers and endpoints worldwide.
+- SIP and RTP nodes are placed in public subnets with `map_public_ip_on_launch = true` to ensure VoIP traffic can reach them directly.
 - System nodes are in private subnets and use NAT Gateway for outbound internet access.
-- VoIP pods should use `hostNetwork: true` to bind directly to the node's public IP.
+- VoIP pods use `hostNetwork: true` to bind directly to the node's public IP.

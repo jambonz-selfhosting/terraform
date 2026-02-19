@@ -187,6 +187,20 @@ resource "azurerm_subnet_network_security_group_association" "rtp" {
   network_security_group_id = azurerm_network_security_group.rtp.id
 }
 
+# =============================================================================
+# Public IP Prefix for SIP Node Pool
+# Provides a known IP range for carrier whitelisting.
+# RTP nodes use ephemeral public IPs (no prefix needed for whitelisting).
+# =============================================================================
+
+resource "azurerm_public_ip_prefix" "sip" {
+  name                = "${var.cluster_name}-sip-ip-prefix"
+  location            = azurerm_resource_group.main.location
+  resource_group_name = azurerm_resource_group.main.name
+  prefix_length       = var.sip_public_ip_prefix_length
+  sku                 = "Standard"
+}
+
 resource "azurerm_kubernetes_cluster" "main" {
   name                = var.cluster_name
   location            = azurerm_resource_group.main.location
@@ -219,15 +233,16 @@ resource "azurerm_kubernetes_cluster" "main" {
 
 # SIP Node Pool - For SIP signaling
 resource "azurerm_kubernetes_cluster_node_pool" "sip" {
-  name                  = "sip"
-  kubernetes_cluster_id = azurerm_kubernetes_cluster.main.id
-  vm_size               = var.sip_vm_size
-  node_count            = var.sip_node_count
-  enable_auto_scaling   = true
-  min_count             = var.sip_min_count
-  max_count             = var.sip_max_count
-  enable_node_public_ip = true # Critical for VoIP - allows pods to bind to public IPs
-  vnet_subnet_id        = azurerm_subnet.sip.id
+  name                       = "sip"
+  kubernetes_cluster_id      = azurerm_kubernetes_cluster.main.id
+  vm_size                    = var.sip_vm_size
+  node_count                 = var.sip_node_count
+  enable_auto_scaling        = true
+  min_count                  = var.sip_min_count
+  max_count                  = var.sip_max_count
+  enable_node_public_ip      = true
+  node_public_ip_prefix_id   = azurerm_public_ip_prefix.sip.id
+  vnet_subnet_id             = azurerm_subnet.sip.id
 
   node_labels = {
     "voip-environment" = "sip"
@@ -240,15 +255,15 @@ resource "azurerm_kubernetes_cluster_node_pool" "sip" {
 
 # RTP Node Pool - For RTP media processing
 resource "azurerm_kubernetes_cluster_node_pool" "rtp" {
-  name                  = "rtp"
-  kubernetes_cluster_id = azurerm_kubernetes_cluster.main.id
-  vm_size               = var.rtp_vm_size
-  node_count            = var.rtp_node_count
-  enable_auto_scaling   = true
-  min_count             = var.rtp_min_count
-  max_count             = var.rtp_max_count
-  enable_node_public_ip = true
-  vnet_subnet_id        = azurerm_subnet.rtp.id
+  name                       = "rtp"
+  kubernetes_cluster_id      = azurerm_kubernetes_cluster.main.id
+  vm_size                    = var.rtp_vm_size
+  node_count                 = var.rtp_node_count
+  enable_auto_scaling        = true
+  min_count                  = var.rtp_min_count
+  max_count                  = var.rtp_max_count
+  enable_node_public_ip      = true
+  vnet_subnet_id             = azurerm_subnet.rtp.id
 
   node_labels = {
     "voip-environment" = "rtp"

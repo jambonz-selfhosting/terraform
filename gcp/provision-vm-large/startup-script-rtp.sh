@@ -6,6 +6,8 @@
 MONITORING_PRIVATE_IP="${monitoring_private_ip}"
 VPC_CIDR="${vpc_cidr}"
 ENABLE_PCAPS="${enable_pcaps}"
+REDIS_HOST="${redis_host}"
+REDIS_PORT="${redis_port}"
 
 echo "Starting jambonz RTP server configuration for GCP large deployment"
 
@@ -45,14 +47,15 @@ module.exports = {
     max_memory_restart: '1G',
     env: {
       LOGLEVEL: 'info',
-      DTMF_ONLY: true,
       RTPENGINE_DTMF_LOG_PORT: 22223,
       ENABLE_METRICS: 1,
       STATS_HOST: '127.0.0.1',
       STATS_PORT: 8125,
       STATS_PROTOCOL: 'tcp',
       STATS_SAMPLE_RATE:1,
-      STATS_TELEGRAF: 1
+      STATS_TELEGRAF: 1,
+      JAMBONES_REDIS_HOST: '$REDIS_HOST',
+      JAMBONES_REDIS_PORT: $REDIS_PORT
     }
   }
   ]

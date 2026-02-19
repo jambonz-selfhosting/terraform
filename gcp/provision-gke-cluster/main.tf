@@ -166,6 +166,49 @@ resource "google_compute_firewall" "rtp" {
   target_tags   = ["rtp-nodes"]
 }
 
+# =============================================================================
+# Static IPs for SIP Nodes
+# Used by eip-allocator init container to assign static IPs to SIP nodes
+# =============================================================================
+
+resource "google_compute_address" "sip" {
+  count        = var.sip_node_count
+  name         = "${var.cluster_name}-sip-ip-${count.index + 1}"
+  region       = var.region
+  address_type = "EXTERNAL"
+
+  labels = {
+    role = "sip-node"
+  }
+}
+
+# =============================================================================
+# IAM for EIP Allocator
+# Custom role with minimal permissions for the eip-allocator init container
+# =============================================================================
+
+data "google_compute_default_service_account" "default" {}
+
+resource "google_project_iam_custom_role" "eip_allocator" {
+  role_id     = replace("${var.cluster_name}_eip_allocator", "-", "_")
+  title       = "EIP Allocator for ${var.cluster_name}"
+  description = "Allows eip-allocator to assign static IPs to GKE nodes"
+
+  permissions = [
+    "compute.instances.get",
+    "compute.instances.deleteAccessConfig",
+    "compute.instances.addAccessConfig",
+    "compute.addresses.list",
+    "compute.addresses.get",
+  ]
+}
+
+resource "google_project_iam_member" "eip_allocator" {
+  project = var.project_id
+  role    = google_project_iam_custom_role.eip_allocator.id
+  member  = "serviceAccount:${data.google_compute_default_service_account.default.email}"
+}
+
 # GKE Cluster
 resource "google_container_cluster" "main" {
   name     = var.cluster_name

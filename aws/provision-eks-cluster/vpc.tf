@@ -64,22 +64,24 @@ resource "aws_eip" "nat" {
 # =============================================================================
 
 resource "aws_eip" "sip" {
+  count  = var.sip_node_count
   domain = "vpc"
 
   tags = {
-    Name = "${local.cluster_name}-sip-eip"
-    role = "${local.cluster_name}-sip-node"
+    Name = "${local.cluster_name}-sip-eip-${count.index + 1}"
+    role = "sip-node"
   }
 
   depends_on = [aws_internet_gateway.main]
 }
 
 resource "aws_eip" "rtp" {
+  count  = var.rtp_node_count
   domain = "vpc"
 
   tags = {
-    Name = "${local.cluster_name}-rtp-eip"
-    role = "${local.cluster_name}-rtp-node"
+    Name = "${local.cluster_name}-rtp-eip-${count.index + 1}"
+    role = "rtp-node"
   }
 
   depends_on = [aws_internet_gateway.main]
