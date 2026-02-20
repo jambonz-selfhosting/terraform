@@ -210,20 +210,20 @@ write_files:
 
       # Configure drachtio service
       if [ -f /etc/systemd/system/drachtio.service ]; then
-          sudo sed -i -e "s/MYSQL_HOST=/MYSQL_HOST=127.0.0.1/g" /etc/systemd/system/drachtio.service
-          sudo sed -i -e "s/MYSQL_USER=/MYSQL_USER=admin/g" /etc/systemd/system/drachtio.service
-          sudo sed -i -e "s/MYSQL_PASSWORD=/MYSQL_PASSWORD=$NEW_DB_PASSWD/g" /etc/systemd/system/drachtio.service
-          sudo sed -i -e "s/MYSQL_DATABASE=/MYSQL_DATABASE=jambones/g" /etc/systemd/system/drachtio.service
+          sudo sed -i -e "s/JAMBONES_MYSQL_HOST=/JAMBONES_MYSQL_HOST=127.0.0.1/g" /etc/systemd/system/drachtio.service
+          sudo sed -i -e "s/JAMBONES_MYSQL_USER=/JAMBONES_MYSQL_USER=admin/g" /etc/systemd/system/drachtio.service
+          sudo sed -i -e "s/JAMBONES_MYSQL_PASSWORD=/JAMBONES_MYSQL_PASSWORD=$NEW_DB_PASSWD/g" /etc/systemd/system/drachtio.service
+          sudo sed -i -e "s/JAMBONES_MYSQL_DATABASE=/JAMBONES_MYSQL_DATABASE=jambones/g" /etc/systemd/system/drachtio.service
           sudo sed -i -e "s/JAMBONES_REDIS_HOST=/JAMBONES_REDIS_HOST=127.0.0.1/g" /etc/systemd/system/drachtio.service
           sudo sed -i -e "s/JAMBONES_REDIS_PORT=/JAMBONES_REDIS_PORT=6379/g" /etc/systemd/system/drachtio.service
       fi
 
       # Configure freeswitch service
       if [ -f /etc/systemd/system/freeswitch.service ]; then
-          sudo sed -i -e "s/MYSQL_HOST=/MYSQL_HOST=127.0.0.1/g" /etc/systemd/system/freeswitch.service
-          sudo sed -i -e "s/MYSQL_USER=/MYSQL_USER=admin/g" /etc/systemd/system/freeswitch.service
-          sudo sed -i -e "s/MYSQL_PASSWORD=/MYSQL_PASSWORD=$NEW_DB_PASSWD/g" /etc/systemd/system/freeswitch.service
-          sudo sed -i -e "s/MYSQL_DATABASE=/MYSQL_DATABASE=jambones/g" /etc/systemd/system/freeswitch.service
+          sudo sed -i -e "s/JAMBONES_MYSQL_HOST=/JAMBONES_MYSQL_HOST=127.0.0.1/g" /etc/systemd/system/freeswitch.service
+          sudo sed -i -e "s/JAMBONES_MYSQL_USER=/JAMBONES_MYSQL_USER=admin/g" /etc/systemd/system/freeswitch.service
+          sudo sed -i -e "s/JAMBONES_MYSQL_PASSWORD=/JAMBONES_MYSQL_PASSWORD=$NEW_DB_PASSWD/g" /etc/systemd/system/freeswitch.service
+          sudo sed -i -e "s/JAMBONES_MYSQL_DATABASE=/JAMBONES_MYSQL_DATABASE=jambones/g" /etc/systemd/system/freeswitch.service
           sudo sed -i -e "s/JAMBONES_REDIS_HOST=/JAMBONES_REDIS_HOST=127.0.0.1/g" /etc/systemd/system/freeswitch.service
           sudo sed -i -e "s/JAMBONES_REDIS_PORT=/JAMBONES_REDIS_PORT=6379/g" /etc/systemd/system/freeswitch.service
       fi

@@ -1,0 +1,101 @@
+# jambonz Medium Deployment on AWS - Example Configuration
+# Copy this file to terraform.tfvars and customize for your deployment.
+
+# -------------------------------------------------------
+# REQUIRED
+# -------------------------------------------------------
+
+# AWS region
+region = "us-east-1"
+
+# SSH public key for VM access
+ssh_public_key = "ssh-rsa AAAA..."
+
+# DNS name for the jambonz portal
+url_portal = "jambonz.example.com"
+
+# -------------------------------------------------------
+# OPTIONAL - Deployment
+# -------------------------------------------------------
+
+# name_prefix   = "jambonz"
+# environment   = "production"
+
+# -------------------------------------------------------
+# OPTIONAL - Network
+# -------------------------------------------------------
+
+# vpc_cidr             = "172.20.0.0/16"
+# public_subnet_cidrs  = ["172.20.10.0/24", "172.20.11.0/24"]
+# private_subnet_cidrs = ["172.20.20.0/24", "172.20.21.0/24"]
+
+# -------------------------------------------------------
+# OPTIONAL - Access Controls
+# -------------------------------------------------------
+
+# allowed_ssh_cidr = ["0.0.0.0/0"]
+# allowed_http_cidr = ["0.0.0.0/0"]
+# allowed_sbc_cidr = ["0.0.0.0/0"]
+
+# -------------------------------------------------------
+# OPTIONAL - Instance Types
+# -------------------------------------------------------
+
+# sbc_instance_type            = "c5n.xlarge"
+# feature_server_instance_type = "c5n.xlarge"
+# web_monitoring_instance_type = "c5n.xlarge"
+# recording_instance_type      = "t3.xlarge"
+
+# -------------------------------------------------------
+# OPTIONAL - Disk Sizes (GB)
+# -------------------------------------------------------
+
+# sbc_disk_size            = 100
+# feature_server_disk_size = 100
+# web_monitoring_disk_size = 200
+# recording_disk_size      = 100
+
+# -------------------------------------------------------
+# OPTIONAL - Auto Scaling
+# -------------------------------------------------------
+
+# sbc_min_size            = 1
+# sbc_max_size            = 4
+# sbc_desired_capacity    = 1
+
+# feature_server_min_size            = 1
+# feature_server_max_size            = 4
+# feature_server_desired_capacity    = 1
+
+# -------------------------------------------------------
+# OPTIONAL - Database
+# -------------------------------------------------------
+
+# mysql_username     = "admin"
+# mysql_password     = ""  # auto-generated if empty
+# aurora_min_capacity = 0.5
+# aurora_max_capacity = 4
+
+# -------------------------------------------------------
+# OPTIONAL - Redis
+# -------------------------------------------------------
+
+# redis_node_type = "cache.t3.medium"
+
+# -------------------------------------------------------
+# OPTIONAL - Features
+# -------------------------------------------------------
+
+# enable_pcaps              = true
+# deploy_recording_cluster  = false
+
+# -------------------------------------------------------
+# OPTIONAL - APIBan (SIP firewall)
+# -------------------------------------------------------
+
+# Client credentials mode (preferred - auto-provisions per-instance keys):
+# apiban_client_id     = ""
+# apiban_client_secret = ""
+
+# Single key mode (alternative):
+# apiban_key = ""

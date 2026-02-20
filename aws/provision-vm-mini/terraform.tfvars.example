@@ -1,0 +1,72 @@
+# Example terraform.tfvars for jambonz mini (single VM) deployment on AWS
+# All-in-one deployment with local MySQL, Redis, and monitoring
+#
+# Copy this file to terraform.tfvars and fill in the required values
+
+# ==============================================================================
+# REQUIRED - You MUST provide values for these variables
+# ==============================================================================
+
+region         = ""  # AWS region (e.g., "us-east-1", "us-west-2", "eu-west-1")
+url_portal     = ""  # Your domain name (e.g., "jambonz.example.com")
+ssh_public_key = ""  # Your SSH public key (e.g., "ssh-rsa AAAAB3Nz... user@host")
+
+# ------------------------------------------------------------------------------
+# APIBAN CONFIGURATION (optional)
+# Get a free key at https://apiban.org/getkey.html
+# ------------------------------------------------------------------------------
+
+# Single key mode (simpler):
+# apiban_key = "YOUR_APIBAN_KEY"
+
+# OR multi-key mode (auto-provisions unique key per instance):
+# apiban_client_id     = "YOUR_CLIENT_ID"
+# apiban_client_secret = "YOUR_CLIENT_SECRET"
+
+# ==============================================================================
+# OPTIONAL - The defaults below work for most deployments but can be edited as needed
+# ==============================================================================
+
+# ------------------------------------------------------------------------------
+# DEPLOYMENT CONFIGURATION
+# ------------------------------------------------------------------------------
+
+name_prefix = "jambonz"
+environment = "production"
+
+# ------------------------------------------------------------------------------
+# NETWORK CONFIGURATION
+# ------------------------------------------------------------------------------
+
+vpc_cidr           = "10.0.0.0/16"
+public_subnet_cidr = "10.0.0.0/24"
+
+# ------------------------------------------------------------------------------
+# NETWORK ACCESS CONTROLS
+# ------------------------------------------------------------------------------
+
+# IMPORTANT: Restrict these for production use
+allowed_ssh_cidr  = ["0.0.0.0/0"]   # SSH access - consider restricting to your IP
+allowed_http_cidr = ["0.0.0.0/0"]   # Web/API access
+allowed_sip_cidr  = ["0.0.0.0/0"]   # SIP/RTP access
+
+# ------------------------------------------------------------------------------
+# INSTANCE CONFIGURATION
+# AMI is automatically selected based on region (no configuration needed)
+# ------------------------------------------------------------------------------
+
+# c5n.large recommended for mini (2 vCPU, 5.25 GB RAM, enhanced networking)
+# Use c5.large for regions without c5n, or t3.large for budget deployments
+instance_type = "c5n.large"
+
+# ------------------------------------------------------------------------------
+# DISK SIZE CONFIGURATION
+# ------------------------------------------------------------------------------
+
+disk_size = 100
+
+# ------------------------------------------------------------------------------
+# SSH CONFIGURATION
+# ------------------------------------------------------------------------------
+
+ssh_user = "jambonz"

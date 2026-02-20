@@ -1,5 +1,5 @@
 #!/bin/bash -xe
-# Startup script for jambonz Mini (all-in-one) server on GCP
+# Startup script for jambonz Mini (all-in-one) server on AWS
 # Runs all services locally: MySQL, Redis, SIP/RTP, Web, Monitoring
 
 # Variables passed from Terraform
@@ -25,12 +25,40 @@ systemctl stop jaeger-query || true
 systemctl stop jaeger-collector || true
 systemctl stop telegraf || true
 
+# Detect OS type
+if [ -f /etc/redhat-release ]; then
+  OS_TYPE="rhel"
+  DEFAULT_USER=ec2-user
+else
+  OS_TYPE="debian"
+  DEFAULT_USER=admin
+fi
+
+# Sync SSH keys from default user to jambonz user
+if [ -d /home/$DEFAULT_USER/.ssh ] && [ "$DEFAULT_USER" != "$USER" ]; then
+  mkdir -p $HOME/.ssh
+  cp /home/$DEFAULT_USER/.ssh/authorized_keys $HOME/.ssh/authorized_keys 2>/dev/null || true
+  chown -R $USER:$USER $HOME/.ssh
+  chmod 700 $HOME/.ssh
+  chmod 600 $HOME/.ssh/authorized_keys
+fi
+
 # Install rtpengine kernel module and iptables rule
 echo "Installing rtpengine kernel module and iptables rule..."
 if lsmod | grep -q xt_RTPENGINE; then
   echo "xt_RTPENGINE module is already loaded."
 else
   echo "Loading xt_RTPENGINE module."
+  if [ "$OS_TYPE" = "rhel" ]; then
+    cd /usr/local/src/rtpengine
+    if [ -d kernel-module ]; then
+      cd kernel-module
+      make clean || true
+      make || true
+      cp xt_RTPENGINE.ko /lib/modules/$(uname -r)/updates/ 2>/dev/null || true
+      depmod -a || true
+    fi
+  fi
   modprobe xt_RTPENGINE || true
   echo 'add 42' > /proc/rtpengine/control || true
   iptables -I INPUT -p udp --dport 40000:60000 -j RTPENGINE --id 42 || true
@@ -38,15 +66,18 @@ fi
 echo "rtpengine module and iptables rule installed. Restarting rtpengine service."
 systemctl restart rtpengine || true
 
-# Get instance metadata from GCP Metadata Service
-echo "Getting instance metadata from GCP..."
-PRIVATE_IP=$(curl -s -H "Metadata-Flavor: Google" http://169.254.169.254/computeMetadata/v1/instance/network-interfaces/0/ip 2>/dev/null || hostname -I | awk '{print $1}')
-PUBLIC_IP=$(curl -s -H "Metadata-Flavor: Google" http://169.254.169.254/computeMetadata/v1/instance/network-interfaces/0/access-configs/0/external-ip 2>/dev/null || curl -s https://api.ipify.org)
-INSTANCE_ID=$(curl -s -H "Metadata-Flavor: Google" http://169.254.169.254/computeMetadata/v1/instance/name 2>/dev/null || hostname)
+# Get instance metadata from AWS IMDSv2
+echo "Getting instance metadata from AWS..."
+TOKEN=$(curl -s -X PUT "http://169.254.169.254/latest/api/token" -H "X-aws-ec2-metadata-token-ttl-seconds: 21600")
+PRIVATE_IP=$(curl -s -H "X-aws-ec2-metadata-token: $TOKEN" http://169.254.169.254/latest/meta-data/local-ipv4)
+PUBLIC_IP=$(curl -s -H "X-aws-ec2-metadata-token: $TOKEN" http://169.254.169.254/latest/meta-data/public-ipv4)
+INSTANCE_ID=$(curl -s -H "X-aws-ec2-metadata-token: $TOKEN" http://169.254.169.254/latest/meta-data/instance-id)
+REGION=$(curl -s -H "X-aws-ec2-metadata-token: $TOKEN" http://169.254.169.254/latest/meta-data/placement/region)
 
 echo "Public IP: $PUBLIC_IP"
 echo "Private IP: $PRIVATE_IP"
 echo "Instance ID: $INSTANCE_ID"
+echo "Region: $REGION"
 
 # Change the database password
 echo "Resetting database password..."
@@ -128,17 +159,17 @@ else
   fi
 
   # Configure nginx for domain-based access
-  sudo cat << EOF > $NGINX_CONFIG
+  sudo tee $NGINX_CONFIG > /dev/null << EOF
 server {
     listen 80;
     server_name $URL_PORTAL;
     location /api/ {
-        rewrite ^/api/(.*)$ /\$1 break;
-        proxy_pass http://localhost:3002;
+        rewrite ^/api/(.*)\$ /\$1 break;
+        proxy_pass http://127.0.0.1:3002;
         proxy_set_header Host \$host;
     }
     location / {
-        proxy_pass http://localhost:3001;
+        proxy_pass http://127.0.0.1:3001;
         proxy_set_header Host \$host;
     }
 }
@@ -146,7 +177,7 @@ server {
     listen 80;
     server_name api.$URL_PORTAL;
     location / {
-        proxy_pass http://localhost:3002;
+        proxy_pass http://127.0.0.1:3002;
         proxy_set_header Host \$host;
     }
 }
