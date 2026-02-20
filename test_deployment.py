@@ -130,6 +130,8 @@ def detect_provider(terraform_dir: Path) -> str:
 
     if 'gcp' in dir_name:
         return 'gcp'
+    elif 'aws' in dir_name:
+        return 'aws'
     elif 'azure' in dir_name:
         return 'azure'
     elif 'exoscale' in dir_name:

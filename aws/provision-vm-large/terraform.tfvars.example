@@ -1,0 +1,54 @@
+# Required variables
+region         = "us-east-1"
+ssh_public_key = "ssh-rsa AAAA... user@host"
+url_portal     = "jambonz.example.com"
+
+# Optional: deployment name
+# name_prefix = "jambonz"
+
+# Optional: instance types
+# sip_instance_type            = "c5n.xlarge"
+# rtp_instance_type            = "c5n.xlarge"
+# feature_server_instance_type = "c5n.xlarge"
+# web_instance_type            = "c5n.xlarge"
+# monitoring_instance_type     = "c5n.xlarge"
+# recording_instance_type      = "t3.xlarge"
+
+# Optional: instance counts (SIP and RTP are count-based, not ASG)
+# sip_count = 1
+# rtp_count = 1
+
+# Optional: Feature Server auto scaling
+# feature_server_min_size          = 1
+# feature_server_max_size          = 8
+# feature_server_desired_capacity  = 1
+
+# Optional: database
+# mysql_username     = "admin"
+# mysql_password     = ""          # leave empty to auto-generate
+# aurora_min_capacity = 0.5
+# aurora_max_capacity = 8
+
+# Optional: Redis
+# redis_node_type = "cache.t3.medium"
+
+# Optional: network access
+# allowed_ssh_cidr = ["0.0.0.0/0"]
+# allowed_http_cidr = ["0.0.0.0/0"]
+# allowed_sbc_cidr = ["0.0.0.0/0"]
+
+# Optional: features
+# enable_pcaps = true
+
+# Optional: recording cluster
+# deploy_recording_cluster       = false
+# recording_min_size             = 1
+# recording_max_size             = 8
+# recording_desired_capacity     = 1
+
+# Optional: APIBan (choose one mode)
+# Mode 1: Client credentials (auto-provision per instance)
+# apiban_client_id     = ""
+# apiban_client_secret = ""
+# Mode 2: Single key
+# apiban_key = ""

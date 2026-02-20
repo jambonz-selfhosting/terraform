@@ -6,12 +6,12 @@ Configures DNS records, provisions TLS certificates, and rebuilds webapp for HTT
 Run this after test_deployment.py passes.
 
 Usage:
-    # From terraform deployment directory (e.g., gcp/provision-vm-medium)
-    cd gcp/provision-vm-medium
+    # From terraform deployment directory (e.g., gcp/provision-vm-medium, aws/provision-vm-mini)
+    cd aws/provision-vm-mini
     python ../../post_install.py --email admin@example.com
 
     # Or specify terraform directory
-    python post_install.py --terraform-dir gcp/provision-vm-medium --email admin@example.com
+    python post_install.py --terraform-dir aws/provision-vm-medium --email admin@example.com
 
     # Skip DNS creation (if already exists)
     python ../../post_install.py --email admin@example.com --skip-dns
@@ -75,10 +75,14 @@ def create_dns_records(
     sbc_ip: str,
     dns_manager: DNSManager,
     base_domain: str,
+    monitoring_ip: str = None,
     ttl: int = 300
 ) -> bool:
     """
     Create DNS A records for the deployment.
+
+    Args:
+        monitoring_ip: If set, grafana/homer point here instead of web_ip (large deployments)
 
     Returns:
         True if all records created successfully
@@ -88,12 +92,15 @@ def create_dns_records(
 
     subdomain = extract_subdomain(url_portal)
 
+    # For large deployments, grafana/homer point to the monitoring server
+    grafana_homer_ip = monitoring_ip or web_ip
+
     # Define records to create
     records_to_create = [
         (subdomain, web_ip),
         (f"api.{subdomain}", web_ip),
-        (f"grafana.{subdomain}", web_ip),
-        (f"homer.{subdomain}", web_ip),
+        (f"grafana.{subdomain}", grafana_homer_ip),
+        (f"homer.{subdomain}", grafana_homer_ip),
         (f"public-apps.{subdomain}", web_ip),
         (f"sip.{subdomain}", sbc_ip),
     ]
@@ -425,9 +432,12 @@ def main(terraform_dir, email, config, skip_dns, skip_tls, skip_webapp, staging)
     portal_url = tf_outputs.get('portal_url', '').replace('http://', '').replace('https://', '')
     # Support medium (web_monitoring_public_ip), large split (web_public_ip), mini (public_ip), and exoscale (server_ip)
     web_ip = tf_outputs.get('web_monitoring_public_ip') or tf_outputs.get('web_public_ip') or tf_outputs.get('public_ip') or tf_outputs.get('server_ip')
+    # Large deployments have a separate monitoring server
+    monitoring_ip = tf_outputs.get('monitoring_public_ip')
     sbc_ips = tf_outputs.get('sbc_public_ips') or tf_outputs.get('sip_public_ips', [])
     # For mini deployments, the single VM handles SBC too
     is_mini = 'mini' in str(tf_dir).lower()
+    is_large = 'large' in str(tf_dir).lower()
     if is_mini and not sbc_ips and web_ip:
         sbc_ips = [web_ip]  # Mini uses same IP for all services
     portal_password = tf_outputs.get('portal_password') or tf_outputs.get('admin_password')
@@ -442,6 +452,11 @@ def main(terraform_dir, email, config, skip_dns, skip_tls, skip_webapp, staging)
     if is_mini:
         print(f"✓ Portal URL: {portal_url}")
         print(f"✓ Mini Server IP: {web_ip} (all-in-one)")
+    elif is_large and monitoring_ip:
+        print(f"✓ Portal URL: {portal_url}")
+        print(f"✓ Web IP: {web_ip}")
+        print(f"✓ Monitoring IP: {monitoring_ip}")
+        print(f"✓ SBC IPs: {', '.join(sbc_ips)}")
     else:
         print(f"✓ Portal URL: {portal_url}")
         print(f"✓ Web/Monitoring IP: {web_ip}")
@@ -470,7 +485,7 @@ def main(terraform_dir, email, config, skip_dns, skip_tls, skip_webapp, staging)
             provider = dns_config.get('provider', 'dnsmadeeasy')
             dns_manager = DNSManager(provider=provider, config=dns_config, base_domain=base_domain)
 
-            if not create_dns_records(portal_url, web_ip, sbc_ips[0], dns_manager, base_domain):
+            if not create_dns_records(portal_url, web_ip, sbc_ips[0], dns_manager, base_domain, monitoring_ip=monitoring_ip):
                 print("❌ DNS record creation failed")
                 all_passed = False
             else:
@@ -499,10 +514,22 @@ def main(terraform_dir, email, config, skip_dns, skip_tls, skip_webapp, staging)
         print()
 
         if not provision_tls_certificates(web_ip, email, ssh_config, staging):
-            print("❌ TLS certificate provisioning failed")
+            print("❌ TLS certificate provisioning failed on web server")
             all_passed = False
         else:
-            print("✅ TLS certificates provisioned")
+            print("✅ TLS certificates provisioned on web server")
+
+        # Large deployments: monitoring server has its own nginx (grafana/homer)
+        if monitoring_ip and all_passed:
+            print()
+            print(f"Provisioning TLS on monitoring server ({monitoring_ip})...")
+            print()
+
+            if not provision_tls_certificates(monitoring_ip, email, ssh_config, staging):
+                print("❌ TLS certificate provisioning failed on monitoring server")
+                all_passed = False
+            else:
+                print("✅ TLS certificates provisioned on monitoring server")
 
         print()
     elif skip_tls:
