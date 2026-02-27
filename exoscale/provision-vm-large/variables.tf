@@ -381,9 +381,15 @@ variable "apiban_client_secret" {
 }
 
 variable "enable_pcaps" {
-  description = "Enable PCAP capture via HEP to Homer"
-  type        = bool
-  default     = true
+  description = "Enable PCAP capture on SIP servers (sends HEP to Homer on monitoring server)"
+  type        = string
+  default     = "true"
+}
+
+variable "enable_otel" {
+  description = "Enable OpenTelemetry tracing (Cassandra + Jaeger on monitoring server)"
+  type        = string
+  default     = "true"
 }
 
 variable "scale_in_timeout_seconds" {

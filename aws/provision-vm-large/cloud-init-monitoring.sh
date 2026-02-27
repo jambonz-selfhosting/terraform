@@ -30,7 +30,7 @@ HOME=/home/jambonz
 
 # Sync SSH keys from default user to jambonz user
 echo "Syncing SSH keys to jambonz user..."
-if [ -f "/home/$DEFAULT_USER/.ssh/authorized_keys" ] && [ -s "/home/$DEFAULT_USER/.ssh/authorized_keys" ]; then
+if [ -f "/home/$DEFAULT_USER/.ssh/authorized_keys" ] && [ -s "/home/$DEFAULT_USER/.ssh/authorized_keys" ] && [ "$DEFAULT_USER" != "jambonz" ]; then
     mkdir -p /home/jambonz/.ssh
     cp "/home/$DEFAULT_USER/.ssh/authorized_keys" /home/jambonz/.ssh/
     chown -R jambonz:jambonz /home/jambonz/.ssh

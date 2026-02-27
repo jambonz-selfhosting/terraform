@@ -11,6 +11,7 @@ Terraform configurations for deploying jambonz on various cloud providers.
 | **GCP** | [VM Mini](gcp/provision-vm-mini/) | [VM Medium](gcp/provision-vm-medium/) | [VM Large](gcp/provision-vm-large/) |
 | **OCI** | [VM Mini](oci/provision-vm-mini/) | [VM Medium](oci/provision-vm-medium/) | [VM Large](oci/provision-vm-large/) |
 | **Exoscale** | [VM Mini](exoscale/provision-vm-mini/) | [VM Medium](exoscale/provision-vm-medium/) | [VM Large](exoscale/provision-vm-large/) |
+| **Hetzner** | [VM Mini](hetzner/provision-vm-mini/) | [VM Medium](hetzner/provision-vm-medium/) | [VM Large](hetzner/provision-vm-large/) |
 
 ## Deployment Types
 
