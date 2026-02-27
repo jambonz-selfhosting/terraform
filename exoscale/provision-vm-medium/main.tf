@@ -10,9 +10,9 @@ locals {
   ssh_key  = var.ssh_public_key != "" ? exoscale_ssh_key.jambonz[0].name : var.ssh_key_name
   ssh_keys = [local.ssh_key]
 
-  # SSH public key content for cloud-init - read from local file if using ssh_key_name
-  # User must have the public key in ~/.ssh/ directory
-  ssh_public_key = var.ssh_public_key != "" ? var.ssh_public_key : file("~/.ssh/id_rsa.pub")
+  # SSH public key content for cloud-init
+  # When using ssh_key_name, user must also provide ssh_public_key for cloud-init injection
+  ssh_public_key = var.ssh_public_key
 
   # Static private IP for web-monitoring VM (below DHCP range which starts at offset 10)
   # Redis runs on this VM; SBC and feature servers connect to it via this IP

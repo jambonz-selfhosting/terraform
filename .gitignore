@@ -48,3 +48,5 @@ exoscale/test-ssh-key/
 
 # Planning docs (not for end users)
 ovhcloud-terraform-plan.md
+
+.claude

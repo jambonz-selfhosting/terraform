@@ -1,25 +1,4 @@
 # Terraform configuration for jambonz mini deployment on Exoscale
-# Equivalent to the AWS CloudFormation cf-aws-mini deployment
-
-terraform {
-  required_version = ">= 1.0"
-
-  required_providers {
-    exoscale = {
-      source  = "exoscale/exoscale"
-      version = "~> 0.54"
-    }
-    random = {
-      source  = "hashicorp/random"
-      version = "~> 3.5"
-    }
-  }
-}
-
-provider "exoscale" {
-  key    = var.exoscale_api_key
-  secret = var.exoscale_api_secret
-}
 
 # ------------------------------------------------------------------------------
 # DATA SOURCES
@@ -29,28 +8,6 @@ data "exoscale_template" "jambonz_mini" {
   zone       = var.zone
   name       = "jambonz-mini-v${var.jambonz_version}"
   visibility = "private"
-}
-
-# ------------------------------------------------------------------------------
-# RANDOM SECRETS
-# ------------------------------------------------------------------------------
-
-# Generate JWT secret (equivalent to AWS Secrets Manager secret)
-# No special characters to avoid sed escaping issues in cloud-init
-resource "random_password" "jwt_secret" {
-  length  = 32
-  special = false
-}
-
-# Generate database password
-resource "random_password" "db_password" {
-  length           = 16
-  special          = true
-  override_special = "_"
-  min_upper        = 1
-  min_lower        = 1
-  min_numeric      = 1
-  min_special      = 1
 }
 
 # ------------------------------------------------------------------------------
@@ -175,47 +132,4 @@ resource "exoscale_security_group_rule" "ssh" {
   start_port        = 22
   end_port          = 22
   description       = "SSH"
-}
-
-# ------------------------------------------------------------------------------
-# SSH KEY
-# ------------------------------------------------------------------------------
-
-resource "exoscale_ssh_key" "jambonz" {
-  count      = var.ssh_public_key != "" ? 1 : 0
-  name       = "${var.name_prefix}-jambonz-key"
-  public_key = var.ssh_public_key
-}
-
-# ------------------------------------------------------------------------------
-# COMPUTE INSTANCE
-# ------------------------------------------------------------------------------
-
-resource "exoscale_compute_instance" "jambonz" {
-  zone               = var.zone
-  name               = "${var.name_prefix}-jambonz-mini"
-  template_id        = data.exoscale_template.jambonz_mini.id
-  type               = var.instance_type
-  disk_size          = var.disk_size
-  ssh_keys           = [var.ssh_public_key != "" ? exoscale_ssh_key.jambonz[0].name : var.ssh_key_name]
-  security_group_ids = [
-    exoscale_security_group.jambonz.id,
-    exoscale_security_group.ssh.id
-  ]
-
-  user_data = base64encode(templatefile("${path.module}/cloud-init.yaml", {
-    url_portal           = var.url_portal
-    jwt_secret           = random_password.jwt_secret.result
-    db_password          = random_password.db_password.result
-    instance_name        = "${var.name_prefix}-jambonz-mini"
-    apiban_key           = var.apiban_key
-    apiban_client_id     = var.apiban_client_id
-    apiban_client_secret = var.apiban_client_secret
-  }))
-
-  labels = {
-    environment = var.environment
-    service     = "jambonz"
-    deployment  = "mini"
-  }
 }

@@ -80,6 +80,8 @@ resource "exoscale_compute_instance" "web_monitoring" {
     url_portal               = var.url_portal
     vpc_cidr                 = var.vpc_cidr
     deploy_recording_cluster = var.deploy_recording_cluster
+    enable_otel              = var.enable_otel
+    enable_pcaps             = var.enable_pcaps
     ssh_public_key           = local.ssh_public_key
   })
 

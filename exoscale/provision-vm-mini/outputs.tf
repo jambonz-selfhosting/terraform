@@ -1,58 +1,127 @@
-# Outputs for jambonz mini deployment on Exoscale
+# =============================================================================
+# Service URLs
+# =============================================================================
 
 output "portal_url" {
-  description = "URL for the jambonz portal"
+  description = "Portal URL"
   value       = "http://${var.url_portal}"
 }
 
+output "api_url" {
+  description = "API URL"
+  value       = "http://api.${var.url_portal}"
+}
+
 output "grafana_url" {
-  description = "URL for the Grafana portal"
+  description = "Grafana URL"
   value       = "http://grafana.${var.url_portal}"
 }
 
 output "homer_url" {
-  description = "URL for the Homer portal"
+  description = "Homer URL"
   value       = "http://homer.${var.url_portal}"
 }
 
-output "server_ip" {
-  description = "Server IP address - create DNS A records pointing to this IP for the domain and subdomains (api, grafana, homer, sip). This IP is stable across reboots."
-  value       = exoscale_compute_instance.jambonz.public_ip_address
+output "sip_domain" {
+  description = "SIP domain"
+  value       = "sip.${var.url_portal}"
 }
+
+# =============================================================================
+# Public IP
+# =============================================================================
+
+output "public_ip" {
+  description = "Public IP address of the jambonz mini server"
+  value       = exoscale_compute_instance.mini.public_ip_address
+}
+
+output "server_ip" {
+  description = "Server IP (alias for public_ip, used by post_install.py)"
+  value       = exoscale_compute_instance.mini.public_ip_address
+}
+
+# =============================================================================
+# SSH Connection
+# =============================================================================
+
+output "ssh_connection" {
+  description = "SSH command to connect to the instance"
+  value       = "ssh jambonz@${exoscale_compute_instance.mini.public_ip_address}"
+}
+
+# =============================================================================
+# DNS Records Required
+# =============================================================================
+
+output "dns_records_required" {
+  description = "DNS A records that need to be created"
+  value       = <<-EOT
+    Create the following DNS A records (all pointing to the same IP):
+
+    ${var.url_portal}                    → ${exoscale_compute_instance.mini.public_ip_address}
+    api.${var.url_portal}                → ${exoscale_compute_instance.mini.public_ip_address}
+    grafana.${var.url_portal}            → ${exoscale_compute_instance.mini.public_ip_address}
+    homer.${var.url_portal}              → ${exoscale_compute_instance.mini.public_ip_address}
+    sip.${var.url_portal}                → ${exoscale_compute_instance.mini.public_ip_address}
+  EOT
+}
+
+# =============================================================================
+# Credentials
+# =============================================================================
+
+output "portal_password" {
+  description = "Initial portal password (instance ID of mini server)"
+  value       = exoscale_compute_instance.mini.id
+  sensitive   = true
+}
+
+output "jwt_secret" {
+  description = "JWT secret for API authentication"
+  value       = random_password.encryption_secret.result
+  sensitive   = true
+}
+
+# =============================================================================
+# Instance Info
+# =============================================================================
 
 output "instance_id" {
   description = "Exoscale compute instance ID"
-  value       = exoscale_compute_instance.jambonz.id
+  value       = exoscale_compute_instance.mini.id
 }
 
 output "instance_name" {
   description = "Exoscale compute instance name"
-  value       = exoscale_compute_instance.jambonz.name
+  value       = exoscale_compute_instance.mini.name
 }
 
-output "admin_user" {
-  description = "Login username for the jambonz portal"
-  value       = "admin"
-}
+# =============================================================================
+# Summary Output
+# =============================================================================
 
-output "admin_password" {
-  description = "Initial password for jambonz portal (instance ID - you will be forced to change it on first login)"
-  value       = exoscale_compute_instance.jambonz.id
+output "deployment_summary" {
+  description = "Deployment summary"
   sensitive   = true
-}
+  value       = <<-EOT
+    ============================================================
+    Jambonz Mini Deployment Complete! (Exoscale)
+    ============================================================
 
-output "ssh_connection" {
-  description = "SSH connection command"
-  value       = "ssh jambonz@${exoscale_compute_instance.jambonz.public_ip_address}"
-}
+    Portal URL:  http://${var.url_portal}
+    Username:    admin
+    Password:    ${exoscale_compute_instance.mini.id} (instance ID)
 
-output "dns_records_required" {
-  description = "DNS A records that need to be created"
-  value = {
-    "${var.url_portal}"          = exoscale_compute_instance.jambonz.public_ip_address
-    "api.${var.url_portal}"      = exoscale_compute_instance.jambonz.public_ip_address
-    "grafana.${var.url_portal}"  = exoscale_compute_instance.jambonz.public_ip_address
-    "homer.${var.url_portal}"    = exoscale_compute_instance.jambonz.public_ip_address
-    "sip.${var.url_portal}"      = exoscale_compute_instance.jambonz.public_ip_address
-  }
+    Server IP:   ${exoscale_compute_instance.mini.public_ip_address}
+
+    IMPORTANT: Configure DNS records (see dns_records_required output)
+
+    SSH Access:
+    - ssh jambonz@${exoscale_compute_instance.mini.public_ip_address}
+
+    For automated DNS + TLS setup, run:
+      python ../../post_install.py --email admin@example.com
+    ============================================================
+  EOT
 }

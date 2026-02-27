@@ -292,6 +292,23 @@ variable "apiban_client_secret" {
 
 variable "enable_pcaps" {
   description = "Enable PCAP capture on SBC servers (sends HEP to Homer on monitoring server)"
-  type        = bool
-  default     = true
+  type        = string
+  default     = "true"
+}
+
+variable "enable_otel" {
+  description = "Enable OpenTelemetry tracing (Cassandra + Jaeger on monitoring server)"
+  type        = string
+  default     = "true"
+}
+
+variable "scale_in_timeout_seconds" {
+  description = "Graceful scale-in timeout for feature servers (seconds)"
+  type        = number
+  default     = 900
+
+  validation {
+    condition     = var.scale_in_timeout_seconds >= 60 && var.scale_in_timeout_seconds <= 3600
+    error_message = "scale_in_timeout_seconds must be between 60 and 3600 seconds"
+  }
 }

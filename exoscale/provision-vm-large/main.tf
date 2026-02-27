@@ -10,8 +10,8 @@ locals {
   ssh_key  = var.ssh_public_key != "" ? exoscale_ssh_key.jambonz[0].name : var.ssh_key_name
   ssh_keys = [local.ssh_key]
 
-  # SSH public key content for cloud-init - read from local file if using ssh_key_name
-  ssh_public_key = var.ssh_public_key != "" ? var.ssh_public_key : file("~/.ssh/id_rsa.pub")
+  # SSH public key content for cloud-init
+  ssh_public_key = var.ssh_public_key
 
   # Static private IP for monitoring VM (below DHCP range which starts at offset 10)
   # Redis runs on this VM; all other servers connect to it via this IP

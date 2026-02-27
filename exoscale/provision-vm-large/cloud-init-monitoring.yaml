@@ -27,6 +27,8 @@ write_files:
       # Variables from Terraform
       URL_PORTAL="${url_portal}"
       VPC_CIDR="${vpc_cidr}"
+      ENABLE_OTEL="${enable_otel}"
+      ENABLE_PCAPS="${enable_pcaps}"
 
       echo "Starting jambonz Monitoring server configuration for Exoscale"
 
@@ -47,16 +49,32 @@ write_files:
       sudo sed -i -e "s/influxdb:8086/127.0.0.1:8086/g" /etc/telegraf/telegraf.conf
       sudo systemctl restart telegraf
 
-      # Start/restart HEPlify server (receives HEP packets from SIP/RTP servers)
-      sudo systemctl restart heplify-server.service || true
+      # HEPlify server (receives HEP packets from SIP/RTP servers)
+      if [[ "$ENABLE_PCAPS" == "true" ]]; then
+        echo "PCAP capture enabled — starting heplify-server..."
+        sudo systemctl restart heplify-server.service || true
+      else
+        echo "PCAP capture disabled — stopping heplify-server..."
+        sudo systemctl stop heplify-server.service || true
+        sudo systemctl disable heplify-server.service || true
+      fi
 
-      # Restart cassandra and give it time to come up
-      echo "Restarting cassandra..."
-      sudo systemctl restart cassandra.service || true
-      sleep 60
-      echo "Restarting jaeger"
-      sudo systemctl restart jaeger-collector.service || true
-      sudo systemctl restart jaeger-query.service || true
+      # OTEL tracing (Cassandra + Jaeger)
+      if [[ "$ENABLE_OTEL" == "true" ]]; then
+        echo "OTEL tracing enabled — starting Cassandra and Jaeger..."
+        sudo systemctl restart cassandra.service || true
+        sleep 60
+        sudo systemctl restart jaeger-collector.service || true
+        sudo systemctl restart jaeger-query.service || true
+      else
+        echo "OTEL tracing disabled — stopping Cassandra and Jaeger..."
+        sudo systemctl stop cassandra.service || true
+        sudo systemctl stop jaeger-collector.service || true
+        sudo systemctl stop jaeger-query.service || true
+        sudo systemctl disable cassandra.service || true
+        sudo systemctl disable jaeger-collector.service || true
+        sudo systemctl disable jaeger-query.service || true
+      fi
 
       echo "Monitoring server configuration complete!"
 

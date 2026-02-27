@@ -19,23 +19,22 @@ write_files:
 
       # Detecting the Linux distribution
       if grep -q 'ID="ol"' /etc/os-release 2>/dev/null || grep -q 'ID="rhel"' /etc/os-release 2>/dev/null || grep -q 'ID=ol' /etc/os-release 2>/dev/null || grep -q 'ID=rhel' /etc/os-release 2>/dev/null; then
-          DEFAULT_USER=admin
-
           echo "Restarting postgresql"
           systemctl restart postgresql-12 || true
 
           echo "Disabling firewalld"
           sudo systemctl stop firewalld || true
           sudo systemctl disable firewalld || true
-      else
-          DEFAULT_USER=admin
       fi
 
-      # Copy SSH authorized_keys from opc user to jambonz user
-      if [ -f /home/opc/.ssh/authorized_keys ] && [ -d /home/jambonz ]; then
-          echo "Copying SSH keys from opc to jambonz user..."
+      # OCI always uses opc as the default user
+      DEFAULT_USER=opc
+
+      # Copy SSH authorized_keys from default user to jambonz user
+      if [ -f "/home/$DEFAULT_USER/.ssh/authorized_keys" ] && [ -d /home/jambonz ] && [ "$DEFAULT_USER" != "jambonz" ]; then
+          echo "Copying SSH keys from $DEFAULT_USER to jambonz user..."
           mkdir -p /home/jambonz/.ssh
-          cp /home/opc/.ssh/authorized_keys /home/jambonz/.ssh/authorized_keys
+          cp "/home/$DEFAULT_USER/.ssh/authorized_keys" /home/jambonz/.ssh/authorized_keys
           chown -R jambonz:jambonz /home/jambonz/.ssh
           chmod 700 /home/jambonz/.ssh
           chmod 600 /home/jambonz/.ssh/authorized_keys

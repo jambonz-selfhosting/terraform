@@ -36,6 +36,8 @@ write_files:
       URL_PORTAL="${url_portal}"
       VPC_CIDR="${vpc_cidr}"
       DEPLOY_RECORDING_CLUSTER="${deploy_recording_cluster}"
+      ENABLE_OTEL="${enable_otel}"
+      ENABLE_PCAPS="${enable_pcaps}"
 
       echo "Starting jambonz Web/Monitoring server configuration for Exoscale"
 
@@ -246,15 +248,31 @@ write_files:
 
       sudo systemctl restart nginx
 
-      sudo systemctl restart heplify-server.service || true
+      # HEPlify server (receives HEP packets from SBC servers)
+      if [[ "$ENABLE_PCAPS" == "true" ]]; then
+        sudo systemctl restart heplify-server.service || true
+      else
+        sudo systemctl stop heplify-server.service || true
+        sudo systemctl disable heplify-server.service || true
+      fi
 
-      # Restart cassandra and give it time to come up
-      echo "Restarting cassandra..."
-      sudo systemctl restart cassandra.service || true
-      sleep 60
-      echo "Restarting jaeger"
-      sudo systemctl restart jaeger-collector.service || true
-      sudo systemctl restart jaeger-query.service || true
+      # OTEL tracing (Cassandra + Jaeger)
+      if [[ "$ENABLE_OTEL" == "true" ]]; then
+        echo "Restarting cassandra..."
+        sudo systemctl restart cassandra.service || true
+        sleep 60
+        echo "Restarting jaeger"
+        sudo systemctl restart jaeger-collector.service || true
+        sudo systemctl restart jaeger-query.service || true
+      else
+        echo "OTEL tracing disabled — stopping cassandra and jaeger..."
+        sudo systemctl stop cassandra.service || true
+        sudo systemctl stop jaeger-collector.service || true
+        sudo systemctl stop jaeger-query.service || true
+        sudo systemctl disable cassandra.service || true
+        sudo systemctl disable jaeger-collector.service || true
+        sudo systemctl disable jaeger-query.service || true
+      fi
 
       # Configure upload_recordings service
       sudo sed -i -e "s/MYSQL_HOST=/MYSQL_HOST=$MYSQL_HOST/g" /etc/systemd/system/upload_recordings.service

@@ -23,12 +23,14 @@ write_files:
       USER=jambonz
       HOME=/home/jambonz
 
-      # Copy SSH authorized_keys from opc user to jambonz user
-      # OCI only adds SSH keys to the opc user by default
-      if [ -f /home/opc/.ssh/authorized_keys ] && [ -d /home/jambonz ]; then
-          echo "Copying SSH keys from opc to jambonz user..."
+      # OCI always uses opc as the default user
+      DEFAULT_USER=opc
+
+      # Copy SSH authorized_keys from default user to jambonz user
+      if [ -f "/home/$DEFAULT_USER/.ssh/authorized_keys" ] && [ -d /home/jambonz ] && [ "$DEFAULT_USER" != "jambonz" ]; then
+          echo "Copying SSH keys from $DEFAULT_USER to jambonz user..."
           mkdir -p /home/jambonz/.ssh
-          cp /home/opc/.ssh/authorized_keys /home/jambonz/.ssh/authorized_keys
+          cp "/home/$DEFAULT_USER/.ssh/authorized_keys" /home/jambonz/.ssh/authorized_keys
           chown -R jambonz:jambonz /home/jambonz/.ssh
           chmod 700 /home/jambonz/.ssh
           chmod 600 /home/jambonz/.ssh/authorized_keys

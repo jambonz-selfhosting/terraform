@@ -230,15 +230,10 @@ output "dns_records_required" {
 # Credentials and Instance Info
 # =============================================================================
 
-output "initial_portal_password" {
+output "portal_password" {
   description = "Initial portal password (instance ID of web/monitoring server)"
   value       = exoscale_compute_instance.web_monitoring.id
   sensitive   = true
-}
-
-output "initial_portal_username" {
-  description = "Initial portal username"
-  value       = "admin"
 }
 
 output "jwt_secret" {

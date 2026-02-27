@@ -1,24 +1,46 @@
-# Variables for jambonz mini deployment on Exoscale
-
-# ------------------------------------------------------------------------------
-# EXOSCALE CREDENTIALS
-# ------------------------------------------------------------------------------
+# =============================================================================
+# Authentication
+# Provide your Exoscale API credentials using ONE of these methods:
+#
+#   1. Variables: set in your .tfvars file or via -var
+#      exoscale_api_key    = "your-api-key"
+#      exoscale_api_secret = "your-api-secret"
+#
+#   2. Environment variables:
+#      export EXOSCALE_API_KEY="your-api-key"
+#      export EXOSCALE_API_SECRET="your-api-secret"
+#
+# Generate credentials in the Exoscale Console:
+#   IAM → API Keys → Create API Key
+# =============================================================================
 
 variable "exoscale_api_key" {
-  description = "Exoscale API key"
+  description = "Exoscale API key (leave empty to use EXOSCALE_API_KEY env var)"
   type        = string
+  default     = ""
   sensitive   = true
 }
 
 variable "exoscale_api_secret" {
-  description = "Exoscale API secret"
+  description = "Exoscale API secret (leave empty to use EXOSCALE_API_SECRET env var)"
   type        = string
+  default     = ""
   sensitive   = true
 }
 
 # ------------------------------------------------------------------------------
 # DEPLOYMENT CONFIGURATION
 # ------------------------------------------------------------------------------
+
+variable "name_prefix" {
+  description = "Prefix for resource names"
+  type        = string
+
+  validation {
+    condition     = length(var.name_prefix) > 0 && length(var.name_prefix) <= 20
+    error_message = "name_prefix must be between 1 and 20 characters"
+  }
+}
 
 variable "zone" {
   description = "Exoscale zone to deploy in"
@@ -39,16 +61,20 @@ variable "zone" {
   }
 }
 
-variable "name_prefix" {
-  description = "Prefix for all resource names"
-  type        = string
-  default     = "jambonz"
-}
-
 variable "environment" {
   description = "Environment label (e.g., production, staging, dev)"
   type        = string
   default     = "production"
+}
+
+variable "url_portal" {
+  description = "Domain name for the portal (e.g., jambonz.example.com)"
+  type        = string
+
+  validation {
+    condition     = can(regex("^[a-z0-9.-]+\\.[a-z]{2,}$", var.url_portal))
+    error_message = "url_portal must be a valid domain name"
+  }
 }
 
 # ------------------------------------------------------------------------------
@@ -101,13 +127,13 @@ variable "disk_size" {
 # ------------------------------------------------------------------------------
 
 variable "ssh_key_name" {
-  description = "Name of an existing SSH key in Exoscale (use this OR ssh_public_key)"
+  description = "Existing SSH key name in Exoscale (if not providing ssh_public_key)"
   type        = string
   default     = ""
 }
 
 variable "ssh_public_key" {
-  description = "SSH public key content to create a new key (use this OR ssh_key_name)"
+  description = "SSH public key to use for instance access"
   type        = string
   default     = ""
 }
@@ -117,35 +143,35 @@ variable "ssh_public_key" {
 # ------------------------------------------------------------------------------
 
 variable "allowed_ssh_cidr" {
-  description = "CIDR block allowed SSH access (e.g., x.x.x.x/32 for single IP)"
+  description = "CIDR block allowed for SSH access"
   type        = string
   default     = "0.0.0.0/0"
 
   validation {
     condition     = can(cidrhost(var.allowed_ssh_cidr, 0))
-    error_message = "Must be a valid CIDR block."
-  }
-}
-
-variable "allowed_http_cidr" {
-  description = "CIDR block allowed HTTP/HTTPS access"
-  type        = string
-  default     = "0.0.0.0/0"
-
-  validation {
-    condition     = can(cidrhost(var.allowed_http_cidr, 0))
-    error_message = "Must be a valid CIDR block."
+    error_message = "allowed_ssh_cidr must be a valid CIDR block"
   }
 }
 
 variable "allowed_sip_cidr" {
-  description = "CIDR block allowed SIP access"
+  description = "CIDR block allowed for SIP/RTP traffic"
   type        = string
   default     = "0.0.0.0/0"
 
   validation {
     condition     = can(cidrhost(var.allowed_sip_cidr, 0))
-    error_message = "Must be a valid CIDR block."
+    error_message = "allowed_sip_cidr must be a valid CIDR block"
+  }
+}
+
+variable "allowed_http_cidr" {
+  description = "CIDR block allowed for HTTP/HTTPS access"
+  type        = string
+  default     = "0.0.0.0/0"
+
+  validation {
+    condition     = can(cidrhost(var.allowed_http_cidr, 0))
+    error_message = "allowed_http_cidr must be a valid CIDR block"
   }
 }
 
@@ -161,39 +187,37 @@ variable "allowed_rtp_cidr" {
 }
 
 # ------------------------------------------------------------------------------
-# JAMBONZ CONFIGURATION
+# OPTIONAL FEATURES
 # ------------------------------------------------------------------------------
 
-variable "url_portal" {
-  description = "DNS name for the jambonz portal (e.g., jambonz.example.com)"
+variable "enable_pcaps" {
+  description = "Enable PCAP capture via Homer HEP endpoint"
   type        = string
-
-  validation {
-    condition     = can(regex("^[a-zA-Z0-9][a-zA-Z0-9.-]*\\.[a-zA-Z]{2,}$", var.url_portal))
-    error_message = "Must be a valid domain name."
-  }
+  default     = "true"
 }
 
-# ------------------------------------------------------------------------------
-# OPTIONAL SERVICES
-# ------------------------------------------------------------------------------
+variable "enable_otel" {
+  description = "Enable OpenTelemetry tracing (Cassandra + Jaeger)"
+  type        = string
+  default     = "true"
+}
 
 variable "apiban_key" {
-  description = "APIBan API key for single-key mode (optional). Get a free key at https://apiban.org/getkey.html"
+  description = "APIBan API key for single-key mode (optional)"
   type        = string
   default     = ""
   sensitive   = true
 }
 
 variable "apiban_client_id" {
-  description = "APIBan client ID for multi-key mode (optional). Contact APIBan for client access."
+  description = "APIBan client ID for multi-key mode (optional)"
   type        = string
   default     = ""
   sensitive   = true
 }
 
 variable "apiban_client_secret" {
-  description = "APIBan client secret for multi-key mode (optional). Used with client_id to auto-provision keys per instance."
+  description = "APIBan client secret for multi-key mode (optional)"
   type        = string
   default     = ""
   sensitive   = true
