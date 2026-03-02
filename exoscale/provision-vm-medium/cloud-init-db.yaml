@@ -1,0 +1,70 @@
+#cloud-config
+# Cloud-init for Jambonz Database Server on Exoscale
+# The template has MySQL pre-installed with:
+#   - jambones database created, schema and seed data loaded
+#   - admin user created with default password JambonzR0ck$
+# Cloud-init updates the password to the terraform-generated one.
+
+# Merge SSH keys into existing jambonz user
+users:
+  - name: jambonz
+    ssh_authorized_keys:
+      - "${ssh_public_key}"
+
+# Configure network interfaces (both public and private)
+network:
+  version: 2
+  ethernets:
+    eth0:
+      dhcp4: true
+    eth1:
+      dhcp4: true
+
+write_files:
+  - path: /tmp/configure-db.sh
+    permissions: '0755'
+    content: |
+      #!/bin/bash -xe
+      # Configuration script for jambonz database server
+
+      MYSQL_USER="${mysql_user}"
+      MYSQL_PASSWORD="${mysql_password}"
+      MYSQL_DATABASE="${mysql_database}"
+      DEFAULT_PASSWORD="JambonzR0ck\$"
+
+      echo "Starting jambonz database server configuration for Exoscale"
+
+      # Wait for MySQL/MariaDB to be ready
+      echo "Waiting for MySQL to be ready..."
+      until mysqladmin ping -h localhost --silent; do
+        echo "MySQL not ready, waiting..."
+        sleep 3
+      done
+
+      # Update the admin password from default to terraform-generated
+      echo "Updating admin password..."
+      mysql -h localhost -u $MYSQL_USER -p$DEFAULT_PASSWORD -e \
+        "ALTER USER '$MYSQL_USER'@'%' IDENTIFIED BY '$MYSQL_PASSWORD'" || \
+      mysql -h localhost -u root -pJambonzR0ck\$ -e \
+        "ALTER USER '$MYSQL_USER'@'%' IDENTIFIED BY '$MYSQL_PASSWORD'"
+
+      mysql -h localhost -u root -pJambonzR0ck\$ -e "FLUSH PRIVILEGES" || true
+
+      # Verify connectivity with new password
+      until mysql -h localhost -u $MYSQL_USER -p$MYSQL_PASSWORD -D $MYSQL_DATABASE -e "SELECT 1" &>/dev/null; do
+        echo "Verifying new credentials..."
+        sleep 2
+      done
+
+      # Configure Redis to listen on all interfaces (default is 127.0.0.1 only)
+      echo "Configuring Redis to bind to all interfaces..."
+      sudo sed -i 's/^bind 127.0.0.1/bind 0.0.0.0/' /etc/redis/redis.conf
+      sudo sed -i 's/^protected-mode yes/protected-mode no/' /etc/redis/redis.conf
+      sudo systemctl restart redis-server || sudo systemctl restart redis
+
+      echo "Database server configuration complete!"
+
+runcmd:
+  - /tmp/configure-db.sh
+
+final_message: "Jambonz Database Server is ready!"

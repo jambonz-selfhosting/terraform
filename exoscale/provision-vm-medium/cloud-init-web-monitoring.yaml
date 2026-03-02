@@ -68,17 +68,13 @@ write_files:
       DEFAULT_ACCOUNT_SID=$(uuidgen)
       DEFAULT_TOKEN=$(uuidgen)
 
-      # Exoscale DBaaS MySQL requires primary keys on all tables and uses
-      # ANSI_QUOTES SQL mode (double quotes = identifiers). Fix both for import.
-      SQL_PREAMBLE="SET SESSION sql_require_primary_key = 0; SET SESSION sql_mode = 'NO_ENGINE_SUBSTITUTION';"
-
       # Seed database
       cd $HOME/apps/api-server/db
       sudo sed -i "s/9351f46a-678c-43f5-b8a6-d4eb58d131af/$DEFAULT_ACCOUNT_SID/g" seed-production-database-open-source.sql
       sudo sed -i "s/38700987-c7a4-4685-a5bb-af378f9734de/$DEFAULT_TOKEN/g" seed-production-database-open-source.sql
-      echo "$SQL_PREAMBLE" | cat - jambones-sql.sql | mysql $MYSQL_OPTS || true
+      mysql $MYSQL_OPTS < jambones-sql.sql || true
       sudo sed -i "s/public-apps.jambonz.cloud/public-apps.$URL_PORTAL/g" seed-production-database-open-source.sql
-      echo "$SQL_PREAMBLE" | cat - seed-production-database-open-source.sql | mysql $MYSQL_OPTS || true
+      mysql $MYSQL_OPTS < seed-production-database-open-source.sql || true
 
       # Reset admin password
       JAMBONES_ADMIN_INITIAL_PASSWORD=$INSTANCE_ID \

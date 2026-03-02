@@ -61,78 +61,37 @@ output "recording_lb_ip" {
 }
 
 # =============================================================================
-# DBaaS Access Information
-# =============================================================================
-
-output "dbaas_ip_filter_configured" {
-  description = "IP addresses/CIDRs whitelisted for DBaaS access"
-  value       = local.dbaas_allowed_ips
-}
-
-output "exoscale_zone_ip_ranges" {
-  description = "Exoscale public IP ranges whitelisted for this zone"
-  value       = local.zone_ipv4_ranges
-}
-
-output "instance_pool_public_ip_notice" {
-  description = "Instructions for managing instance pool public IPs"
-  value       = <<-EOT
-    Instance Pool Public IPs:
-    - Feature servers: Each member gets native public IPv4 (ephemeral, free)
-    - Recording servers: Each member gets native public IPv4 (ephemeral, free)
-
-    These IPs fall within Exoscale's official IP ranges for ${var.zone}:
-    ${join(", ", local.zone_ipv4_ranges)}
-
-    To view actual public IPs:
-    exo compute instance list --zone ${var.zone} --output-format json | \
-      jq '.[] | select(.labels.cluster=="${var.name_prefix}") | {name, role: .labels.role, public_ip}'
-  EOT
-}
-
-output "dbaas_connection_test" {
-  description = "Commands to test DBaaS connectivity"
-  value       = <<-EOT
-    # Test MySQL
-    mysql -h ${data.exoscale_database_uri.mysql.host} -u ${data.exoscale_database_uri.mysql.username} -p -e "SELECT 1;"
-
-    # Test Redis (runs locally on web-monitoring VM)
-    redis-cli -h ${local.web_monitoring_private_ip} -p 6379 PING
-
-    # Check your outbound public IP
-    curl -4 ifconfig.me
-  EOT
-  sensitive   = true
-}
-
-# =============================================================================
 # Database Connection Details
 # =============================================================================
 
+output "db_private_ip" {
+  description = "Database server private IP"
+  value       = local.db_private_ip
+}
+
 output "mysql_host" {
-  description = "MySQL database hostname"
-  value       = data.exoscale_database_uri.mysql.host
-  sensitive   = true
+  description = "MySQL database host (private IP)"
+  value       = local.db_private_ip
 }
 
 output "mysql_port" {
   description = "MySQL database port"
-  value       = data.exoscale_database_uri.mysql.port
+  value       = 3306
 }
 
 output "mysql_database" {
   description = "MySQL database name"
-  value       = data.exoscale_database_uri.mysql.db_name
+  value       = "jambones"
 }
 
 output "mysql_username" {
   description = "MySQL username"
-  value       = data.exoscale_database_uri.mysql.username
+  value       = var.mysql_username
 }
 
 output "redis_host" {
-  description = "Redis hostname (runs on web-monitoring VM)"
-  value       = local.web_monitoring_private_ip
+  description = "Redis hostname (runs on DB VM)"
+  value       = local.db_private_ip
 }
 
 output "redis_port" {
@@ -152,6 +111,11 @@ output "ssh_web_monitoring" {
 output "ssh_sbc" {
   description = "SSH commands for SBC servers"
   value       = [for i, eip in exoscale_elastic_ip.sbc : "ssh jambonz@${eip.ip_address}  # SBC-${i + 1}"]
+}
+
+output "ssh_db" {
+  description = "SSH command for database server (via SBC jump host)"
+  value       = "ssh -J jambonz@${exoscale_elastic_ip.sbc[0].ip_address} jambonz@${local.db_private_ip}"
 }
 
 output "ssh_feature_server_via_jump" {
@@ -299,16 +263,8 @@ output "deployment_summary" {
     Feature Server Pool: ${var.feature_server_count} instance(s)
     Recording Cluster:   ${var.deploy_recording_cluster ? "${var.recording_server_count} instance(s)" : "Not deployed"}
 
-    MySQL:  ${data.exoscale_database_uri.mysql.uri}
-    Redis:  ${local.web_monitoring_private_ip}:6379 (local on web-monitoring VM)
-
-    DBaaS Access Configuration:
-    - Web/Monitoring IP:     ${exoscale_elastic_ip.web_monitoring.ip_address}/32 (whitelisted)
-    - SBC IPs:               ${join(", ", [for eip in exoscale_elastic_ip.sbc : "${eip.ip_address}/32"])} (whitelisted)
-    - Zone IP Ranges:        ${length(local.zone_ipv4_ranges)} CIDR blocks (whitelisted)
-
-    Instance Pool Public IPs: ENABLED (native IPv4 for DBaaS connectivity)
-    Zone-wide IP whitelisting: ${join(", ", local.zone_ipv4_ranges)}
+    MySQL:  ${local.db_private_ip}:3306 (self-hosted on DB VM)
+    Redis:  ${local.db_private_ip}:6379 (self-hosted on DB VM)
 
     IMPORTANT: Configure DNS records (see dns_records_required output)
 

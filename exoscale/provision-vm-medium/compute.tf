@@ -68,13 +68,16 @@ resource "exoscale_compute_instance" "web_monitoring" {
     exoscale_security_group.internal.id
   ]
 
+  # DB must be up before web-monitoring seeds MySQL
+  depends_on = [exoscale_compute_instance.db]
+
   user_data = templatefile("${path.module}/cloud-init-web-monitoring.yaml", {
-    mysql_host               = data.exoscale_database_uri.mysql.host
-    mysql_port               = data.exoscale_database_uri.mysql.port
-    mysql_user               = data.exoscale_database_uri.mysql.username
-    mysql_password           = data.exoscale_database_uri.mysql.password
-    mysql_database           = data.exoscale_database_uri.mysql.db_name
-    redis_host               = "127.0.0.1"
+    mysql_host               = local.db_private_ip
+    mysql_port               = 3306
+    mysql_user               = var.mysql_username
+    mysql_password           = local.db_password
+    mysql_database           = "jambones"
+    redis_host               = local.db_private_ip
     redis_port               = 6379
     jwt_secret               = random_password.encryption_secret.result
     url_portal               = var.url_portal
@@ -135,12 +138,12 @@ resource "exoscale_compute_instance" "sbc" {
   ]
 
   user_data = templatefile("${path.module}/cloud-init-sbc.yaml", {
-    mysql_host               = data.exoscale_database_uri.mysql.host
-    mysql_port               = data.exoscale_database_uri.mysql.port
-    mysql_user               = data.exoscale_database_uri.mysql.username
-    mysql_password           = data.exoscale_database_uri.mysql.password
-    mysql_database           = data.exoscale_database_uri.mysql.db_name
-    redis_host               = local.web_monitoring_private_ip
+    mysql_host               = local.db_private_ip
+    mysql_port               = 3306
+    mysql_user               = var.mysql_username
+    mysql_password           = local.db_password
+    mysql_database           = "jambones"
+    redis_host               = local.db_private_ip
     redis_port               = 6379
     jwt_secret               = random_password.encryption_secret.result
     url_portal               = var.url_portal
@@ -175,10 +178,6 @@ resource "exoscale_instance_pool" "feature_server" {
   disk_size     = var.disk_size_feature
   key_pair      = local.ssh_key
 
-  # NOTE: Instance pool members get public IPv4 addresses by default in Exoscale
-  # This is required for DBaaS connectivity as Exoscale DBaaS only accepts connections from public IPs
-  # The public IPs are ephemeral (change on instance recreation) but fall within zone CIDR ranges
-
   network_ids = [exoscale_private_network.jambonz.id]
 
   security_group_ids = [
@@ -188,12 +187,12 @@ resource "exoscale_instance_pool" "feature_server" {
   ]
 
   user_data = templatefile("${path.module}/cloud-init-feature-server.yaml", {
-    mysql_host                = data.exoscale_database_uri.mysql.host
-    mysql_port                = data.exoscale_database_uri.mysql.port
-    mysql_user                = data.exoscale_database_uri.mysql.username
-    mysql_password            = data.exoscale_database_uri.mysql.password
-    mysql_database            = data.exoscale_database_uri.mysql.db_name
-    redis_host                = local.web_monitoring_private_ip
+    mysql_host                = local.db_private_ip
+    mysql_port                = 3306
+    mysql_user                = var.mysql_username
+    mysql_password            = local.db_password
+    mysql_database            = "jambones"
+    redis_host                = local.db_private_ip
     redis_port                = 6379
     jwt_secret                = random_password.encryption_secret.result
     url_portal                = var.url_portal
@@ -224,10 +223,6 @@ resource "exoscale_instance_pool" "recording" {
   disk_size     = var.disk_size_recording
   key_pair      = local.ssh_key
 
-  # NOTE: Instance pool members get public IPv4 addresses by default in Exoscale
-  # This is required for DBaaS connectivity as Exoscale DBaaS only accepts connections from public IPs
-  # The public IPs are ephemeral (change on instance recreation) but fall within zone CIDR ranges
-
   network_ids = [exoscale_private_network.jambonz.id]
 
   security_group_ids = [
@@ -237,11 +232,11 @@ resource "exoscale_instance_pool" "recording" {
   ]
 
   user_data = templatefile("${path.module}/cloud-init-recording.yaml", {
-    mysql_host                = data.exoscale_database_uri.mysql.host
-    mysql_port                = data.exoscale_database_uri.mysql.port
-    mysql_user                = data.exoscale_database_uri.mysql.username
-    mysql_password            = data.exoscale_database_uri.mysql.password
-    mysql_database            = data.exoscale_database_uri.mysql.db_name
+    mysql_host                = local.db_private_ip
+    mysql_port                = 3306
+    mysql_user                = var.mysql_username
+    mysql_password            = local.db_password
+    mysql_database            = "jambones"
     jwt_secret                = random_password.encryption_secret.result
     web_monitoring_private_ip = local.web_monitoring_private_ip
   })
