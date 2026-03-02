@@ -56,8 +56,13 @@ output "rtp_public_ips" {
 # =============================================================================
 
 output "monitoring_private_ip" {
-  description = "Monitoring server private IP (Redis runs here)"
+  description = "Monitoring server private IP"
   value       = local.monitoring_private_ip
+}
+
+output "db_private_ip" {
+  description = "Database server private IP"
+  value       = local.db_private_ip
 }
 
 output "rtp_private_ips" {
@@ -85,63 +90,32 @@ output "recording_lb_ip" {
 }
 
 # =============================================================================
-# DBaaS Access Information
-# =============================================================================
-
-output "dbaas_ip_filter_configured" {
-  description = "IP addresses/CIDRs whitelisted for DBaaS access"
-  value       = local.dbaas_allowed_ips
-}
-
-output "exoscale_zone_ip_ranges" {
-  description = "Exoscale public IP ranges whitelisted for this zone"
-  value       = local.zone_ipv4_ranges
-}
-
-output "instance_pool_public_ip_notice" {
-  description = "Instructions for managing instance pool public IPs"
-  value       = <<-EOT
-    Instance Pool Public IPs:
-    - Feature servers: Each member gets native public IPv4 (ephemeral, free)
-    - Recording servers: Each member gets native public IPv4 (ephemeral, free)
-
-    These IPs fall within Exoscale's official IP ranges for ${var.zone}:
-    ${join(", ", local.zone_ipv4_ranges)}
-
-    To view actual public IPs:
-    exo compute instance list --zone ${var.zone} --output-format json | \
-      jq '.[] | select(.labels.cluster=="${var.name_prefix}") | {name, role: .labels.role, public_ip}'
-  EOT
-}
-
-# =============================================================================
 # Database Connection Details
 # =============================================================================
 
 output "mysql_host" {
-  description = "MySQL database hostname"
-  value       = data.exoscale_database_uri.mysql.host
-  sensitive   = true
+  description = "MySQL database host (private IP)"
+  value       = local.db_private_ip
 }
 
 output "mysql_port" {
   description = "MySQL database port"
-  value       = data.exoscale_database_uri.mysql.port
+  value       = 3306
 }
 
 output "mysql_database" {
   description = "MySQL database name"
-  value       = data.exoscale_database_uri.mysql.db_name
+  value       = "jambones"
 }
 
 output "mysql_username" {
   description = "MySQL username"
-  value       = data.exoscale_database_uri.mysql.username
+  value       = var.mysql_username
 }
 
 output "redis_host" {
-  description = "Redis hostname (local on monitoring VM)"
-  value       = local.monitoring_private_ip
+  description = "Redis hostname (runs on DB VM)"
+  value       = local.db_private_ip
 }
 
 output "redis_port" {
@@ -171,6 +145,11 @@ output "ssh_sip" {
 output "ssh_rtp" {
   description = "SSH commands for RTP servers"
   value       = [for i, eip in exoscale_elastic_ip.rtp : "ssh jambonz@${eip.ip_address}  # RTP-${i + 1}"]
+}
+
+output "ssh_db" {
+  description = "SSH command for database server (via SIP jump host)"
+  value       = "ssh -J jambonz@${exoscale_elastic_ip.sip[0].ip_address} jambonz@${local.db_private_ip}"
 }
 
 output "ssh_feature_server_via_jump" {
@@ -324,8 +303,8 @@ output "deployment_summary" {
     Feature Server Pool: ${var.feature_server_count} instance(s)
     Recording Cluster:   ${var.deploy_recording_cluster ? "${var.recording_server_count} instance(s)" : "Not deployed"}
 
-    MySQL:  ${data.exoscale_database_uri.mysql.uri}
-    Redis:  ${local.monitoring_private_ip}:6379 (local on monitoring VM)
+    MySQL:  ${local.db_private_ip}:3306 (self-hosted on DB VM)
+    Redis:  ${local.db_private_ip}:6379 (self-hosted on DB VM)
 
     IMPORTANT: Configure DNS records (see dns_records_required output)
 

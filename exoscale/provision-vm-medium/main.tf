@@ -14,9 +14,9 @@ locals {
   # When using ssh_key_name, user must also provide ssh_public_key for cloud-init injection
   ssh_public_key = var.ssh_public_key
 
-  # Static private IP for web-monitoring VM (below DHCP range which starts at offset 10)
-  # Redis runs on this VM; SBC and feature servers connect to it via this IP
+  # Static private IPs (below DHCP range which starts at offset 10)
   web_monitoring_private_ip = cidrhost(var.vpc_cidr, 5)
+  db_private_ip             = cidrhost(var.vpc_cidr, 6)
 }
 
 # =============================================================================

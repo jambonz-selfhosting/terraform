@@ -39,17 +39,15 @@ ssh_public_key = "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQC... your-email@example.
 #recording_server_count   = 1      # Not used when deploy_recording_cluster=false
 #deploy_recording_cluster = false  # Disable recording to save costs
 
-## Database Plans (Hobbyist tier - lowest cost)
-#mysql_plan  = "hobbyist-2"  # ~€42/month
-# Note: Redis runs locally on the web-monitoring VM (no DBaaS needed)
-
 ## Instance Types (Standard Medium - 2 vCPU, 4GB RAM)
+#instance_type_db        = "standard.medium"
 #instance_type_web       = "standard.medium"
 #instance_type_sbc       = "standard.medium"
 #instance_type_feature   = "standard.medium"
 #instance_type_recording = "standard.medium"
 
 ## Disk Sizes (Minimal)
+#disk_size_db        = 100  # GB
 #disk_size_web       = 200  # GB
 #disk_size_sbc       = 100  # GB
 #disk_size_feature   = 100  # GB
@@ -67,17 +65,15 @@ feature_server_count     = 4      # 4 Feature Servers for load distribution
 recording_server_count   = 2      # 2 Recording servers
 deploy_recording_cluster = true   # Enable recording cluster
 
-## Database Plans (Business tier - 99.99% SLA, HA)
-mysql_plan = "business-8"   # 8GB RAM, high performance
-# Note: Redis runs locally on the web-monitoring VM (no DBaaS needed)
-
 ## Instance Types (Standard Large - 4 vCPU, 8GB RAM)
+instance_type_db        = "standard.medium"
 instance_type_web       = "standard.large"
 instance_type_sbc       = "standard.large"
 instance_type_feature   = "standard.large"
 instance_type_recording = "standard.medium"
 
 ## Disk Sizes
+disk_size_db        = 100  # GB
 disk_size_web       = 200  # GB
 disk_size_sbc       = 100  # GB per SBC
 disk_size_feature   = 100  # GB per Feature Server
@@ -154,7 +150,6 @@ enable_pcaps = true
 #
 # 2. COST OPTIMIZATION:
 #    For testing, use the minimal configuration (commented out above).
-#    You can start with hobbyist DB plans and scale up as needed.
 #
 # 3. SSH ACCESS:
 #    - Web/Monitoring and SBC servers have public IPs

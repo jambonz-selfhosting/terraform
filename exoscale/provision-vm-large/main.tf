@@ -13,9 +13,9 @@ locals {
   # SSH public key content for cloud-init
   ssh_public_key = var.ssh_public_key
 
-  # Static private IP for monitoring VM (below DHCP range which starts at offset 10)
-  # Redis runs on this VM; all other servers connect to it via this IP
+  # Static private IPs (below DHCP range which starts at offset 10)
   monitoring_private_ip = cidrhost(var.vpc_cidr, 5)
+  db_private_ip         = cidrhost(var.vpc_cidr, 6)
 }
 
 # =============================================================================

@@ -135,16 +135,16 @@ resource "exoscale_compute_instance" "web" {
     exoscale_security_group.internal.id
   ]
 
-  # Depends on monitoring server being created first (needs its private IP)
-  depends_on = [exoscale_compute_instance.monitoring]
+  # DB must be up before web seeds MySQL; monitoring must be up for telegraf/proxying
+  depends_on = [exoscale_compute_instance.db, exoscale_compute_instance.monitoring]
 
   user_data = templatefile("${path.module}/cloud-init-web.yaml", {
-    mysql_host               = data.exoscale_database_uri.mysql.host
-    mysql_port               = data.exoscale_database_uri.mysql.port
-    mysql_user               = data.exoscale_database_uri.mysql.username
-    mysql_password           = data.exoscale_database_uri.mysql.password
-    mysql_database           = data.exoscale_database_uri.mysql.db_name
-    redis_host               = local.monitoring_private_ip
+    mysql_host               = local.db_private_ip
+    mysql_port               = 3306
+    mysql_user               = var.mysql_username
+    mysql_password           = local.db_password
+    mysql_database           = "jambones"
+    redis_host               = local.db_private_ip
     redis_port               = 6379
     jwt_secret               = random_password.encryption_secret.result
     url_portal               = var.url_portal
@@ -210,7 +210,7 @@ resource "exoscale_compute_instance" "rtp" {
     vpc_cidr              = var.vpc_cidr
     monitoring_private_ip = local.monitoring_private_ip
     enable_pcaps          = var.enable_pcaps
-    redis_host            = local.monitoring_private_ip
+    redis_host            = local.db_private_ip
     redis_port            = 6379
     ssh_public_key        = local.ssh_public_key
   })
@@ -269,12 +269,12 @@ resource "exoscale_compute_instance" "sip" {
   depends_on = [exoscale_compute_instance.rtp]
 
   user_data = templatefile("${path.module}/cloud-init-sip.yaml", {
-    mysql_host            = data.exoscale_database_uri.mysql.host
-    mysql_port            = data.exoscale_database_uri.mysql.port
-    mysql_user            = data.exoscale_database_uri.mysql.username
-    mysql_password        = data.exoscale_database_uri.mysql.password
-    mysql_database        = data.exoscale_database_uri.mysql.db_name
-    redis_host            = local.monitoring_private_ip
+    mysql_host            = local.db_private_ip
+    mysql_port            = 3306
+    mysql_user            = var.mysql_username
+    mysql_password        = local.db_password
+    mysql_database        = "jambones"
+    redis_host            = local.db_private_ip
     redis_port            = 6379
     jwt_secret            = random_password.encryption_secret.result
     url_portal            = var.url_portal
@@ -322,12 +322,12 @@ resource "exoscale_instance_pool" "feature_server" {
   depends_on = [exoscale_compute_instance.monitoring]
 
   user_data = templatefile("${path.module}/cloud-init-feature-server.yaml", {
-    mysql_host               = data.exoscale_database_uri.mysql.host
-    mysql_port               = data.exoscale_database_uri.mysql.port
-    mysql_user               = data.exoscale_database_uri.mysql.username
-    mysql_password           = data.exoscale_database_uri.mysql.password
-    mysql_database           = data.exoscale_database_uri.mysql.db_name
-    redis_host               = local.monitoring_private_ip
+    mysql_host               = local.db_private_ip
+    mysql_port               = 3306
+    mysql_user               = var.mysql_username
+    mysql_password           = local.db_password
+    mysql_database           = "jambones"
+    redis_host               = local.db_private_ip
     redis_port               = 6379
     jwt_secret               = random_password.encryption_secret.result
     url_portal               = var.url_portal
@@ -368,12 +368,12 @@ resource "exoscale_instance_pool" "recording" {
   ]
 
   user_data = templatefile("${path.module}/cloud-init-recording.yaml", {
-    mysql_host     = data.exoscale_database_uri.mysql.host
-    mysql_port     = data.exoscale_database_uri.mysql.port
-    mysql_user     = data.exoscale_database_uri.mysql.username
-    mysql_password = data.exoscale_database_uri.mysql.password
-    mysql_database = data.exoscale_database_uri.mysql.db_name
-    redis_host     = local.monitoring_private_ip
+    mysql_host     = local.db_private_ip
+    mysql_port     = 3306
+    mysql_user     = var.mysql_username
+    mysql_password = local.db_password
+    mysql_database = "jambones"
+    redis_host     = local.db_private_ip
     redis_port     = 6379
     jwt_secret     = random_password.encryption_secret.result
     url_portal     = var.url_portal
