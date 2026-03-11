@@ -622,6 +622,95 @@ def build_server_list_gcp(tf_outputs: dict, tf_dir: Path, server_list: list) -> 
     return server_list
 
 
+def get_exoscale_pool_instance_ips(pool_id: str, zone: str) -> list:
+    """
+    Get public IPs of instances in an Exoscale instance pool.
+
+    Instance pool members are named pool-{first5 chars of pool_id}-{random}.
+    We list all instances in the zone and match by name prefix.
+
+    Args:
+        pool_id: Instance pool ID
+        zone: Exoscale zone
+
+    Returns:
+        List of tuples: [(name, public_ip), ...]
+    """
+    prefix = f"pool-{pool_id[:5]}"
+
+    try:
+        result = subprocess.run(
+            [
+                "exo", "compute", "instance", "list",
+                "--zone", zone,
+                "--output-format", "json"
+            ],
+            capture_output=True,
+            text=True,
+            check=True
+        )
+
+        instances = json.loads(result.stdout)
+        matches = []
+        for inst in instances:
+            if inst.get('name', '').startswith(prefix) and inst.get('state') == 'running':
+                matches.append((inst['name'], inst['ip_address']))
+
+        return matches
+
+    except subprocess.CalledProcessError as e:
+        print(f"⚠️  Failed to list Exoscale instances: {e.stderr}")
+        return []
+    except (json.JSONDecodeError, KeyError) as e:
+        print(f"⚠️  Failed to parse Exoscale instance list: {e}")
+        return []
+
+
+def build_server_list_exoscale(tf_outputs: dict, tf_dir: Path, server_list: list) -> list:
+    """
+    Handle Exoscale instance-pool-based feature/recording servers.
+    Appends pool instances to the server list if pool IDs are present
+    but individual IPs were not already discovered.
+
+    Returns the extended server list.
+    """
+    fs_pool_id = tf_outputs.get('feature_server_pool_id')
+    rec_pool_id = tf_outputs.get('recording_server_pool_id')
+    zone = tf_outputs.get('zone')
+
+    if not zone:
+        print("⚠️  No zone output found — cannot query Exoscale instance pools")
+        return server_list
+
+    # Check if feature servers were already discovered
+    has_fs = any(s['type'] == 'feature-server' for s in server_list)
+    has_rec = any(s['type'] == 'recording' for s in server_list)
+
+    if fs_pool_id and not has_fs:
+        fs_instances = get_exoscale_pool_instance_ips(fs_pool_id, zone)
+        if fs_instances:
+            server_list.append({
+                'label': 'Feature Server',
+                'type': 'feature-server',
+                'ips': [ip for _, ip in fs_instances],
+                'jump_host': None,
+                'ssh_user': None,
+            })
+
+    if rec_pool_id and not has_rec:
+        rec_instances = get_exoscale_pool_instance_ips(rec_pool_id, zone)
+        if rec_instances:
+            server_list.append({
+                'label': 'Recording Server',
+                'type': 'recording',
+                'ips': [ip for _, ip in rec_instances],
+                'jump_host': None,
+                'ssh_user': None,
+            })
+
+    return server_list
+
+
 @click.command()
 @click.option(
     '--terraform-dir',
@@ -728,9 +817,11 @@ def main(terraform_dir, config, verbose):
     # Build the list of servers to test
     server_list = build_server_list(tf_outputs, tf_dir, provider)
 
-    # GCP MIG handling
+    # Provider-specific instance group handling
     if provider.lower() == 'gcp':
         server_list = build_server_list_gcp(tf_outputs, tf_dir, server_list)
+    elif provider.lower() == 'exoscale':
+        server_list = build_server_list_exoscale(tf_outputs, tf_dir, server_list)
 
     if not server_list:
         print("❌ No servers found in terraform outputs")

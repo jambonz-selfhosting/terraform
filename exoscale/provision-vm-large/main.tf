@@ -13,9 +13,9 @@ locals {
   # SSH public key content for cloud-init
   ssh_public_key = var.ssh_public_key
 
-  # Static private IP for monitoring VM (below DHCP range which starts at offset 10)
-  # Redis runs on this VM; all other servers connect to it via this IP
+  # Static private IPs (below DHCP range which starts at offset 10)
   monitoring_private_ip = cidrhost(var.vpc_cidr, 5)
+  db_private_ip         = cidrhost(var.vpc_cidr, 6)
 }
 
 # =============================================================================
@@ -336,5 +336,16 @@ resource "exoscale_security_group_rule" "recording_http" {
   start_port        = 3000
   end_port          = 3000
   cidr              = var.vpc_cidr
-  description       = "HTTP for health checks and uploads"
+  description       = "HTTP for uploads from internal network"
+}
+
+# NLB health checks and traffic arrive via public IPs, not the private network
+resource "exoscale_security_group_rule" "recording_http_nlb" {
+  security_group_id = exoscale_security_group.recording.id
+  type              = "INGRESS"
+  protocol          = "TCP"
+  start_port        = 3000
+  end_port          = 3000
+  cidr              = "0.0.0.0/0"
+  description       = "HTTP for NLB health checks and traffic"
 }

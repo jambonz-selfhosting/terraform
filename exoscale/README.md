@@ -32,8 +32,8 @@ exo config
 | Size | Description | VMs | Images Required |
 |------|-------------|-----|-----------------|
 | **mini** | All-in-one single VM | 1 | `mini` |
-| **medium** | Separate SBC, feature server, web/monitoring, recording | 4+ | `sip-rtp`, `fs`, `web-monitoring`, `recording` |
-| **large** | Fully separated SIP, RTP, FS, web, monitoring, recording | 6+ | `sip`, `rtp`, `fs`, `web`, `monitoring`, `recording` |
+| **medium** | Separate SBC, feature server, web/monitoring, recording, database | 5+ | `sip-rtp`, `fs`, `web-monitoring`, `recording`, `db` |
+| **large** | Fully separated SIP, RTP, FS, web, monitoring, recording, database | 7+ | `sip`, `rtp`, `fs`, `web`, `monitoring`, `recording`, `db` |
 
 ## Step 1: Register Templates
 
