@@ -285,5 +285,16 @@ resource "exoscale_security_group_rule" "recording_http" {
   start_port        = 3000
   end_port          = 3000
   cidr              = var.vpc_cidr
-  description       = "HTTP for health checks and uploads"
+  description       = "HTTP for uploads from internal network"
+}
+
+# NLB health checks and traffic arrive via public IPs, not the private network
+resource "exoscale_security_group_rule" "recording_http_nlb" {
+  security_group_id = exoscale_security_group.recording.id
+  type              = "INGRESS"
+  protocol          = "TCP"
+  start_port        = 3000
+  end_port          = 3000
+  cidr              = "0.0.0.0/0"
+  description       = "HTTP for NLB health checks and traffic"
 }

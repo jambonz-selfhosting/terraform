@@ -63,7 +63,7 @@ ssh_public_key = "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQC... your-email@example.
 sbc_count                = 2      # 2 SBC servers for redundancy
 feature_server_count     = 4      # 4 Feature Servers for load distribution
 recording_server_count   = 2      # 2 Recording servers
-deploy_recording_cluster = true   # Enable recording cluster
+deploy_recording_cluster = false   # Enable recording cluster
 
 ## Instance Types (Standard Large - 4 vCPU, 8GB RAM)
 instance_type_db        = "standard.medium"

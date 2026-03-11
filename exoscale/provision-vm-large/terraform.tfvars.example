@@ -58,7 +58,7 @@ sip_count                = 2      # 2 SIP servers for redundancy
 rtp_count                = 2      # 2 RTP servers for redundancy
 feature_server_count     = 4      # 4 Feature Servers for load distribution
 recording_server_count   = 2      # 2 Recording servers
-deploy_recording_cluster = true   # Enable recording cluster
+deploy_recording_cluster = false   # Enable recording cluster
 
 ## Instance Types (Standard Large - 4 vCPU, 8GB RAM)
 instance_type_db         = "standard.medium"

@@ -11,15 +11,6 @@ users:
     ssh_authorized_keys:
       - "${ssh_public_key}"
 
-# Configure network interfaces (both public and private)
-network:
-  version: 2
-  ethernets:
-    eth0:
-      dhcp4: true
-    eth1:
-      dhcp4: true
-
 write_files:
   - path: /tmp/configure-db.sh
     permissions: '0755'
@@ -33,6 +24,26 @@ write_files:
       DEFAULT_PASSWORD="JambonzR0ck\$"
 
       echo "Starting jambonz database server configuration for Exoscale"
+
+      # Bring up private network interface
+      # The cloud-init network: stanza is overridden by the Exoscale datasource,
+      # so we must bring up eth1 explicitly via DHCP.
+      # Wait for the device to appear (udev may not have registered it yet at runcmd time).
+      echo "Bringing up private network interface (eth1)..."
+      ETH1_UP=false
+      for i in $(seq 1 30); do
+        if ip link show eth1 &>/dev/null; then
+          sudo dhclient eth1 && ETH1_UP=true && break
+        fi
+        echo "Waiting for eth1 to appear (attempt $i)..."
+        sleep 2
+      done
+      if [ "$ETH1_UP" != "true" ]; then
+        echo "FATAL: eth1 never appeared — DB server cannot serve MySQL/Redis on the private network"
+        exit 1
+      fi
+      PRIVATE_IP=$(ip -4 addr show eth1 | grep -oP '(?<=inet\s)\d+(\.\d+){3}' || echo "")
+      echo "Private IP: $PRIVATE_IP (eth1)"
 
       # Wait for MySQL/MariaDB to be ready
       echo "Waiting for MySQL to be ready..."

@@ -332,9 +332,9 @@ resource "exoscale_instance_pool" "feature_server" {
     jwt_secret               = random_password.encryption_secret.result
     url_portal               = var.url_portal
     vpc_cidr                 = var.vpc_cidr
-    monitoring_private_ip    = local.monitoring_private_ip
-    recording_ws_base_url    = var.deploy_recording_cluster ? "ws://${exoscale_nlb.recording[0].ip_address}" : ""
-    scale_in_timeout_seconds = var.scale_in_timeout_seconds
+    monitoring_private_ip = local.monitoring_private_ip
+    recording_ws_base_url = var.deploy_recording_cluster ? "ws://${exoscale_nlb.recording[0].ip_address}" : ""
+    ssh_public_key        = local.ssh_public_key
   })
 
   labels = {
@@ -368,16 +368,18 @@ resource "exoscale_instance_pool" "recording" {
   ]
 
   user_data = templatefile("${path.module}/cloud-init-recording.yaml", {
-    mysql_host     = local.db_private_ip
-    mysql_port     = 3306
-    mysql_user     = var.mysql_username
-    mysql_password = local.db_password
-    mysql_database = "jambones"
-    redis_host     = local.db_private_ip
-    redis_port     = 6379
-    jwt_secret     = random_password.encryption_secret.result
-    url_portal     = var.url_portal
-    vpc_cidr       = var.vpc_cidr
+    mysql_host             = local.db_private_ip
+    mysql_port             = 3306
+    mysql_user             = var.mysql_username
+    mysql_password         = local.db_password
+    mysql_database         = "jambones"
+    redis_host             = local.db_private_ip
+    redis_port             = 6379
+    jwt_secret             = random_password.encryption_secret.result
+    url_portal             = var.url_portal
+    vpc_cidr               = var.vpc_cidr
+    monitoring_private_ip  = local.monitoring_private_ip
+    ssh_public_key         = local.ssh_public_key
   })
 
   labels = {

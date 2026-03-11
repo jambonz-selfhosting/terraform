@@ -199,6 +199,7 @@ resource "exoscale_instance_pool" "feature_server" {
     vpc_cidr                  = var.vpc_cidr
     web_monitoring_private_ip = local.web_monitoring_private_ip
     recording_ws_base_url     = var.deploy_recording_cluster ? "ws://${exoscale_nlb.recording[0].ip_address}:80" : "ws://${local.web_monitoring_private_ip}:3017"
+    ssh_public_key            = local.ssh_public_key
   })
 
   labels = {
@@ -239,6 +240,7 @@ resource "exoscale_instance_pool" "recording" {
     mysql_database            = "jambones"
     jwt_secret                = random_password.encryption_secret.result
     web_monitoring_private_ip = local.web_monitoring_private_ip
+    ssh_public_key            = local.ssh_public_key
   })
 
   labels = {

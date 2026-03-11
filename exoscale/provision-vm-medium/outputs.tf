@@ -28,6 +28,15 @@ output "sip_domain" {
 }
 
 # =============================================================================
+# Provider Info
+# =============================================================================
+
+output "zone" {
+  description = "Exoscale zone"
+  value       = var.zone
+}
+
+# =============================================================================
 # Public IPs
 # =============================================================================
 
@@ -42,7 +51,7 @@ output "sbc_public_ips" {
 }
 
 # =============================================================================
-# Private IPs (Instance Pool members)
+# Instance Pool IDs (for test script discovery)
 # =============================================================================
 
 output "feature_server_pool_id" {
@@ -118,80 +127,34 @@ output "ssh_db" {
   value       = "ssh -J jambonz@${exoscale_elastic_ip.sbc[0].ip_address} jambonz@${local.db_private_ip}"
 }
 
-output "ssh_feature_server_via_jump" {
-  description = "SSH to feature servers via SBC jump server (use first SBC as jump host)"
-  value       = "ssh -J jambonz@${exoscale_elastic_ip.sbc[0].ip_address} jambonz@<FEATURE-SERVER-PRIVATE-IP>"
+output "ssh_feature_servers" {
+  description = "To get feature server IPs, run this command"
+  value       = "exo compute instance list --zone ${var.zone} -O json | jq -r --arg p pool-${substr(exoscale_instance_pool.feature_server.id, 0, 5)} '.[] | select(.name | startswith($p)) | .ip_address'"
 }
 
-output "ssh_recording_via_jump" {
-  description = "SSH to recording servers via SBC jump server (if deployed)"
-  value       = var.deploy_recording_cluster ? "ssh -J jambonz@${exoscale_elastic_ip.sbc[0].ip_address} jambonz@<RECORDING-SERVER-PRIVATE-IP>" : "N/A - Recording cluster not deployed"
-}
-
-output "ssh_config_snippet" {
-  description = "SSH config snippet for ~/.ssh/config to enable easy jump server access"
-  value       = <<-EOT
-    # Add this to ~/.ssh/config for easier access
-
-    # Web/Monitoring Server
-    Host jambonz-web
-      HostName ${exoscale_elastic_ip.web_monitoring.ip_address}
-      User jambonz
-
-    # SBC Servers
-    %{for i, eip in exoscale_elastic_ip.sbc~}
-    Host jambonz-sbc-${i + 1}
-      HostName ${eip.ip_address}
-      User jambonz
-    %{endfor~}
-
-    # Feature Servers (via SBC jump)
-    Host jambonz-fs-*
-      User jambonz
-      ProxyJump jambonz-sbc-1
-
-    # Recording Servers (via SBC jump)
-    %{if var.deploy_recording_cluster~}
-    Host jambonz-rec-*
-      User jambonz
-      ProxyJump jambonz-sbc-1
-    %{endif~}
-
-    # Example usage:
-    # ssh jambonz-web
-    # ssh jambonz-sbc-1
-    # ssh jambonz-fs-<private-ip>
-    %{if var.deploy_recording_cluster~}
-    # ssh jambonz-rec-<private-ip>
-    %{endif~}
-  EOT
+output "ssh_recording_servers" {
+  description = "To get recording server IPs, run this command"
+  value       = var.deploy_recording_cluster ? "exo compute instance list --zone ${var.zone} -O json | jq -r --arg p pool-${substr(exoscale_instance_pool.recording[0].id, 0, 5)} '.[] | select(.name | startswith($p)) | .ip_address'" : "N/A - not deployed"
 }
 
 # =============================================================================
 # DNS Records Required
 # =============================================================================
 
-output "dns_records_required" {
+output "dns_records" {
   description = "DNS A records that need to be created"
-  value       = <<-EOT
-    Create the following DNS A records:
-
-    ${var.url_portal}                    → ${exoscale_elastic_ip.web_monitoring.ip_address}
-    api.${var.url_portal}                → ${exoscale_elastic_ip.web_monitoring.ip_address}
-    grafana.${var.url_portal}            → ${exoscale_elastic_ip.web_monitoring.ip_address}
-    homer.${var.url_portal}              → ${exoscale_elastic_ip.web_monitoring.ip_address}
-    public-apps.${var.url_portal}        → ${exoscale_elastic_ip.web_monitoring.ip_address}
-    sip.${var.url_portal}                → ${exoscale_elastic_ip.sbc[0].ip_address}%{if var.sbc_count > 1} (primary SBC)%{endif}
-    %{if var.sbc_count > 1~}
-    %{for i in range(1, var.sbc_count)~}
-    sip-${i + 1}.${var.url_portal}       → ${exoscale_elastic_ip.sbc[i].ip_address}
-    %{endfor~}
-    %{endif~}
-  EOT
+  value = {
+    (var.url_portal)                  = exoscale_elastic_ip.web_monitoring.ip_address
+    "api.${var.url_portal}"           = exoscale_elastic_ip.web_monitoring.ip_address
+    "grafana.${var.url_portal}"       = exoscale_elastic_ip.web_monitoring.ip_address
+    "homer.${var.url_portal}"         = exoscale_elastic_ip.web_monitoring.ip_address
+    "public-apps.${var.url_portal}"   = exoscale_elastic_ip.web_monitoring.ip_address
+    "sip.${var.url_portal}"           = exoscale_elastic_ip.sbc[0].ip_address
+  }
 }
 
 # =============================================================================
-# Credentials and Instance Info
+# Credentials
 # =============================================================================
 
 output "portal_password" {
@@ -210,74 +173,4 @@ output "mysql_password" {
   description = "MySQL database password"
   value       = local.db_password
   sensitive   = true
-}
-
-# =============================================================================
-# Instance Pool Management Commands
-# =============================================================================
-
-output "exoscale_cli_commands" {
-  description = "Useful Exoscale CLI commands for managing the deployment"
-  value       = <<-EOT
-    # List all compute instances
-    exo compute instance list --zone ${var.zone}
-
-    # List feature server pool instances
-    exo compute instance-pool show ${exoscale_instance_pool.feature_server.id} --zone ${var.zone}
-
-    # Scale feature server pool
-    exo compute instance-pool scale ${exoscale_instance_pool.feature_server.id} --size <NEW-SIZE> --zone ${var.zone}
-
-    %{if var.deploy_recording_cluster~}
-    # List recording server pool instances
-    exo compute instance-pool show ${exoscale_instance_pool.recording[0].id} --zone ${var.zone}
-
-    # Scale recording server pool
-    exo compute instance-pool scale ${exoscale_instance_pool.recording[0].id} --size <NEW-SIZE> --zone ${var.zone}
-    %{endif~}
-
-    # Get private IPs of pool instances
-    exo compute instance list --zone ${var.zone} --output-format json | jq '.[] | select(.labels.cluster=="${var.name_prefix}") | {name: .name, role: .labels.role, private_ip: .ipv6_address}'
-  EOT
-}
-
-# =============================================================================
-# Summary Output
-# =============================================================================
-
-output "deployment_summary" {
-  description = "Deployment summary"
-  sensitive   = true
-  value       = <<-EOT
-    ============================================================
-    Jambonz Medium Cluster Deployment Complete!
-    ============================================================
-
-    Portal URL:  http://${var.url_portal}
-    Username:    admin
-    Password:    ${exoscale_compute_instance.web_monitoring.id} (instance ID)
-
-    Web/Monitoring: ${exoscale_elastic_ip.web_monitoring.ip_address}
-    SBC Servers:    ${join(", ", [for eip in exoscale_elastic_ip.sbc : eip.ip_address])}
-
-    Feature Server Pool: ${var.feature_server_count} instance(s)
-    Recording Cluster:   ${var.deploy_recording_cluster ? "${var.recording_server_count} instance(s)" : "Not deployed"}
-
-    MySQL:  ${local.db_private_ip}:3306 (self-hosted on DB VM)
-    Redis:  ${local.db_private_ip}:6379 (self-hosted on DB VM)
-
-    IMPORTANT: Configure DNS records (see dns_records_required output)
-
-    SSH Access:
-    - Web/Monitoring: ssh jambonz@${exoscale_elastic_ip.web_monitoring.ip_address}
-    - SBC (jump host): ssh jambonz@${exoscale_elastic_ip.sbc[0].ip_address}
-    - Feature Servers: Use SBC as jump server (see ssh_config_snippet output)
-
-    For detailed SSH configuration, run:
-      terraform output ssh_config_snippet
-
-    For Exoscale CLI commands, run:
-      terraform output exoscale_cli_commands
-    ============================================================
-  EOT
 }

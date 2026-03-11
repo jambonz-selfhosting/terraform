@@ -168,11 +168,17 @@ resource "google_compute_firewall" "rtp" {
 
 # =============================================================================
 # Static IPs for SIP Nodes
-# Used by eip-allocator init container to assign static IPs to SIP nodes
+# Used by eip-allocator init container to assign static IPs to SIP nodes.
+# In a regional cluster, node_count is per-zone, so the actual number of nodes
+# is sip_node_count * number_of_zones. We need one static IP per node.
 # =============================================================================
 
+data "google_compute_zones" "available" {
+  region = var.region
+}
+
 resource "google_compute_address" "sip" {
-  count        = var.sip_node_count
+  count        = var.sip_node_count * length(data.google_compute_zones.available.names)
   name         = "${var.cluster_name}-sip-ip-${count.index + 1}"
   region       = var.region
   address_type = "EXTERNAL"
