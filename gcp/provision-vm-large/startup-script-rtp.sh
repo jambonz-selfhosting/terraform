@@ -1,6 +1,6 @@
 #!/bin/bash -xe
 # Startup script for jambonz RTP server on GCP (Large deployment)
-# Handles RTPEngine and RTP-related sidecars only (no Drachtio)
+# Handles RTPEngine and RTP-related sidecars
 
 # Variables passed from Terraform
 MONITORING_PRIVATE_IP="${monitoring_private_ip}"

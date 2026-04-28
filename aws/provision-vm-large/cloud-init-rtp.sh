@@ -1,6 +1,6 @@
 #!/bin/bash -xe
 # Startup script for jambonz RTP server on AWS (Large deployment)
-# Handles RTPEngine and RTP-related sidecars only (no Drachtio)
+# Handles RTPEngine and RTP-related sidecars
 
 # Variables passed from Terraform
 MONITORING_PRIVATE_IP="${monitoring_private_ip}"
@@ -72,7 +72,6 @@ module.exports = {
     max_memory_restart: '1G',
     env: {
       LOGLEVEL: 'info',
-      DTMF_ONLY: true,
       RTPENGINE_DTMF_LOG_PORT: 22223,
       ENABLE_METRICS: 1,
       STATS_HOST: '127.0.0.1',

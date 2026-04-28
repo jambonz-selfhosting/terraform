@@ -1,6 +1,6 @@
 #cloud-config
 # Cloud-init for Jambonz RTP Server on Exoscale (Large deployment)
-# Handles RTPEngine and RTP-related sidecars only (no Drachtio)
+# Handles RTPEngine and RTP-related sidecars
 
 # Merge SSH keys into existing jambonz user
 users:

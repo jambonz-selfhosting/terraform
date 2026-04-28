@@ -1,6 +1,6 @@
 #cloud-config
 # Cloud-init configuration for jambonz RTP server on Azure (Large deployment)
-# Handles RTPEngine and RTP-related sidecars only (no Drachtio)
+# Handles RTPEngine and RTP-related sidecars
 
 package_update: false
 package_upgrade: false
