@@ -39,11 +39,8 @@ ssh_public_key = "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQC... your-email@example.
 #recording_server_count   = 1      # 1 Recording Server (default)
 #deploy_recording_cluster = true   # Enable recording cluster (default)
 
-## Database Plans (Hobbyist tier - lowest cost)
-#mysql_plan  = "hobbyist-2"  # ~€42/month
-# Note: Redis runs locally on the monitoring VM (no DBaaS needed)
-
 ## Instance Types (Standard Medium - 2 vCPU, 4GB RAM)
+#instance_type_db         = "standard.medium"
 #instance_type_web        = "standard.medium"
 #instance_type_monitoring = "standard.medium"
 #instance_type_sip        = "standard.medium"
@@ -61,13 +58,10 @@ sip_count                = 2      # 2 SIP servers for redundancy
 rtp_count                = 2      # 2 RTP servers for redundancy
 feature_server_count     = 4      # 4 Feature Servers for load distribution
 recording_server_count   = 2      # 2 Recording servers
-deploy_recording_cluster = true   # Enable recording cluster
-
-## Database Plans (Business tier - 99.99% SLA, HA)
-mysql_plan  = "business-8"   # 8GB RAM, high performance
-# Note: Redis runs locally on the monitoring VM (no DBaaS needed)
+deploy_recording_cluster = false   # Enable recording cluster
 
 ## Instance Types (Standard Large - 4 vCPU, 8GB RAM)
+instance_type_db         = "standard.medium"
 instance_type_web        = "standard.large"
 instance_type_monitoring = "standard.large"
 instance_type_sip        = "standard.large"
@@ -76,6 +70,7 @@ instance_type_feature    = "standard.large"
 instance_type_recording  = "standard.medium"
 
 ## Disk Sizes
+disk_size_db         = 100  # GB
 disk_size_web        = 100  # GB
 disk_size_monitoring = 200  # GB (monitoring data)
 disk_size_sip        = 100  # GB per SIP server

@@ -1,28 +1,11 @@
 #cloud-config
 # Cloud-init for Jambonz Feature Server on Exoscale (Large deployment)
 
-# Copy SSH keys from default user to jambonz user
-bootcmd:
-  - |
-    set -e
-    # Wait for default user home directory
-    while [ ! -d /home/debian/.ssh ]; do sleep 1; done
-    # Copy SSH keys to jambonz user
-    if [ -d /home/debian/.ssh ] && [ -d /home/jambonz ]; then
-      cp -r /home/debian/.ssh /home/jambonz/ || true
-      chown -R jambonz:jambonz /home/jambonz/.ssh || true
-      chmod 700 /home/jambonz/.ssh || true
-      chmod 600 /home/jambonz/.ssh/authorized_keys || true
-    fi
-
-# Configure network interfaces (both public and private)
-network:
-  version: 2
-  ethernets:
-    eth0:
-      dhcp4: true
-    eth1:
-      dhcp4: true
+# Merge SSH keys into existing jambonz user
+users:
+  - name: jambonz
+    ssh_authorized_keys:
+      - "${ssh_public_key}"
 
 write_files:
   - path: /tmp/configure-feature-server.sh
@@ -40,16 +23,35 @@ write_files:
       REDIS_HOST="${redis_host}"
       REDIS_PORT="${redis_port}"
       JWT_SECRET="${jwt_secret}"
-      URL_PORTAL="${url_portal}"
-      VPC_CIDR="${vpc_cidr}"
       MONITORING_PRIVATE_IP="${monitoring_private_ip}"
+      VPC_CIDR="${vpc_cidr}"
+      URL_PORTAL="${url_portal}"
       RECORDING_WS_BASE_URL="${recording_ws_base_url}"
-      SCALE_IN_TIMEOUT="${scale_in_timeout_seconds}"
 
       echo "Starting jambonz Feature Server configuration for Exoscale"
 
+      # Stop services immediately — they were auto-started at boot before eth1 is up
+      # and before configuration is written. We restart each one later in this script
+      # after eth1 is up and the config has been applied.
+      sudo systemctl stop telegraf || true
+      sudo systemctl stop drachtio || true
+      sudo systemctl stop freeswitch || true
+
       USER=jambonz
       HOME=/home/jambonz
+
+      # Bring up private network interface
+      # The cloud-init network: stanza is overridden by the Exoscale datasource,
+      # so we must bring up eth1 explicitly via DHCP.
+      # Wait for the device to appear (udev may not have registered it yet at runcmd time).
+      echo "Bringing up private network interface (eth1)..."
+      for i in $(seq 1 30); do
+        if ip link show eth1 &>/dev/null; then
+          sudo dhclient eth1 && break
+        fi
+        echo "Waiting for eth1 to appear (attempt $i)..."
+        sleep 2
+      done
 
       # Get instance metadata
       echo "Getting instance metadata..."
@@ -60,140 +62,114 @@ write_files:
       echo "Private IP: $PRIVATE_IP (eth1)"
       echo "Instance ID: $INSTANCE_ID"
 
-      # Wait for databases to be ready
-      echo "Waiting for Redis to be ready..."
-      until redis-cli -h $REDIS_HOST -p $REDIS_PORT PING &>/dev/null; do
-        echo "Redis not ready, waiting..."
-        sleep 5
+      # Wait for Redis to be ready
+      echo "Waiting for Redis at $REDIS_HOST:$REDIS_PORT..."
+      for i in $(seq 1 60); do
+          if redis-cli -h $REDIS_HOST -p $REDIS_PORT ping 2>/dev/null | grep -q PONG; then
+              echo "Redis is available"
+              break
+          fi
+          echo "Redis not yet available, attempt $i/60..."
+          sleep 10
       done
 
-      # Configure FreeSWITCH
-      echo "Configuring FreeSWITCH..."
-      cat > /etc/systemd/system/freeswitch.service.d/override.conf << EOF
-      [Service]
-      Environment="JAMBONES_MYSQL_HOST=$MYSQL_HOST:$MYSQL_PORT"
-      Environment="JAMBONES_MYSQL_USER=$MYSQL_USER"
-      Environment="JAMBONES_MYSQL_PASSWORD=$MYSQL_PASSWORD"
-      Environment="JAMBONES_MYSQL_DATABASE=$MYSQL_DATABASE"
-      Environment="JAMBONES_REDIS_HOST=$REDIS_HOST"
-      Environment="JAMBONES_REDIS_PORT=$REDIS_PORT"
-      Environment="LOCAL_IP=$PRIVATE_IP"
-      EOF
+      echo "Writing $HOME/apps/ecosystem.config.js..."
 
-      systemctl daemon-reload
-      systemctl restart freeswitch
-
-      # Write PM2 ecosystem config
-      echo "Writing ecosystem.config.js..."
-      cat << 'EOFECO' > $HOME/apps/ecosystem.config.js
+      cat << EOF > $HOME/apps/ecosystem.config.js
       module.exports = {
-        apps : [
-        {
+      apps : [
+      {
           name: 'feature-server',
-          cwd: '/home/jambonz/apps/feature-server',
+          cwd: '$HOME/apps/feature-server',
           script: 'app.js',
-          out_file: '/home/jambonz/.pm2/logs/feature-server.log',
-          err_file: '/home/jambonz/.pm2/logs/feature-server.log',
-          combine_logs: true,
+          instance_var: 'INSTANCE_ID',
+          out_file: '$HOME/.pm2/logs/feature-server.log',
+          err_file: '$HOME/.pm2/logs/feature-server.log',
+          exec_mode: 'fork',
+          instances: 'max',
           autorestart: true,
           watch: false,
-          max_memory_restart: '1G',
+          max_memory_restart: '5G',
           env: {
             JAMBONES_LOGLEVEL: 'info',
-            JWT_SECRET: 'JWT_SECRET_PLACEHOLDER',
-            JAMBONES_API_BASE_URL: 'http://URL_PORTAL_PLACEHOLDER/v1',
-            JAMBONES_MYSQL_HOST: 'MYSQL_HOST_PLACEHOLDER',
-            JAMBONES_MYSQL_USER: 'MYSQL_USER_PLACEHOLDER',
-            JAMBONES_MYSQL_PASSWORD: 'MYSQL_PASSWORD_PLACEHOLDER',
-            JAMBONES_MYSQL_DATABASE: 'MYSQL_DATABASE_PLACEHOLDER',
-            JAMBONES_MYSQL_CONNECTION_LIMIT: 10,
-            JAMBONES_REDIS_HOST: 'REDIS_HOST_PLACEHOLDER',
-            JAMBONES_REDIS_PORT: REDIS_PORT_PLACEHOLDER,
-            JAMBONES_TIME_SERIES_HOST: 'MONITORING_IP_PLACEHOLDER',
-            DRACHTIO_HOST: '127.0.0.1',
-            DRACHTIO_PORT: 9022,
-            DRACHTIO_SECRET: 'cymru',
-            JAMBONES_FREESWITCH: '127.0.0.1:8021:JambonzR0ck$',
-            JAMBONES_NETWORK_CIDR: 'VPC_CIDR_PLACEHOLDER',
+            JAMBONES_TTS_TRIM_SILENCE: 1,
+            JWT_SECRET: '$JWT_SECRET',
+            JAMBONES_API_BASE_URL: 'http://$URL_PORTAL/v1',
             ENABLE_METRICS: 1,
             STATS_HOST: '127.0.0.1',
             STATS_PORT: 8125,
             STATS_PROTOCOL: 'tcp',
             STATS_TELEGRAF: 1,
             STATS_SAMPLE_RATE: 1,
+            JAMBONES_OTEL_ENABLED: 1,
+            OTEL_EXPORTER_JAEGER_ENDPOINT: 'http://$MONITORING_PRIVATE_IP:14268/api/traces',
+            OTEL_EXPORTER_OTLP_METRICS_INSECURE: 1,
+            OTEL_EXPORTER_JAEGER_GRPC_INSECURE: 1,
+            JAMBONES_NETWORK_CIDR: '$VPC_CIDR',
+            JAMBONES_MYSQL_HOST: '$MYSQL_HOST',
+            JAMBONES_MYSQL_PORT: $MYSQL_PORT,
+            JAMBONES_MYSQL_USER: '$MYSQL_USER',
+            JAMBONES_MYSQL_PASSWORD: '$MYSQL_PASSWORD',
+            JAMBONES_MYSQL_DATABASE: '$MYSQL_DATABASE',
+            JAMBONES_MYSQL_CONNECTION_LIMIT: 10,
+            JAMBONES_REDIS_HOST: '$REDIS_HOST',
+            JAMBONES_REDIS_PORT: $REDIS_PORT,
+
+            JAMBONES_TIME_SERIES_HOST: '$MONITORING_PRIVATE_IP',
             HTTP_PORT: 3000,
-            AUTHENTICATION_KEY: 'JWT_SECRET_PLACEHOLDER',
+            HTTP_PORT_MAX: 3009,
+            DRACHTIO_HOST: '127.0.0.1',
+            DRACHTIO_PORT: 9022,
+            DRACHTIO_SECRET: 'cymru',
+            JAMBONES_FEATURE_SERVERS: '127.0.0.1:9022:cymru',
+            JAMBONES_FREESWITCH: '127.0.0.1:8021:JambonzR0ck\$',
+            AUTHENTICATION_KEY: '$JWT_SECRET',
             JAMBONZ_RECORD_WS_USERNAME: 'jambonz',
-            JAMBONZ_RECORD_WS_PASSWORD: 'JWT_SECRET_PLACEHOLDER',
-            JAMBONZ_RECORD_WS_BASE_URL: 'RECORDING_WS_BASE_URL_PLACEHOLDER'
+            JAMBONZ_RECORD_WS_PASSWORD: '$JWT_SECRET',
+            JAMBONZ_RECORD_WS_BASE_URL: '$RECORDING_WS_BASE_URL'
           }
         }]
       };
-      EOFECO
+      EOF
 
-      # Replace placeholders
-      sed -i "s/JWT_SECRET_PLACEHOLDER/$JWT_SECRET/g" $HOME/apps/ecosystem.config.js
-      sed -i "s/URL_PORTAL_PLACEHOLDER/$URL_PORTAL/g" $HOME/apps/ecosystem.config.js
-      sed -i "s/MYSQL_HOST_PLACEHOLDER/$MYSQL_HOST:$MYSQL_PORT/g" $HOME/apps/ecosystem.config.js
-      sed -i "s/MYSQL_USER_PLACEHOLDER/$MYSQL_USER/g" $HOME/apps/ecosystem.config.js
-      sed -i "s/MYSQL_PASSWORD_PLACEHOLDER/$MYSQL_PASSWORD/g" $HOME/apps/ecosystem.config.js
-      sed -i "s/MYSQL_DATABASE_PLACEHOLDER/$MYSQL_DATABASE/g" $HOME/apps/ecosystem.config.js
-      sed -i "s/REDIS_HOST_PLACEHOLDER/$REDIS_HOST/g" $HOME/apps/ecosystem.config.js
-      sed -i "s/REDIS_PORT_PLACEHOLDER/$REDIS_PORT/g" $HOME/apps/ecosystem.config.js
-      sed -i "s|VPC_CIDR_PLACEHOLDER|$VPC_CIDR|g" $HOME/apps/ecosystem.config.js
-      sed -i "s/MONITORING_IP_PLACEHOLDER/$MONITORING_PRIVATE_IP/g" $HOME/apps/ecosystem.config.js
-      sed -i "s|RECORDING_WS_BASE_URL_PLACEHOLDER|$RECORDING_WS_BASE_URL|g" $HOME/apps/ecosystem.config.js
+      echo "Finished writing config file"
+
+      # Configure freeswitch service
+      sudo sed -i -e "s/JAMBONES_MYSQL_HOST=/JAMBONES_MYSQL_HOST=$MYSQL_HOST/g" /etc/systemd/system/freeswitch.service
+      sudo sed -i -e "s/JAMBONES_MYSQL_PORT=/JAMBONES_MYSQL_PORT=$MYSQL_PORT/g" /etc/systemd/system/freeswitch.service
+      sudo sed -i -e "s/JAMBONES_MYSQL_USER=/JAMBONES_MYSQL_USER=$MYSQL_USER/g" /etc/systemd/system/freeswitch.service
+      sudo sed -i -e "s/JAMBONES_MYSQL_PASSWORD=/JAMBONES_MYSQL_PASSWORD=$MYSQL_PASSWORD/g" /etc/systemd/system/freeswitch.service
+      sudo sed -i -e "s/JAMBONES_MYSQL_DATABASE=/JAMBONES_MYSQL_DATABASE=$MYSQL_DATABASE/g" /etc/systemd/system/freeswitch.service
+      sudo sed -i -e "s/JAMBONES_REDIS_HOST=/JAMBONES_REDIS_HOST=$REDIS_HOST/g" /etc/systemd/system/freeswitch.service
+      sudo sed -i -e "s/JAMBONES_REDIS_PORT=/JAMBONES_REDIS_PORT=$REDIS_PORT/g" /etc/systemd/system/freeswitch.service
+
+      sudo systemctl daemon-reload
+      sudo systemctl restart drachtio
+      sudo systemctl restart freeswitch
 
       # Configure telegraf to send to the monitoring server
       sudo sed -i -e "s/influxdb:8086/$MONITORING_PRIVATE_IP:8086/g" /etc/telegraf/telegraf.conf
+
+      # Wait for InfluxDB to be ready on the monitoring server
+      echo "Waiting for InfluxDB at $MONITORING_PRIVATE_IP:8086..."
+      for i in $(seq 1 60); do
+          if curl -sf http://$MONITORING_PRIVATE_IP:8086/ping &>/dev/null; then
+              echo "InfluxDB is available"
+              break
+          fi
+          echo "InfluxDB not yet available, attempt $i/60..."
+          sleep 10
+      done
       sudo systemctl restart telegraf
 
-      # Start PM2 apps
-      su - $USER -c "pm2 delete all || true"
-      su - $USER -c "pm2 start $HOME/apps/ecosystem.config.js"
-      su - $USER -c "pm2 save"
+      sudo -u $USER bash -c "pm2 start $HOME/apps/ecosystem.config.js"
+      sudo env PATH=$PATH:/usr/bin /usr/lib/node_modules/pm2/bin/pm2 startup systemd -u $USER --hp $HOME
+      sudo -u $USER bash -c "pm2 save"
+      sudo systemctl enable pm2-$USER.service
 
-      # Set up graceful scale-in script
-      echo "Setting up graceful scale-in..."
-      cat > $HOME/apps/scripts/drain-feature-server.sh << 'EOFDRAIN'
-      #!/bin/bash
-      # Graceful scale-in script for feature servers
-
-      REDIS_HOST="REDIS_HOST_PLACEHOLDER"
-      REDIS_PORT=REDIS_PORT_PLACEHOLDER
-      INSTANCE_ID=$(curl -s http://169.254.169.254/latest/meta-data/instance-id 2>/dev/null || hostname)
-      TIMEOUT=SCALE_IN_TIMEOUT_PLACEHOLDER
-
-      # Check if drain signal exists in Redis
-      DRAIN_SIGNAL=$(redis-cli -h $REDIS_HOST -p $REDIS_PORT GET "drain:$INSTANCE_ID" 2>/dev/null)
-
-      if [ "$DRAIN_SIGNAL" == "1" ]; then
-        echo "Drain signal detected for $INSTANCE_ID. Initiating graceful shutdown..."
-
-        # Stop accepting new calls (send SIGUSR1 to feature-server)
-        pkill -SIGUSR1 -f "feature-server/app.js"
-
-        # Wait for active calls to complete (up to TIMEOUT seconds)
-        echo "Waiting up to $TIMEOUT seconds for active calls to complete..."
-        sleep $TIMEOUT
-
-        # Terminate the instance via Exoscale API
-        echo "Terminating instance $INSTANCE_ID..."
-        exoscale compute instance delete $INSTANCE_ID --zone ch-gva-2 --force || true
-      fi
-      EOFDRAIN
-
-      sed -i "s/REDIS_HOST_PLACEHOLDER/$REDIS_HOST/g" $HOME/apps/scripts/drain-feature-server.sh
-      sed -i "s/REDIS_PORT_PLACEHOLDER/$REDIS_PORT/g" $HOME/apps/scripts/drain-feature-server.sh
-      sed -i "s/SCALE_IN_TIMEOUT_PLACEHOLDER/$SCALE_IN_TIMEOUT/g" $HOME/apps/scripts/drain-feature-server.sh
-      chmod +x $HOME/apps/scripts/drain-feature-server.sh
-
-      # Add cron job to check for drain signal every 30 seconds
-      (crontab -u $USER -l 2>/dev/null; echo "* * * * * $HOME/apps/scripts/drain-feature-server.sh") | crontab -u $USER -
-
-      echo "Feature Server configuration complete!"
+      echo "Feature Server setup complete!"
 
 runcmd:
-  - /tmp/configure-feature-server.sh
+  - /tmp/configure-feature-server.sh > /var/log/jambonz-setup.log 2>&1
 
-final_message: "Jambonz Feature Server is ready!"
+final_message: "jambonz Feature Server cloud-init configuration complete after $UPTIME seconds"

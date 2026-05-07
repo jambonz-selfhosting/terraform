@@ -28,6 +28,15 @@ output "sip_domain" {
 }
 
 # =============================================================================
+# Provider Info
+# =============================================================================
+
+output "zone" {
+  description = "Exoscale zone"
+  value       = var.zone
+}
+
+# =============================================================================
 # Public IPs
 # =============================================================================
 
@@ -56,8 +65,13 @@ output "rtp_public_ips" {
 # =============================================================================
 
 output "monitoring_private_ip" {
-  description = "Monitoring server private IP (Redis runs here)"
+  description = "Monitoring server private IP"
   value       = local.monitoring_private_ip
+}
+
+output "db_private_ip" {
+  description = "Database server private IP"
+  value       = local.db_private_ip
 }
 
 output "rtp_private_ips" {
@@ -66,7 +80,7 @@ output "rtp_private_ips" {
 }
 
 # =============================================================================
-# Instance Pool IDs
+# Instance Pool IDs (for test script discovery)
 # =============================================================================
 
 output "feature_server_pool_id" {
@@ -85,63 +99,32 @@ output "recording_lb_ip" {
 }
 
 # =============================================================================
-# DBaaS Access Information
-# =============================================================================
-
-output "dbaas_ip_filter_configured" {
-  description = "IP addresses/CIDRs whitelisted for DBaaS access"
-  value       = local.dbaas_allowed_ips
-}
-
-output "exoscale_zone_ip_ranges" {
-  description = "Exoscale public IP ranges whitelisted for this zone"
-  value       = local.zone_ipv4_ranges
-}
-
-output "instance_pool_public_ip_notice" {
-  description = "Instructions for managing instance pool public IPs"
-  value       = <<-EOT
-    Instance Pool Public IPs:
-    - Feature servers: Each member gets native public IPv4 (ephemeral, free)
-    - Recording servers: Each member gets native public IPv4 (ephemeral, free)
-
-    These IPs fall within Exoscale's official IP ranges for ${var.zone}:
-    ${join(", ", local.zone_ipv4_ranges)}
-
-    To view actual public IPs:
-    exo compute instance list --zone ${var.zone} --output-format json | \
-      jq '.[] | select(.labels.cluster=="${var.name_prefix}") | {name, role: .labels.role, public_ip}'
-  EOT
-}
-
-# =============================================================================
 # Database Connection Details
 # =============================================================================
 
 output "mysql_host" {
-  description = "MySQL database hostname"
-  value       = data.exoscale_database_uri.mysql.host
-  sensitive   = true
+  description = "MySQL database host (private IP)"
+  value       = local.db_private_ip
 }
 
 output "mysql_port" {
   description = "MySQL database port"
-  value       = data.exoscale_database_uri.mysql.port
+  value       = 3306
 }
 
 output "mysql_database" {
   description = "MySQL database name"
-  value       = data.exoscale_database_uri.mysql.db_name
+  value       = "jambones"
 }
 
 output "mysql_username" {
   description = "MySQL username"
-  value       = data.exoscale_database_uri.mysql.username
+  value       = var.mysql_username
 }
 
 output "redis_host" {
-  description = "Redis hostname (local on monitoring VM)"
-  value       = local.monitoring_private_ip
+  description = "Redis hostname (runs on DB VM)"
+  value       = local.db_private_ip
 }
 
 output "redis_port" {
@@ -173,84 +156,39 @@ output "ssh_rtp" {
   value       = [for i, eip in exoscale_elastic_ip.rtp : "ssh jambonz@${eip.ip_address}  # RTP-${i + 1}"]
 }
 
-output "ssh_feature_server_via_jump" {
-  description = "SSH to feature servers via SIP jump server"
-  value       = "ssh -J jambonz@${exoscale_elastic_ip.sip[0].ip_address} jambonz@<FEATURE-SERVER-PRIVATE-IP>"
+output "ssh_db" {
+  description = "SSH command for database server (via SIP jump host)"
+  value       = "ssh -J jambonz@${exoscale_elastic_ip.sip[0].ip_address} jambonz@${local.db_private_ip}"
 }
 
-output "ssh_recording_via_jump" {
-  description = "SSH to recording servers via SIP jump server (if deployed)"
-  value       = var.deploy_recording_cluster ? "ssh -J jambonz@${exoscale_elastic_ip.sip[0].ip_address} jambonz@<RECORDING-SERVER-PRIVATE-IP>" : "N/A - Recording cluster not deployed"
+output "ssh_feature_servers" {
+  description = "To get feature server IPs, run this command"
+  value       = "exo compute instance list --zone ${var.zone} -O json | jq -r --arg p pool-${substr(exoscale_instance_pool.feature_server.id, 0, 5)} '.[] | select(.name | startswith($p)) | .ip_address'"
 }
 
-output "ssh_config_snippet" {
-  description = "SSH config snippet for ~/.ssh/config"
-  value       = <<-EOT
-    # Add this to ~/.ssh/config for easier access
-
-    # Web Server
-    Host jambonz-web
-      HostName ${exoscale_elastic_ip.web.ip_address}
-      User jambonz
-
-    # Monitoring Server
-    Host jambonz-monitoring
-      HostName ${exoscale_elastic_ip.monitoring.ip_address}
-      User jambonz
-
-    # SIP Servers
-    %{for i, eip in exoscale_elastic_ip.sip~}
-    Host jambonz-sip-${i + 1}
-      HostName ${eip.ip_address}
-      User jambonz
-    %{endfor~}
-
-    # RTP Servers
-    %{for i, eip in exoscale_elastic_ip.rtp~}
-    Host jambonz-rtp-${i + 1}
-      HostName ${eip.ip_address}
-      User jambonz
-    %{endfor~}
-
-    # Feature Servers (via SIP jump)
-    Host jambonz-fs-*
-      User jambonz
-      ProxyJump jambonz-sip-1
-
-    # Recording Servers (via SIP jump)
-    %{if var.deploy_recording_cluster~}
-    Host jambonz-rec-*
-      User jambonz
-      ProxyJump jambonz-sip-1
-    %{endif~}
-  EOT
+output "ssh_recording_servers" {
+  description = "To get recording server IPs, run this command"
+  value       = var.deploy_recording_cluster ? "exo compute instance list --zone ${var.zone} -O json | jq -r --arg p pool-${substr(exoscale_instance_pool.recording[0].id, 0, 5)} '.[] | select(.name | startswith($p)) | .ip_address'" : "N/A - not deployed"
 }
 
 # =============================================================================
 # DNS Records Required
 # =============================================================================
 
-output "dns_records_required" {
+output "dns_records" {
   description = "DNS A records that need to be created"
-  value       = <<-EOT
-    Create the following DNS A records:
-
-    ${var.url_portal}                    → ${exoscale_elastic_ip.web.ip_address}
-    api.${var.url_portal}                → ${exoscale_elastic_ip.web.ip_address}
-    grafana.${var.url_portal}            → ${exoscale_elastic_ip.web.ip_address}
-    homer.${var.url_portal}              → ${exoscale_elastic_ip.web.ip_address}
-    public-apps.${var.url_portal}        → ${exoscale_elastic_ip.web.ip_address}
-    sip.${var.url_portal}                → ${exoscale_elastic_ip.sip[0].ip_address}%{if var.sip_count > 1} (primary SIP)%{endif}
-    %{if var.sip_count > 1~}
-    %{for i in range(1, var.sip_count)~}
-    sip-${i + 1}.${var.url_portal}       → ${exoscale_elastic_ip.sip[i].ip_address}
-    %{endfor~}
-    %{endif~}
-  EOT
+  value = {
+    (var.url_portal)                  = exoscale_elastic_ip.web.ip_address
+    "api.${var.url_portal}"           = exoscale_elastic_ip.web.ip_address
+    "grafana.${var.url_portal}"       = exoscale_elastic_ip.web.ip_address
+    "homer.${var.url_portal}"         = exoscale_elastic_ip.web.ip_address
+    "public-apps.${var.url_portal}"   = exoscale_elastic_ip.web.ip_address
+    "sip.${var.url_portal}"           = exoscale_elastic_ip.sip[0].ip_address
+  }
 }
 
 # =============================================================================
-# Credentials and Instance Info
+# Credentials
 # =============================================================================
 
 output "portal_password" {
@@ -269,78 +207,4 @@ output "mysql_password" {
   description = "MySQL database password"
   value       = local.db_password
   sensitive   = true
-}
-
-# =============================================================================
-# Instance Pool Management Commands
-# =============================================================================
-
-output "exoscale_cli_commands" {
-  description = "Useful Exoscale CLI commands for managing the deployment"
-  value       = <<-EOT
-    # List all compute instances
-    exo compute instance list --zone ${var.zone}
-
-    # List feature server pool instances
-    exo compute instance-pool show ${exoscale_instance_pool.feature_server.id} --zone ${var.zone}
-
-    # Scale feature server pool
-    exo compute instance-pool scale ${exoscale_instance_pool.feature_server.id} --size <NEW-SIZE> --zone ${var.zone}
-
-    %{if var.deploy_recording_cluster~}
-    # List recording server pool instances
-    exo compute instance-pool show ${exoscale_instance_pool.recording[0].id} --zone ${var.zone}
-
-    # Scale recording server pool
-    exo compute instance-pool scale ${exoscale_instance_pool.recording[0].id} --size <NEW-SIZE> --zone ${var.zone}
-    %{endif~}
-
-    # Get private IPs of pool instances
-    exo compute instance list --zone ${var.zone} --output-format json | jq '.[] | select(.labels.cluster=="${var.name_prefix}") | {name: .name, role: .labels.role}'
-  EOT
-}
-
-# =============================================================================
-# Summary Output
-# =============================================================================
-
-output "deployment_summary" {
-  description = "Deployment summary"
-  sensitive   = true
-  value       = <<-EOT
-    ============================================================
-    Jambonz Large Cluster Deployment Complete!
-    ============================================================
-
-    Portal URL:  http://${var.url_portal}
-    Username:    admin
-    Password:    ${exoscale_compute_instance.web.id} (instance ID)
-
-    Web Server:        ${exoscale_elastic_ip.web.ip_address}
-    Monitoring Server: ${exoscale_elastic_ip.monitoring.ip_address}
-    SIP Servers:       ${join(", ", [for eip in exoscale_elastic_ip.sip : eip.ip_address])}
-    RTP Servers:       ${join(", ", [for eip in exoscale_elastic_ip.rtp : eip.ip_address])}
-
-    Feature Server Pool: ${var.feature_server_count} instance(s)
-    Recording Cluster:   ${var.deploy_recording_cluster ? "${var.recording_server_count} instance(s)" : "Not deployed"}
-
-    MySQL:  ${data.exoscale_database_uri.mysql.uri}
-    Redis:  ${local.monitoring_private_ip}:6379 (local on monitoring VM)
-
-    IMPORTANT: Configure DNS records (see dns_records_required output)
-
-    SSH Access:
-    - Web:        ssh jambonz@${exoscale_elastic_ip.web.ip_address}
-    - Monitoring: ssh jambonz@${exoscale_elastic_ip.monitoring.ip_address}
-    - SIP:        ${join(", ", [for eip in exoscale_elastic_ip.sip : "ssh jambonz@${eip.ip_address}"])}
-    - RTP:        ${join(", ", [for eip in exoscale_elastic_ip.rtp : "ssh jambonz@${eip.ip_address}"])}
-    - Feature/Recording: Use SIP as jump server (see ssh_config_snippet output)
-
-    For detailed SSH configuration, run:
-      terraform output ssh_config_snippet
-
-    For Exoscale CLI commands, run:
-      terraform output exoscale_cli_commands
-    ============================================================
-  EOT
 }

@@ -1,28 +1,11 @@
 #cloud-config
 # Cloud-init for Jambonz Recording Server on Exoscale
 
-# Copy SSH keys from default user to jambonz user
-bootcmd:
-  - |
-    set -e
-    # Wait for default user home directory
-    while [ ! -d /home/debian/.ssh ]; do sleep 1; done
-    # Copy SSH keys to jambonz user
-    if [ -d /home/debian/.ssh ] && [ -d /home/jambonz ]; then
-      cp -r /home/debian/.ssh /home/jambonz/ || true
-      chown -R jambonz:jambonz /home/jambonz/.ssh || true
-      chmod 700 /home/jambonz/.ssh || true
-      chmod 600 /home/jambonz/.ssh/authorized_keys || true
-    fi
-
-# Configure network interfaces (both public and private)
-network:
-  version: 2
-  ethernets:
-    eth0:
-      dhcp4: true
-    eth1:
-      dhcp4: true
+# Merge SSH keys into existing jambonz user
+users:
+  - name: jambonz
+    ssh_authorized_keys:
+      - "${ssh_public_key}"
 
 write_files:
   - path: /tmp/configure-recording.sh
@@ -42,8 +25,26 @@ write_files:
 
       echo "Starting jambonz Recording Server configuration for Exoscale"
 
+      # Stop services immediately — they were auto-started at boot before eth1 is up
+      # and before configuration is written. We restart each one later in this script
+      # after eth1 is up and the config has been applied.
+      sudo systemctl stop telegraf || true
+
       USER=jambonz
       HOME=/home/jambonz
+
+      # Bring up private network interface
+      # The cloud-init network: stanza is overridden by the Exoscale datasource,
+      # so we must bring up eth1 explicitly via DHCP.
+      # Wait for the device to appear (udev may not have registered it yet at runcmd time).
+      echo "Bringing up private network interface (eth1)..."
+      for i in $(seq 1 30); do
+        if ip link show eth1 &>/dev/null; then
+          sudo dhclient eth1 && break
+        fi
+        echo "Waiting for eth1 to appear (attempt $i)..."
+        sleep 2
+      done
 
       # Get instance metadata
       echo "Getting instance metadata..."
@@ -71,6 +72,17 @@ write_files:
 
       # Configure telegraf to send to the monitoring server
       sudo sed -i -e "s/influxdb:8086/$WEB_MONITORING_PRIVATE_IP:8086/g" /etc/telegraf/telegraf.conf
+
+      # Wait for InfluxDB to be ready on the monitoring server
+      echo "Waiting for InfluxDB at $WEB_MONITORING_PRIVATE_IP:8086..."
+      for i in $(seq 1 60); do
+          if curl -sf http://$WEB_MONITORING_PRIVATE_IP:8086/ping &>/dev/null; then
+              echo "InfluxDB is available"
+              break
+          fi
+          echo "InfluxDB not yet available, attempt $i/60..."
+          sleep 10
+      done
       sudo systemctl restart telegraf
 
       echo "Recording Server setup complete!"

@@ -8,15 +8,6 @@ users:
     ssh_authorized_keys:
       - "${ssh_public_key}"
 
-# Configure network interfaces (both public and private)
-network:
-  version: 2
-  ethernets:
-    eth0:
-      dhcp4: true
-    eth1:
-      dhcp4: true
-
 write_files:
   - path: /tmp/configure-sip.sh
     permissions: '0755'
@@ -42,8 +33,27 @@ write_files:
 
       echo "Starting jambonz SIP-$SIP_INDEX server configuration for Exoscale"
 
+      # Stop services immediately — they were auto-started at boot before eth1 is up
+      # and before configuration is written. We restart each one later in this script
+      # after eth1 is up and the config has been applied.
+      sudo systemctl stop telegraf || true
+      sudo systemctl stop drachtio || true
+
       USER=jambonz
       HOME=/home/jambonz
+
+      # Bring up private network interface
+      # The cloud-init network: stanza is overridden by the Exoscale datasource,
+      # so we must bring up eth1 explicitly via DHCP.
+      # Wait for the device to appear (udev may not have registered it yet at runcmd time).
+      echo "Bringing up private network interface (eth1)..."
+      for i in $(seq 1 30); do
+        if ip link show eth1 &>/dev/null; then
+          sudo dhclient eth1 && break
+        fi
+        echo "Waiting for eth1 to appear (attempt $i)..."
+        sleep 2
+      done
 
       # Get instance metadata
       echo "Getting instance metadata..."
@@ -79,19 +89,15 @@ write_files:
         sleep 5
       done
 
-      # Configure drachtio
+      # Configure drachtio service
       echo "Configuring drachtio..."
-      cat > /etc/systemd/system/drachtio.service.d/override.conf << EOF
-      [Service]
-      Environment="JAMBONES_MYSQL_HOST=$MYSQL_HOST:$MYSQL_PORT"
-      Environment="JAMBONES_MYSQL_USER=$MYSQL_USER"
-      Environment="JAMBONES_MYSQL_PASSWORD=$MYSQL_PASSWORD"
-      Environment="JAMBONES_MYSQL_DATABASE=$MYSQL_DATABASE"
-      Environment="JAMBONES_REDIS_HOST=$REDIS_HOST"
-      Environment="JAMBONES_REDIS_PORT=$REDIS_PORT"
-      Environment="DRACHTIO_HOST=$PRIVATE_IP"
-      Environment="SOFIA_SEARCH_DOMAINS=1"
-      EOF
+      sudo sed -i -e "s/JAMBONES_MYSQL_HOST=/JAMBONES_MYSQL_HOST=$MYSQL_HOST/g" /etc/systemd/system/drachtio.service
+      sudo sed -i -e "s/JAMBONES_MYSQL_PORT=/JAMBONES_MYSQL_PORT=$MYSQL_PORT/g" /etc/systemd/system/drachtio.service
+      sudo sed -i -e "s/JAMBONES_MYSQL_USER=/JAMBONES_MYSQL_USER=$MYSQL_USER/g" /etc/systemd/system/drachtio.service
+      sudo sed -i -e "s/JAMBONES_MYSQL_PASSWORD=/JAMBONES_MYSQL_PASSWORD=$MYSQL_PASSWORD/g" /etc/systemd/system/drachtio.service
+      sudo sed -i -e "s/JAMBONES_MYSQL_DATABASE=/JAMBONES_MYSQL_DATABASE=$MYSQL_DATABASE/g" /etc/systemd/system/drachtio.service
+      sudo sed -i -e "s/JAMBONES_REDIS_HOST=/JAMBONES_REDIS_HOST=$REDIS_HOST/g" /etc/systemd/system/drachtio.service
+      sudo sed -i -e "s/JAMBONES_REDIS_PORT=/JAMBONES_REDIS_PORT=$REDIS_PORT/g" /etc/systemd/system/drachtio.service
 
       # Point drachtio to the HEP endpoint on the monitoring server
       if [[ "$ENABLE_PCAPS" == "true" ]]; then
@@ -269,6 +275,17 @@ write_files:
 
       # Configure telegraf to send to the monitoring server
       sudo sed -i -e "s/influxdb:8086/$MONITORING_PRIVATE_IP:8086/g" /etc/telegraf/telegraf.conf
+
+      # Wait for InfluxDB to be ready on the monitoring server
+      echo "Waiting for InfluxDB at $MONITORING_PRIVATE_IP:8086..."
+      for i in $(seq 1 60); do
+          if curl -sf http://$MONITORING_PRIVATE_IP:8086/ping &>/dev/null; then
+              echo "InfluxDB is available"
+              break
+          fi
+          echo "InfluxDB not yet available, attempt $i/60..."
+          sleep 10
+      done
       sudo systemctl restart telegraf
 
       # Start PM2 apps

@@ -8,15 +8,6 @@ users:
     ssh_authorized_keys:
       - "${ssh_public_key}"
 
-# Configure network interfaces (both public and private)
-network:
-  version: 2
-  ethernets:
-    eth0:
-      dhcp4: true
-    eth1:
-      dhcp4: true
-
 write_files:
   - path: /tmp/configure-jambonz.sh
     permissions: '0755'
@@ -41,9 +32,27 @@ write_files:
 
       echo "Starting jambonz Web/Monitoring server configuration for Exoscale"
 
+      # Stop services immediately — they were auto-started at boot before eth1 is up
+      # and before configuration is written. We restart each one later in this script
+      # after eth1 is up and the config has been applied.
+      sudo systemctl stop telegraf || true
+
       # Always use jambonz user for apps
       USER=jambonz
       HOME=/home/jambonz
+
+      # Bring up private network interface
+      # The cloud-init network: stanza is overridden by the Exoscale datasource,
+      # so we must bring up eth1 explicitly via DHCP.
+      # Wait for the device to appear (udev may not have registered it yet at runcmd time).
+      echo "Bringing up private network interface (eth1)..."
+      for i in $(seq 1 30); do
+        if ip link show eth1 &>/dev/null; then
+          sudo dhclient eth1 && break
+        fi
+        echo "Waiting for eth1 to appear (attempt $i)..."
+        sleep 2
+      done
 
       # Get instance metadata from Exoscale Metadata Service
       echo "Getting instance metadata..."
@@ -68,17 +77,13 @@ write_files:
       DEFAULT_ACCOUNT_SID=$(uuidgen)
       DEFAULT_TOKEN=$(uuidgen)
 
-      # Exoscale DBaaS MySQL requires primary keys on all tables and uses
-      # ANSI_QUOTES SQL mode (double quotes = identifiers). Fix both for import.
-      SQL_PREAMBLE="SET SESSION sql_require_primary_key = 0; SET SESSION sql_mode = 'NO_ENGINE_SUBSTITUTION';"
-
       # Seed database
       cd $HOME/apps/api-server/db
       sudo sed -i "s/9351f46a-678c-43f5-b8a6-d4eb58d131af/$DEFAULT_ACCOUNT_SID/g" seed-production-database-open-source.sql
       sudo sed -i "s/38700987-c7a4-4685-a5bb-af378f9734de/$DEFAULT_TOKEN/g" seed-production-database-open-source.sql
-      echo "$SQL_PREAMBLE" | cat - jambones-sql.sql | mysql $MYSQL_OPTS || true
+      mysql $MYSQL_OPTS < jambones-sql.sql || true
       sudo sed -i "s/public-apps.jambonz.cloud/public-apps.$URL_PORTAL/g" seed-production-database-open-source.sql
-      echo "$SQL_PREAMBLE" | cat - seed-production-database-open-source.sql | mysql $MYSQL_OPTS || true
+      mysql $MYSQL_OPTS < seed-production-database-open-source.sql || true
 
       # Reset admin password
       JAMBONES_ADMIN_INITIAL_PASSWORD=$INSTANCE_ID \

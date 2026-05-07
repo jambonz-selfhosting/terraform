@@ -104,26 +104,24 @@ variable "deploy_recording_cluster" {
 }
 
 # =============================================================================
-# Database Plan Variables
+# Instance Type Variables
 # =============================================================================
 
-variable "mysql_plan" {
-  description = "Exoscale DBaaS MySQL plan (hobbyist-2, startup-4/8/16/32, business-4/8/16/32, premium-*)"
+variable "instance_type_db" {
+  description = "Instance type for database server"
   type        = string
-  default     = "hobbyist-2"
+  default     = "standard.medium"
 
   validation {
-    condition     = can(regex("^(hobbyist-2|startup-(4|8|16|32|64|128|225)|business-(4|8|16|32|64|128|225)|premium-(4|8|16|32|64|128|225))$", var.mysql_plan))
-    error_message = "mysql_plan must be a valid Exoscale DBaaS plan"
+    condition = contains([
+      "standard.micro", "standard.tiny", "standard.small", "standard.medium",
+      "standard.large", "standard.extra-large", "standard.huge", "standard.mega",
+      "standard.titan", "cpu.extra-large", "cpu.huge", "cpu.mega"
+    ], var.instance_type_db)
+    error_message = "instance_type_db must be a valid Exoscale instance type"
   }
 }
 
-# Note: Redis runs locally on the monitoring VM (no DBaaS needed)
-# Exoscale DBaaS Valkey requires TLS which jambonz apps don't support.
-
-# =============================================================================
-# Instance Type Variables
-# =============================================================================
 
 variable "instance_type_web" {
   description = "Instance type for web server"
@@ -218,6 +216,17 @@ variable "instance_type_recording" {
 # =============================================================================
 # Disk Size Variables
 # =============================================================================
+
+variable "disk_size_db" {
+  description = "Disk size in GB for database server"
+  type        = number
+  default     = 100
+
+  validation {
+    condition     = var.disk_size_db >= 50 && var.disk_size_db <= 1024
+    error_message = "disk_size_db must be between 50 and 1024 GB"
+  }
+}
 
 variable "disk_size_web" {
   description = "Disk size in GB for web server"

@@ -50,3 +50,6 @@ exoscale/test-ssh-key/
 ovhcloud-terraform-plan.md
 
 .claude
+
+# GKE auth plugin cache (contains credentials, can appear in any directory)
+gke_gcloud_auth_plugin_cache

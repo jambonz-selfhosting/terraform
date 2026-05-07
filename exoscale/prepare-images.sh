@@ -134,8 +134,8 @@ echo ""
 # Deployment size
 echo "Select deployment size:"
 echo "  1) mini   - Single VM with all components"
-echo "  2) medium - Multi-VM (SBC, Feature Server, Web/Monitoring, Recording)"
-echo "  3) large  - Fully separated (SIP, RTP, FS, Web, Monitoring, Recording)"
+echo "  2) medium - Multi-VM (SBC, Feature Server, Web/Monitoring, Recording, Database)"
+echo "  3) large  - Fully separated (SIP, RTP, FS, Web, Monitoring, Recording, Database)"
 echo ""
 read -p "Enter choice [1-3]: " SIZE_CHOICE
 
@@ -178,10 +178,10 @@ case $SIZE in
     VARIANTS=("mini")
     ;;
   medium)
-    VARIANTS=("sip-rtp" "fs" "web-monitoring" "recording")
+    VARIANTS=("sip-rtp" "fs" "web-monitoring" "recording" "db")
     ;;
   large)
-    VARIANTS=("sip" "rtp" "fs" "web" "monitoring" "recording")
+    VARIANTS=("sip" "rtp" "fs" "web" "monitoring" "recording" "db")
     ;;
 esac
 
