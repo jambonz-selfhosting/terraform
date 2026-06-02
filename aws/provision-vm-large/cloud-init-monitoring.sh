@@ -52,9 +52,6 @@ echo "Public IP: $PUBLIC_IP"
 echo "Private IP: $PRIVATE_IP"
 echo "Instance ID: $INSTANCE_ID"
 
-# Configure telegraf to send locally (this IS the monitoring server)
-sudo sed -i -e "s/influxdb:8086/127.0.0.1:8086/g" /etc/telegraf/telegraf.conf
-sudo systemctl restart telegraf
 
 # Configure nginx (monitoring only: grafana, homer)
 sudo tee $NGINX_CONFIG > /dev/null << EOF

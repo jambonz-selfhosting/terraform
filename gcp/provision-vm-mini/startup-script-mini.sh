@@ -192,9 +192,6 @@ echo "Restarting jaeger..."
 sudo systemctl restart jaeger-collector.service || true
 sudo systemctl restart jaeger-query.service || true
 
-# Configure telegraf to send to local influxdb
-sudo sed -i -e "s/influxdb:8086/127.0.0.1:8086/g" /etc/telegraf/telegraf.conf
-sudo systemctl restart telegraf
 
 # Start PM2 apps
 echo "Starting jambonz apps..."

@@ -96,7 +96,7 @@ write_files:
       sed -i "s/REDIS_PORT_PLACEHOLDER/${redis_port}/g" $HOME/apps/ecosystem.config.js
 
       # Configure telegraf to send to the monitoring server
-      sudo sed -i -e "s/influxdb:8086/$MONITORING_PRIVATE_IP:8086/g" /etc/telegraf/telegraf.conf
+      echo "JAMBONES_INFLUX_URL=http://$MONITORING_PRIVATE_IP:8086" | sudo tee -a /etc/default/telegraf > /dev/null
       sudo systemctl restart telegraf
 
       # Start PM2 apps

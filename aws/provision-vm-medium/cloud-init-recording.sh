@@ -57,7 +57,7 @@ sudo systemctl enable upload_recordings
 sudo systemctl start upload_recordings
 
 # Configure telegraf to send to the monitoring server
-sudo sed -i -e "s/influxdb:8086/$WEB_MONITORING_PRIVATE_IP:8086/g" /etc/telegraf/telegraf.conf
+echo "JAMBONES_INFLUX_URL=http://$WEB_MONITORING_PRIVATE_IP:8086" | sudo tee -a /etc/default/telegraf > /dev/null
 sudo systemctl restart telegraf
 
 echo "Recording Server setup complete!"
