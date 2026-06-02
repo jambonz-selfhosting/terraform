@@ -159,7 +159,7 @@ variable "allowed_rtp_cidr" {
 variable "sip_image_par_url" {
   description = "PAR URL for the SIP image (drachtio only)"
   type        = string
-  default     = "https://id580apywcz8.objectstorage.us-ashburn-1.oci.customer-oci.com/p/svcJNZ0AelJQxGg5ej00_hqbH5hhZtvGSvnI1W4lLY4XWOr6gFMRf6HeYHNEgOLu/n/id580apywcz8/b/jambonz-images/o/jambonz-sip-v10.0.4.oci"
+  default     = "https://id580apywcz8.objectstorage.us-ashburn-1.oci.customer-oci.com/p/svcJNZ0AelJQxGg5ej00_hqbH5hhZtvGSvnI1W4lLY4XWOr6gFMRf6HeYHNEgOLu/n/id580apywcz8/b/jambonz-images/o/jambonz-sip-v10.2.0.oci"
 
   validation {
     condition     = can(regex("^https://.*", var.sip_image_par_url))
@@ -170,7 +170,7 @@ variable "sip_image_par_url" {
 variable "rtp_image_par_url" {
   description = "PAR URL for the RTP image (rtpengine only)"
   type        = string
-  default     = "https://id580apywcz8.objectstorage.us-ashburn-1.oci.customer-oci.com/p/Lbi6PbgQbsLznxIOYjKEelVReVfzgIk4iX3Fu1bjEh-UPQLcyD4xPR2_p-yzK_Ck/n/id580apywcz8/b/jambonz-images/o/jambonz-rtp-v10.0.4.oci"
+  default     = "https://id580apywcz8.objectstorage.us-ashburn-1.oci.customer-oci.com/p/Lbi6PbgQbsLznxIOYjKEelVReVfzgIk4iX3Fu1bjEh-UPQLcyD4xPR2_p-yzK_Ck/n/id580apywcz8/b/jambonz-images/o/jambonz-rtp-v10.2.0.oci"
 
   validation {
     condition     = can(regex("^https://.*", var.rtp_image_par_url))
@@ -181,7 +181,7 @@ variable "rtp_image_par_url" {
 variable "feature_server_image_par_url" {
   description = "PAR URL for the Feature Server image (FreeSWITCH)"
   type        = string
-  default     = "https://id580apywcz8.objectstorage.us-ashburn-1.oci.customer-oci.com/p/yhBcJMMJPW1lwhoLr4wgIbkcfCv5uOQycMpzaWwwiaIzfDJO-AJbbQUt3A7VQa_b/n/id580apywcz8/b/jambonz-images/o/jambonz-fs-v10.0.4.oci"
+  default     = "https://id580apywcz8.objectstorage.us-ashburn-1.oci.customer-oci.com/p/yhBcJMMJPW1lwhoLr4wgIbkcfCv5uOQycMpzaWwwiaIzfDJO-AJbbQUt3A7VQa_b/n/id580apywcz8/b/jambonz-images/o/jambonz-fs-v10.2.0.oci"
 
   validation {
     condition     = can(regex("^https://.*", var.feature_server_image_par_url))
@@ -192,7 +192,7 @@ variable "feature_server_image_par_url" {
 variable "web_image_par_url" {
   description = "PAR URL for the Web image (portal, API, webapp)"
   type        = string
-  default     = "https://id580apywcz8.objectstorage.us-ashburn-1.oci.customer-oci.com/p/gavUFcl6K9gtIS0u5i2qD3IwythX75PkdXcTd8eTXmuy41cYiZKTKb6Ana0l8gjx/n/id580apywcz8/b/jambonz-images/o/jambonz-web-v10.0.4.oci"
+  default     = "https://id580apywcz8.objectstorage.us-ashburn-1.oci.customer-oci.com/p/gavUFcl6K9gtIS0u5i2qD3IwythX75PkdXcTd8eTXmuy41cYiZKTKb6Ana0l8gjx/n/id580apywcz8/b/jambonz-images/o/jambonz-web-v10.2.0.oci"
 
   validation {
     condition     = can(regex("^https://.*", var.web_image_par_url))
@@ -203,7 +203,7 @@ variable "web_image_par_url" {
 variable "monitoring_image_par_url" {
   description = "PAR URL for the Monitoring image (Grafana, Homer, Jaeger, InfluxDB)"
   type        = string
-  default     = "https://id580apywcz8.objectstorage.us-ashburn-1.oci.customer-oci.com/p/0yTUv4t9a1vy8sVcHvVN7MMdIGF4db0wgnr-pgy7cHH8-GUp6vSzTfx6ffFpGJ8R/n/id580apywcz8/b/jambonz-images/o/jambonz-monitoring-v10.0.4.oci"
+  default     = "https://id580apywcz8.objectstorage.us-ashburn-1.oci.customer-oci.com/p/0yTUv4t9a1vy8sVcHvVN7MMdIGF4db0wgnr-pgy7cHH8-GUp6vSzTfx6ffFpGJ8R/n/id580apywcz8/b/jambonz-images/o/jambonz-monitoring-v10.2.0.oci"
 
   validation {
     condition     = can(regex("^https://.*", var.monitoring_image_par_url))
@@ -214,7 +214,7 @@ variable "monitoring_image_par_url" {
 variable "recording_image_par_url" {
   description = "PAR URL for the Recording Server image (optional, only if deploy_recording_cluster is true)"
   type        = string
-  default     = "https://id580apywcz8.objectstorage.us-ashburn-1.oci.customer-oci.com/p/UK83YeE0eRKUSGV_U8bQcP6kliqD6ZfBcsUKYwFtNlqCFtbgKfKXDR_AMvGW-QCq/n/id580apywcz8/b/jambonz-images/o/jambonz-recording-v10.0.4.oci"
+  default     = "https://id580apywcz8.objectstorage.us-ashburn-1.oci.customer-oci.com/p/UK83YeE0eRKUSGV_U8bQcP6kliqD6ZfBcsUKYwFtNlqCFtbgKfKXDR_AMvGW-QCq/n/id580apywcz8/b/jambonz-images/o/jambonz-recording-v10.2.0.oci"
 }
 
 # ------------------------------------------------------------------------------

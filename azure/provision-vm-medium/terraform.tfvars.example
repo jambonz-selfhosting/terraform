@@ -87,7 +87,7 @@ allowed_sbc_cidr = "0.0.0.0/0"
 # ------------------------------------------------------------------------------
 
 # jambonz version (image version in community gallery)
-jambonz_version = "10.0.4"
+jambonz_version = "10.2.0"
 
 # Community gallery name (default should work for most users)
 # community_gallery_name = "jambonz-8962e4f5-da0f-41ee-b094-8680ad38d302"

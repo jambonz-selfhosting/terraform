@@ -76,7 +76,7 @@ jambonz images are published to an **Azure Community Gallery** and are automatic
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `jambonz_version` | `10.0.4` | jambonz version to deploy |
+| `jambonz_version` | `10.2.0` | jambonz version to deploy |
 | `community_gallery_name` | `jambonz-8962e4f5-da0f-41ee-b094-8680ad38d302` | Azure Community Gallery name |
 
 To use a different version, set `jambonz_version` in your `terraform.tfvars`:
@@ -97,7 +97,7 @@ jambonz_version = "10.0.5"
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `jambonz_version` | `10.0.4` | jambonz version to deploy |
+| `jambonz_version` | `10.2.0` | jambonz version to deploy |
 | `location` | `eastus` | Azure region (see supported regions below) |
 | `name_prefix` | `jambonz` | Prefix for resource names |
 | `sbc_vm_size` | `Standard_F4s_v2` | VM size for SBC |
