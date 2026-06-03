@@ -114,3 +114,12 @@ mysql_disk_size = 20
 
 redis_memory_size_gb = 1
 redis_tier           = "BASIC"
+
+# ------------------------------------------------------------------------------
+# KRISP (Optional)
+# Noise isolation and turn-taking for voice AI applications
+# Contact support@jambonz.org for information on obtaining a license key
+# ------------------------------------------------------------------------------
+
+# krisp_license_key = ""
+

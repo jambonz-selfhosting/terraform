@@ -154,3 +154,12 @@ mysql_username = "jambonz"
 # apiban_key           = "your-apiban-api-key"
 # apiban_client_id     = ""
 # apiban_client_secret = ""
+
+# ------------------------------------------------------------------------------
+# KRISP (Optional)
+# Noise isolation and turn-taking for voice AI applications
+# Contact support@jambonz.org for information on obtaining a license key
+# ------------------------------------------------------------------------------
+
+# krisp_license_key = ""
+

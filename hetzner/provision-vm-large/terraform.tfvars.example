@@ -176,3 +176,11 @@ mysql_username = "admin"
 # 5. SCALING:
 #    You can scale SIP (1-10), RTP (1-10), Feature (1-10), and Recording (1-10)
 #    servers by updating the counts in this file and running terraform apply.
+# ------------------------------------------------------------------------------
+# KRISP (Optional)
+# Noise isolation and turn-taking for voice AI applications
+# Contact support@jambonz.org for information on obtaining a license key
+# ------------------------------------------------------------------------------
+
+# krisp_license_key = ""
+

@@ -99,3 +99,12 @@ url_portal = "jambonz.example.com"
 
 # Single key mode (alternative):
 # apiban_key = ""
+
+# ------------------------------------------------------------------------------
+# KRISP (Optional)
+# Noise isolation and turn-taking for voice AI applications
+# Contact support@jambonz.org for information on obtaining a license key
+# ------------------------------------------------------------------------------
+
+# krisp_license_key = ""
+
