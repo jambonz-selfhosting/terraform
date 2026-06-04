@@ -138,13 +138,13 @@ recording_max_capacity     = 8
 mysql_sku_name = "B_Standard_B2s"
 
 # ------------------------------------------------------------------------------
-# REDIS CONFIGURATION
+# REDIS CONFIGURATION (Azure Managed Redis)
 # ------------------------------------------------------------------------------
 
-# Redis SKU: Basic, Standard, Premium
-redis_sku_name = "Standard"
-redis_family   = "C"
-redis_capacity = 1
+# Redis SKU: Balanced_B0, Balanced_B1, Balanced_B3, Balanced_B5,
+#            MemoryOptimized_M10, MemoryOptimized_M20,
+#            ComputeOptimized_X5, ComputeOptimized_X10
+redis_sku_name = "Balanced_B0"
 
 # ------------------------------------------------------------------------------
 # KRISP (Optional)

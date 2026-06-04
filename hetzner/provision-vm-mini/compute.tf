@@ -16,14 +16,15 @@ resource "hcloud_server" "mini" {
   }
 
   user_data = templatefile("${path.module}/cloud-init.yaml", {
-    ssh_public_key   = local.ssh_public_key
-    url_portal       = var.url_portal
-    jwt_secret       = random_password.encryption_secret.result
-    db_password      = random_password.db_password.result
-    enable_otel      = var.enable_otel
-    enable_pcaps     = var.enable_pcaps
-    apiban_key       = var.apiban_key
-    apiban_client_id = var.apiban_client_id
+    ssh_public_key       = local.ssh_public_key
+    url_portal           = var.url_portal
+    jwt_secret           = random_password.encryption_secret.result
+    db_password          = random_password.db_password.result
+    enable_otel          = var.enable_otel
+    enable_pcaps         = var.enable_pcaps
+    apiban_key           = var.apiban_key
+    apiban_client_id     = var.apiban_client_id
     apiban_client_secret = var.apiban_client_secret
+    krisp_license_key    = var.krisp_license_key
   })
 }

@@ -447,39 +447,21 @@ variable "mysql_sku_name" {
 }
 
 # ------------------------------------------------------------------------------
-# REDIS CONFIGURATION
+# REDIS CONFIGURATION (Azure Managed Redis)
 # ------------------------------------------------------------------------------
 
 variable "redis_sku_name" {
-  description = "Azure Redis Cache SKU name"
+  description = "Azure Managed Redis SKU name"
   type        = string
-  default     = "Standard"
+  default     = "Balanced_B0"
 
   validation {
-    condition     = contains(["Basic", "Standard", "Premium"], var.redis_sku_name)
-    error_message = "Redis SKU must be Basic, Standard, or Premium."
-  }
-}
-
-variable "redis_family" {
-  description = "Azure Redis Cache family"
-  type        = string
-  default     = "C"
-
-  validation {
-    condition     = contains(["C", "P"], var.redis_family)
-    error_message = "Redis family must be C (Basic/Standard) or P (Premium)."
-  }
-}
-
-variable "redis_capacity" {
-  description = "Azure Redis Cache capacity (size)"
-  type        = number
-  default     = 1
-
-  validation {
-    condition     = var.redis_capacity >= 0 && var.redis_capacity <= 6
-    error_message = "Redis capacity must be between 0 and 6."
+    condition = contains([
+      "Balanced_B0", "Balanced_B1", "Balanced_B3", "Balanced_B5",
+      "MemoryOptimized_M10", "MemoryOptimized_M20",
+      "ComputeOptimized_X5", "ComputeOptimized_X10"
+    ], var.redis_sku_name)
+    error_message = "Redis SKU must be a valid Azure Managed Redis SKU (e.g., Balanced_B0, Balanced_B1)."
   }
 }
 
@@ -534,4 +516,11 @@ variable "db_caching_tts" {
   description = "Number of seconds to cache results from DB queries (0=no caching)"
   type        = number
   default     = 0
+}
+
+variable "krisp_license_key" {
+  description = "Krisp license key for noise isolation and turn-taking (optional)"
+  type        = string
+  default     = ""
+  sensitive   = true
 }

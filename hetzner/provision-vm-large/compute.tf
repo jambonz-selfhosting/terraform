@@ -202,6 +202,7 @@ resource "hcloud_server" "feature_server" {
     enable_otel               = var.enable_otel
     recording_ws_base_url     = var.deploy_recording_cluster && length(hcloud_server.recording) > 0 ? "ws://${tolist(hcloud_server.recording[0].network)[0].ip}:3000" : "ws://${tolist(hcloud_server.web.network)[0].ip}:3017"
     ssh_public_key           = local.ssh_public_key
+    krisp_license_key        = var.krisp_license_key
   })
 
   depends_on = [hcloud_network_subnet.jambonz, hcloud_server.monitoring, hcloud_server.db]

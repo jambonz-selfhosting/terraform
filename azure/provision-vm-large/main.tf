@@ -11,7 +11,7 @@ terraform {
   required_providers {
     azurerm = {
       source  = "hashicorp/azurerm"
-      version = "~> 3.0"
+      version = "~> 4.0"
     }
     random = {
       source  = "hashicorp/random"
@@ -900,21 +900,17 @@ resource "azurerm_mysql_flexible_server_configuration" "require_secure_transport
 }
 
 # ------------------------------------------------------------------------------
-# AZURE REDIS CACHE
+# AZURE MANAGED REDIS
 # ------------------------------------------------------------------------------
 
-resource "azurerm_redis_cache" "jambonz" {
-  name                 = "${var.name_prefix}-redis"
-  location             = azurerm_resource_group.jambonz.location
-  resource_group_name  = azurerm_resource_group.jambonz.name
-  capacity             = var.redis_capacity
-  family               = var.redis_family
-  sku_name             = var.redis_sku_name
-  non_ssl_port_enabled = true
-  minimum_tls_version  = "1.2"
+resource "azurerm_managed_redis" "jambonz" {
+  name                = "${var.name_prefix}-redis"
+  location            = azurerm_resource_group.jambonz.location
+  resource_group_name = azurerm_resource_group.jambonz.name
+  sku_name            = var.redis_sku_name
 
-  redis_configuration {
-    maxmemory_policy = "allkeys-lru"
+  default_database {
+    access_keys_authentication_enabled = true
   }
 
   tags = {

@@ -23,6 +23,7 @@ write_files:
       URL_PORTAL="${url_portal}"
       KEY_VAULT_NAME="${key_vault_name}"
       RECORDING_WS_BASE_URL="${recording_ws_base_url}"
+      KRISP_LICENSE_KEY="${krisp_license_key}"
 
       echo "Starting jambonz Feature Server configuration for Azure deployment"
 
@@ -119,6 +120,9 @@ write_files:
       sudo sed -i -e "s/JAMBONES_REDIS_HOST=/JAMBONES_REDIS_HOST=$REDIS_HOST/g" /etc/systemd/system/freeswitch.service
       sudo sed -i -e "s/JAMBONES_REDIS_PORT=/JAMBONES_REDIS_PORT=$REDIS_PORT/g" /etc/systemd/system/freeswitch.service
       sudo sed -i -e "s/JAMBONES_REDIS_PASSWORD=/JAMBONES_REDIS_PASSWORD=$REDIS_PASSWORD/g" /etc/systemd/system/freeswitch.service
+      if [ -n "$KRISP_LICENSE_KEY" ]; then
+          sudo sed -i -e "s/KRISP_LICENSE_KEY=/KRISP_LICENSE_KEY=$KRISP_LICENSE_KEY/g" /etc/systemd/system/freeswitch.service
+      fi
 
       sudo systemctl daemon-reload
       sudo systemctl restart freeswitch

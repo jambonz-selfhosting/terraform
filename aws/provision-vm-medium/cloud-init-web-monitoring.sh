@@ -171,7 +171,7 @@ EOF
 
 echo "Finished writing config file"
 
-sudo -u $USER bash -c "pm2 start $HOME/apps/ecosystem.config.js"
+sudo -u $USER bash -c "pm2 delete $HOME/apps/ecosystem.config.js; pm2 start $HOME/apps/ecosystem.config.js" || true
 sudo env PATH=$PATH:/usr/bin /usr/lib/node_modules/pm2/bin/pm2 startup systemd -u $USER --hp $HOME
 sudo -u $USER bash -c "pm2 save"
 sudo systemctl enable pm2-$USER.service

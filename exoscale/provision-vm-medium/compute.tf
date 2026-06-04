@@ -200,6 +200,7 @@ resource "exoscale_instance_pool" "feature_server" {
     vpc_cidr                  = var.vpc_cidr
     web_monitoring_private_ip = local.web_monitoring_private_ip
     recording_ws_base_url     = var.deploy_recording_cluster ? "ws://${exoscale_nlb.recording[0].ip_address}:80" : "ws://${local.web_monitoring_private_ip}:3017"
+    krisp_license_key         = var.krisp_license_key
   })
 
   labels = {

@@ -329,6 +329,7 @@ resource "oci_core_instance" "feature_server" {
       vpc_cidr                  = var.vcn_cidr
       url_portal                = var.url_portal
       recording_ws_base_url     = var.deploy_recording_cluster && length(oci_core_instance.recording) > 0 ? "ws://${oci_core_instance.recording[0].private_ip}:3000" : "ws://${oci_core_instance.web.private_ip}:3017"
+      krisp_license_key         = var.krisp_license_key
     }))
   }
 

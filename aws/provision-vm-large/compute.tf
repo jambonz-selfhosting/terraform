@@ -265,6 +265,7 @@ resource "aws_launch_template" "feature_server" {
     url_portal            = var.url_portal
     recording_ws_base_url = var.deploy_recording_cluster ? "ws://${aws_lb.recording[0].dns_name}:80" : "ws://${aws_instance.web.private_ip}:3017"
     sns_topic_arn         = aws_sns_topic.fs_lifecycle.arn
+    krisp_license_key     = var.krisp_license_key
   }))
 
   tag_specifications {

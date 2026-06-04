@@ -592,3 +592,10 @@ variable "enable_pcaps" {
   type        = bool
   default     = true
 }
+
+variable "krisp_license_key" {
+  description = "Krisp license key for noise isolation and turn-taking (optional)"
+  type        = string
+  default     = ""
+  sensitive   = true
+}

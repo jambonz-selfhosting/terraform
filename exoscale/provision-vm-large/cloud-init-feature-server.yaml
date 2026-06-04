@@ -45,6 +45,7 @@ write_files:
       MONITORING_PRIVATE_IP="${monitoring_private_ip}"
       RECORDING_WS_BASE_URL="${recording_ws_base_url}"
       SCALE_IN_TIMEOUT="${scale_in_timeout_seconds}"
+      KRISP_LICENSE_KEY="${krisp_license_key}"
 
       echo "Starting jambonz Feature Server configuration for Exoscale"
 
@@ -79,6 +80,10 @@ write_files:
       Environment="JAMBONES_REDIS_PORT=$REDIS_PORT"
       Environment="LOCAL_IP=$PRIVATE_IP"
       EOF
+
+      if [ -n "$KRISP_LICENSE_KEY" ]; then
+          echo "Environment=\"KRISP_LICENSE_KEY=$KRISP_LICENSE_KEY\"" >> /etc/systemd/system/freeswitch.service.d/override.conf
+      fi
 
       systemctl daemon-reload
       systemctl restart freeswitch

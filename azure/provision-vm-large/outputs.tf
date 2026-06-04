@@ -114,8 +114,8 @@ output "mysql_server_fqdn" {
 }
 
 output "redis_hostname" {
-  description = "Hostname of the Redis cache"
-  value       = azurerm_redis_cache.jambonz.hostname
+  description = "Azure Managed Redis hostname"
+  value       = azurerm_managed_redis.jambonz.hostname
   sensitive   = true
 }
 

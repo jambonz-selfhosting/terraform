@@ -435,3 +435,10 @@ variable "feature_server_public_ip" {
   type        = bool
   default     = false
 }
+
+variable "krisp_license_key" {
+  description = "Krisp license key for noise isolation and turn-taking (optional)"
+  type        = string
+  default     = ""
+  sensitive   = true
+}
