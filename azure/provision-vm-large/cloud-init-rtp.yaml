@@ -76,7 +76,8 @@ write_files:
             STATS_TELEGRAF: 1,
             JAMBONES_REDIS_HOST: '$REDIS_HOST',
             JAMBONES_REDIS_PORT: $REDIS_PORT,
-            JAMBONES_REDIS_PASSWORD: '$REDIS_PASSWORD'
+            JAMBONES_REDIS_PASSWORD: '$REDIS_PASSWORD',
+            ENABLE_JAMBONES_REDIS_TLS: 1
           }
         }
         ]
