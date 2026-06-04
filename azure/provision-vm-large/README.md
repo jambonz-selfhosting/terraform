@@ -244,7 +244,21 @@ Key outputs:
 - **monitoring_public_ip**: IP for monitoring DNS records
 - **sip_public_ips**: IPs for SIP servers
 - **rtp_public_ips**: IPs for RTP servers
-- **portal_password**: Initial admin password (Web VM ID)
+- **portal_password**: Initial admin password (hidden by default, see below)
+
+### Accessing the Portal
+
+The initial admin password is the Web VM's instance ID. Since it's marked as sensitive, retrieve it with:
+
+```bash
+terraform output portal_password
+```
+
+Login credentials:
+- **Username**: admin
+- **Password**: (output of command above)
+
+You will be prompted to change the password on first login.
 
 ## VM Sizes
 

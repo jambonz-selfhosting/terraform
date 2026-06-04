@@ -170,7 +170,7 @@ After deployment, Terraform will output:
 - **resource_group_name**: Azure resource group name
 - **vm_name**: Azure VM name
 - **admin_user**: Portal username (admin)
-- **admin_password**: Initial password (VM instance ID)
+- **admin_password**: Initial password (hidden by default, see below)
 - **ssh_connection**: SSH command to connect
 
 View outputs anytime:
@@ -178,6 +178,20 @@ View outputs anytime:
 terraform output
 terraform output -raw server_ip
 ```
+
+### Accessing the Portal
+
+The initial admin password is the VM's instance ID. Since it's marked as sensitive, retrieve it with:
+
+```bash
+terraform output admin_password
+```
+
+Login credentials:
+- **Username**: admin
+- **Password**: (output of command above)
+
+You will be prompted to change the password on first login.
 
 ## VM Sizes
 

@@ -203,7 +203,21 @@ Key outputs:
 - **grafana_url**: URL for Grafana monitoring
 - **web_monitoring_public_ip**: IP for web DNS records
 - **sbc_public_ip**: IP for SIP DNS records
-- **portal_password**: Initial admin password (VM ID)
+- **portal_password**: Initial admin password (hidden by default, see below)
+
+### Accessing the Portal
+
+The initial admin password is the VM's instance ID. Since it's marked as sensitive, retrieve it with:
+
+```bash
+terraform output portal_password
+```
+
+Login credentials:
+- **Username**: admin
+- **Password**: (output of command above)
+
+You will be prompted to change the password on first login.
 
 ## VM Sizes
 
