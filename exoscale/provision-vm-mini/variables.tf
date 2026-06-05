@@ -199,7 +199,7 @@ variable "enable_pcaps" {
 variable "enable_otel" {
   description = "Enable OpenTelemetry tracing (Cassandra + Jaeger)"
   type        = string
-  default     = "true"
+  default     = "false"
 }
 
 variable "apiban_key" {

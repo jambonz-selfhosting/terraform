@@ -319,7 +319,7 @@ variable "enable_pcaps" {
 variable "enable_otel" {
   description = "Enable OpenTelemetry tracing (Cassandra + Jaeger on monitoring server)"
   type        = string
-  default     = "true"
+  default     = "false"
 }
 
 variable "krisp_license_key" {

@@ -190,6 +190,7 @@ resource "azurerm_linux_virtual_machine" "monitoring" {
     jwt_secret     = random_password.encryption_secret.result
     vpc_cidr       = var.vpc_cidr
     key_vault_name = azurerm_key_vault.jambonz.name
+    enable_otel    = var.enable_otel
   }))
 
   depends_on = [
@@ -481,6 +482,7 @@ resource "azurerm_linux_virtual_machine_scale_set" "feature_server" {
     key_vault_name        = azurerm_key_vault.jambonz.name
     recording_ws_base_url = var.deploy_recording_cluster ? "ws://${azurerm_lb.recording[0].private_ip_address}" : "ws://${azurerm_network_interface.web.private_ip_address}:3017"
     krisp_license_key     = var.krisp_license_key
+    enable_otel           = var.enable_otel
   }))
 
   depends_on = [

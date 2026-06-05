@@ -24,8 +24,16 @@ write_files:
       KEY_VAULT_NAME="${key_vault_name}"
       RECORDING_WS_BASE_URL="${recording_ws_base_url}"
       KRISP_LICENSE_KEY="${krisp_license_key}"
+      ENABLE_OTEL="${enable_otel}"
 
       echo "Starting jambonz Feature Server configuration for Azure large deployment"
+
+      # Set OTEL_ENABLED based on enable_otel parameter
+      if [[ "$ENABLE_OTEL" == "true" ]]; then
+        OTEL_ENABLED=1
+      else
+        OTEL_ENABLED=0
+      fi
 
       # Detecting the Linux distribution
       if grep -q 'ID="rhel"' /etc/os-release 2>/dev/null || grep -q 'ID=rhel' /etc/os-release 2>/dev/null; then
@@ -80,7 +88,7 @@ write_files:
             STATS_PROTOCOL: 'tcp',
             STATS_TELEGRAF: 1,
             STATS_SAMPLE_RATE: 1,
-            JAMBONES_OTEL_ENABLED: 1,
+            JAMBONES_OTEL_ENABLED: $OTEL_ENABLED,
             OTEL_EXPORTER_JAEGER_ENDPOINT: 'http://$MONITORING_PRIVATE_IP:14268/api/traces',
             OTEL_EXPORTER_OTLP_METRICS_INSECURE: 1,
             OTEL_EXPORTER_JAEGER_GRPC_INSECURE: 1,

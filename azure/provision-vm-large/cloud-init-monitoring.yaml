@@ -18,6 +18,7 @@ write_files:
       JWT_SECRET="${jwt_secret}"
       VPC_CIDR="${vpc_cidr}"
       KEY_VAULT_NAME="${key_vault_name}"
+      ENABLE_OTEL="${enable_otel}"
 
       echo "Starting jambonz Monitoring server configuration for Azure large deployment"
 
@@ -60,14 +61,22 @@ write_files:
       # Restart heplify-server (Homer SIP capture)
       sudo systemctl restart heplify-server.service || true
 
-      # Restart cassandra and give it time to come up
-      echo "Restarting cassandra..."
-      sudo systemctl restart cassandra.service || true
-      sleep 60
-
-      echo "Restarting jaeger"
-      sudo systemctl restart jaeger-collector.service || true
-      sudo systemctl restart jaeger-query.service || true
+      # Handle OpenTelemetry services (Cassandra + Jaeger)
+      if [[ "$ENABLE_OTEL" == "true" ]]; then
+        echo "OpenTelemetry enabled - starting Cassandra and Jaeger"
+        sudo systemctl restart cassandra.service || true
+        sleep 60
+        sudo systemctl restart jaeger-collector.service || true
+        sudo systemctl restart jaeger-query.service || true
+      else
+        echo "OpenTelemetry disabled - disabling Cassandra and Jaeger services"
+        sudo systemctl stop cassandra.service || true
+        sudo systemctl disable cassandra.service
+        sudo systemctl stop jaeger-collector.service || true
+        sudo systemctl disable jaeger-collector.service
+        sudo systemctl stop jaeger-query.service || true
+        sudo systemctl disable jaeger-query.service
+      fi
 
       # Start InfluxDB
       sudo systemctl restart influxdb || true

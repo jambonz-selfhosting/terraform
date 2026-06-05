@@ -437,6 +437,12 @@ variable "enable_pcaps" {
   default     = true
 }
 
+variable "enable_otel" {
+  description = "Enable OpenTelemetry tracing (Cassandra + Jaeger on monitoring server). Increases resource usage."
+  type        = bool
+  default     = false
+}
+
 variable "deploy_recording_cluster" {
   description = "Deploy the recording server cluster"
   type        = bool

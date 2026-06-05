@@ -389,7 +389,7 @@ variable "enable_pcaps" {
 variable "enable_otel" {
   description = "Enable OpenTelemetry tracing (Cassandra + Jaeger on monitoring server)"
   type        = string
-  default     = "true"
+  default     = "false"
 }
 
 variable "scale_in_timeout_seconds" {
