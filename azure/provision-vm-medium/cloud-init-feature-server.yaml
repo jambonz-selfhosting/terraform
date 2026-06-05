@@ -121,6 +121,7 @@ write_files:
       sudo sed -i -e "s/JAMBONES_REDIS_HOST=/JAMBONES_REDIS_HOST=$REDIS_HOST/g" /etc/systemd/system/freeswitch.service
       sudo sed -i -e "s/JAMBONES_REDIS_PORT=/JAMBONES_REDIS_PORT=$REDIS_PORT/g" /etc/systemd/system/freeswitch.service
       sudo sed -i -e "s/JAMBONES_REDIS_PASSWORD=/JAMBONES_REDIS_PASSWORD=$REDIS_PASSWORD/g" /etc/systemd/system/freeswitch.service
+      sudo sed -i -e "s/JAMBONES_REDIS_TLS=0/JAMBONES_REDIS_TLS=1/g" /etc/systemd/system/freeswitch.service
       if [ -n "$KRISP_LICENSE_KEY" ]; then
           sudo sed -i -e "s/KRISP_LICENSE_KEY=/KRISP_LICENSE_KEY=$KRISP_LICENSE_KEY/g" /etc/systemd/system/freeswitch.service
       fi

@@ -119,3 +119,14 @@ output "managed_identity_client_id" {
   description = "Client ID of the managed identity for Azure resource access"
   value       = azurerm_user_assigned_identity.jambonz.client_id
 }
+
+output "how_to_retrieve_sensitive_values" {
+  description = "Instructions for retrieving sensitive output values"
+  value       = <<-EOT
+    To retrieve the portal password, run:
+      terraform output -raw portal_password
+
+    To retrieve the MySQL server FQDN, run:
+      terraform output -raw mysql_server_fqdn
+  EOT
+}

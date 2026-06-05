@@ -227,3 +227,18 @@ output "dns_records_required" {
     "sip.${var.url_portal}"         = azurerm_public_ip.sip[0].ip_address
   }
 }
+
+# ------------------------------------------------------------------------------
+# HELP
+# ------------------------------------------------------------------------------
+
+output "how_to_retrieve_sensitive_values" {
+  description = "Instructions for retrieving sensitive output values"
+  value       = <<-EOT
+    To retrieve the portal password, run:
+      terraform output -raw portal_password
+
+    To retrieve the MySQL server FQDN, run:
+      terraform output -raw mysql_server_fqdn
+  EOT
+}
