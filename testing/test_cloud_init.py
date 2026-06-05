@@ -28,6 +28,7 @@ Usage:
 import sys
 import time
 import click
+import yaml
 from pathlib import Path
 from datetime import datetime
 
@@ -52,6 +53,52 @@ from state_manager import (
 )
 from ssh_helper import parse_ssh_command, SSHError
 from cloud_init_checker import verify_instance, CloudInitError
+
+
+def load_server_types():
+    """Load server type definitions from server_types.yaml."""
+    server_types_path = Path(__file__).parent / "server_types.yaml"
+    if server_types_path.exists():
+        with open(server_types_path) as f:
+            return yaml.safe_load(f)
+    return {}
+
+
+def get_expected_services_for_role(role: str, server_types: dict) -> tuple:
+    """
+    Get expected systemd and PM2 services for a given server role.
+
+    Args:
+        role: Server role (e.g., 'sbc', 'web-monitoring', 'feature-server')
+        server_types: Server types config from server_types.yaml
+
+    Returns:
+        Tuple of (systemd_services, pm2_services)
+    """
+    # Normalize role name (e.g., 'sbc-0' -> 'sbc', 'feature-server-0' -> 'feature-server')
+    base_role = role.split('-')[0] if role.split('-')[-1].isdigit() else role
+
+    # Map common role names to server type keys
+    role_mapping = {
+        'sbc': 'sbc',
+        'web': 'web',
+        'monitoring': 'monitoring',
+        'web-monitoring': 'web-monitoring',
+        'feature': 'feature-server',
+        'feature-server': 'feature-server',
+        'recording': 'recording',
+        'mini': 'mini',
+        'sip': 'sip',
+        'rtp': 'rtp',
+    }
+
+    server_type_key = role_mapping.get(base_role, base_role)
+    server_type = server_types.get('server_types', {}).get(server_type_key, {})
+
+    systemd_services = server_type.get('systemd_services', [])
+    pm2_services = server_type.get('pm2_processes', [])
+
+    return systemd_services, pm2_services
 
 
 @click.command()
@@ -177,6 +224,9 @@ def main(terraform_dir, config, deploy, cleanup_on_success, var_file):
         logger.info(f"✓ Found {len(instances)} instance(s) to verify")
         logger.info("")
 
+        # Load server type definitions for expected services
+        server_types = load_server_types()
+
         # Test each instance
         logger.info("[Verification Phase]")
         logger.info("Testing instances...")
@@ -190,6 +240,13 @@ def main(terraform_dir, config, deploy, cleanup_on_success, var_file):
             host = instance['host']
             jump_host = instance.get('jump_host')
 
+            # Get expected services for this role
+            expected_systemd, expected_pm2 = get_expected_services_for_role(role, server_types)
+            if expected_systemd:
+                logger.debug(f"{role}: expecting systemd services: {expected_systemd}")
+            if expected_pm2:
+                logger.debug(f"{role}: expecting PM2 processes: {expected_pm2}")
+
             logger.info(f"Testing {role} ({host})...")
             if jump_host:
                 logger.info(f"  (via jump host {jump_host})")
@@ -200,6 +257,7 @@ def main(terraform_dir, config, deploy, cleanup_on_success, var_file):
                     ssh_config=ssh_config,
                     role=role,
                     jump_host=jump_host,
+                    expected_systemd_services=expected_systemd,
                     provider=provider
                 )
                 results.append(result)
