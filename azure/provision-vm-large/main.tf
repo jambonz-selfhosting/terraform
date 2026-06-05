@@ -911,6 +911,7 @@ resource "azurerm_managed_redis" "jambonz" {
 
   default_database {
     access_keys_authentication_enabled = true
+    clustering_policy                  = "NoCluster"
   }
 
   tags = {
