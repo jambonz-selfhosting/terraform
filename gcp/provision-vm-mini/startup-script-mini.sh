@@ -198,6 +198,10 @@ echo "Restarting jaeger..."
 sudo systemctl restart jaeger-collector.service || true
 sudo systemctl restart jaeger-query.service || true
 
+# Restart telegraf (was stopped at start for configuration)
+echo "Restarting telegraf..."
+sudo systemctl restart telegraf || true
+
 
 # Configure and start jambonz-updater BEFORE pm2 so api-server has correct token
 UPDATER_TOKEN=$(openssl rand -hex 32)
