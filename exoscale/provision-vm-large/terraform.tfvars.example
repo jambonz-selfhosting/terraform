@@ -167,3 +167,12 @@ scale_in_timeout_seconds = 900  # 15 minutes
 #    - Feature and Recording servers have private IPs only
 #    - Use SIP server as jump/bastion to access private servers:
 #      ssh -J jambonz@<sip-ip> jambonz@<feature-server-private-ip>
+
+# ------------------------------------------------------------------------------
+# KRISP (Optional)
+# Noise isolation and turn-taking for voice AI applications
+# Contact support@jambonz.org for information on obtaining a license key
+# ------------------------------------------------------------------------------
+
+# krisp_license_key = ""
+

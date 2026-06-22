@@ -195,6 +195,7 @@ resource "google_compute_instance_template" "feature_server" {
     scale_in_timeout_seconds  = var.scale_in_timeout_seconds
     project_id                = var.project_id
     zone                      = var.zone
+    krisp_license_key         = var.krisp_license_key
   })
 
   labels = {

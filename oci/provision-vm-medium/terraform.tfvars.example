@@ -19,10 +19,10 @@ region           = "us-ashburn-1"
 # Images are imported from Object Storage using Pre-Authenticated Requests
 # ------------------------------------------------------------------------------
 
-# sbc_image_par_url            = "https://objectstorage.us-ashburn-1.oraclecloud.com/p/xxxxx/n/namespace/b/bucket/o/jambonz-sbc-v10.0.4.oci"
-# feature_server_image_par_url = "https://objectstorage.us-ashburn-1.oraclecloud.com/p/xxxxx/n/namespace/b/bucket/o/jambonz-fs-v10.0.4.oci"
-# web_monitoring_image_par_url = "https://objectstorage.us-ashburn-1.oraclecloud.com/p/xxxxx/n/namespace/b/bucket/o/jambonz-web-monitoring-v10.0.4.oci"
-# recording_image_par_url      = "https://objectstorage.us-ashburn-1.oraclecloud.com/p/xxxxx/n/namespace/b/bucket/o/jambonz-recording-v10.0.4.oci"
+# sbc_image_par_url            = "https://objectstorage.us-ashburn-1.oraclecloud.com/p/xxxxx/n/namespace/b/bucket/o/jambonz-sbc-v10.2.0.oci"
+# feature_server_image_par_url = "https://objectstorage.us-ashburn-1.oraclecloud.com/p/xxxxx/n/namespace/b/bucket/o/jambonz-fs-v10.2.0.oci"
+# web_monitoring_image_par_url = "https://objectstorage.us-ashburn-1.oraclecloud.com/p/xxxxx/n/namespace/b/bucket/o/jambonz-web-monitoring-v10.2.0.oci"
+# recording_image_par_url      = "https://objectstorage.us-ashburn-1.oraclecloud.com/p/xxxxx/n/namespace/b/bucket/o/jambonz-recording-v10.2.0.oci"
 
 # ------------------------------------------------------------------------------
 # SSH ACCESS
@@ -133,3 +133,12 @@ mysql_username = "jambonz"
 # apiban_key           = "your-apiban-api-key"
 # apiban_client_id     = ""
 # apiban_client_secret = ""
+
+# ------------------------------------------------------------------------------
+# KRISP (Optional)
+# Noise isolation and turn-taking for voice AI applications
+# Contact support@jambonz.org for information on obtaining a license key
+# ------------------------------------------------------------------------------
+
+# krisp_license_key = ""
+

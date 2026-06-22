@@ -18,7 +18,7 @@ region           = "us-ashburn-1"
 # Default uses the official jambonz image. Override only if using a custom image.
 # ------------------------------------------------------------------------------
 
-# image_par_url = "https://id580apywcz8.objectstorage.us-ashburn-1.oci.customer-oci.com/p/8EqWqw5irenhdhyRciBaH6PratRrR9EZAv8YOHLLls8k431-DiYxufUBuw1b89cB/n/id580apywcz8/b/jambonz-images/o/jambonz-mini-v10.0.4.oci"
+# image_par_url = "https://id580apywcz8.objectstorage.us-ashburn-1.oci.customer-oci.com/p/8EqWqw5irenhdhyRciBaH6PratRrR9EZAv8YOHLLls8k431-DiYxufUBuw1b89cB/n/id580apywcz8/b/jambonz-images/o/jambonz-mini-v10.2.0.oci"
 
 # ------------------------------------------------------------------------------
 # INSTANCE CONFIGURATION
@@ -63,3 +63,12 @@ url_portal = "jambonz.example.com"
 # apiban_key           = "your-apiban-api-key"
 # apiban_client_id     = ""
 # apiban_client_secret = ""
+
+# ------------------------------------------------------------------------------
+# KRISP (Optional)
+# Noise isolation and turn-taking for voice AI applications
+# Contact support@jambonz.org for information on obtaining a license key
+# ------------------------------------------------------------------------------
+
+# krisp_license_key = ""
+

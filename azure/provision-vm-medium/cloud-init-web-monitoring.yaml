@@ -22,6 +22,7 @@ write_files:
       VPC_CIDR="${vpc_cidr}"
       DEPLOY_RECORDING_CLUSTER="${deploy_recording_cluster}"
       KEY_VAULT_NAME="${key_vault_name}"
+      ENABLE_OTEL="${enable_otel}"
 
       echo "Starting jambonz Web/Monitoring server configuration for Azure deployment"
 
@@ -65,6 +66,11 @@ write_files:
       mysql -h $MYSQL_HOST -u $MYSQL_USER -D jambones -p$MYSQL_PASSWORD < $HOME/apps/api-server/db/jambones-sql.sql || true
       sudo sed -i "s/public-apps.jambonz.cloud/public-apps.$URL_PORTAL/g" $HOME/apps/api-server/db/seed-production-database-open-source.sql
       mysql -h $MYSQL_HOST -u $MYSQL_USER -D jambones -p$MYSQL_PASSWORD < $HOME/apps/api-server/db/seed-production-database-open-source.sql || true
+
+      # Insert schema version from api-server package.json
+      SCHEMA_VERSION=$(node -p "require('$HOME/apps/api-server/package.json').version")
+      echo "Setting schema_version to $SCHEMA_VERSION"
+      mysql -h $MYSQL_HOST -u $MYSQL_USER -D jambones -p$MYSQL_PASSWORD -e "INSERT INTO schema_version (version) VALUES ('$SCHEMA_VERSION')" || true
 
       # Reset admin password
       JAMBONES_ADMIN_INITIAL_PASSWORD=$INSTANCE_ID \
@@ -113,6 +119,7 @@ write_files:
             JAMBONES_REDIS_HOST: '$REDIS_HOST',
             JAMBONES_REDIS_PORT: $REDIS_PORT,
             JAMBONES_REDIS_PASSWORD: '$REDIS_PASSWORD',
+            ENABLE_JAMBONES_REDIS_TLS: 1,
             JAMBONE_API_VERSION: 'v1',
             JAMBONES_TIME_SERIES_HOST: '127.0.0.1',
             ENABLE_METRICS: 1,
@@ -128,6 +135,8 @@ write_files:
             HOMER_PASSWORD: 'sipcapture',
             JAMBONZ_RECORD_WS_USERNAME: 'jambonz',
             JAMBONZ_RECORD_WS_PASSWORD: '$JWT_SECRET',
+            JAMBONZ_UPDATE_CLIENT_TOKEN: '__JAMBONZ_UPDATE_CLIENT_TOKEN__',
+            JAMBONZ_UPDATE_CLIENT_URL: 'http://127.0.0.1:3201'
             },
         },
         {
@@ -160,14 +169,11 @@ write_files:
 
       echo "Finished writing config file"
 
-      sudo -u $USER bash -c "pm2 start $HOME/apps/ecosystem.config.js"
+      sudo -u $USER bash -c "pm2 delete $HOME/apps/ecosystem.config.js; pm2 start $HOME/apps/ecosystem.config.js" || true
       sudo env PATH=$PATH:/usr/bin /usr/lib/node_modules/pm2/bin/pm2 startup systemd -u $USER --hp $HOME
       sudo -u $USER bash -c "pm2 save"
       sudo systemctl enable pm2-$USER.service
 
-      # Configure telegraf to send to the monitoring server (which is local)
-      sudo sed -i -e "s/influxdb:8086/127.0.0.1:8086/g" /etc/telegraf/telegraf.conf
-      sudo systemctl restart telegraf
 
       # Configure nginx
       sudo cat << EOF > $NGINX_CONFIG
@@ -234,13 +240,22 @@ write_files:
 
       sudo systemctl restart heplify-server.service || true
 
-      # Restart cassandra and give it time to come up
-      echo "Restarting cassandra..."
-      sudo systemctl restart cassandra.service || true
-      sleep 60
-      echo "Restarting jaeger"
-      sudo systemctl restart jaeger-collector.service || true
-      sudo systemctl restart jaeger-query.service || true
+      # Handle OpenTelemetry services (Cassandra + Jaeger)
+      if [[ "$ENABLE_OTEL" == "true" ]]; then
+        echo "OpenTelemetry enabled - starting Cassandra and Jaeger"
+        sudo systemctl restart cassandra.service || true
+        sleep 60
+        sudo systemctl restart jaeger-collector.service || true
+        sudo systemctl restart jaeger-query.service || true
+      else
+        echo "OpenTelemetry disabled - disabling Cassandra and Jaeger services"
+        sudo systemctl stop cassandra.service || true
+        sudo systemctl disable cassandra.service
+        sudo systemctl stop jaeger-collector.service || true
+        sudo systemctl disable jaeger-collector.service
+        sudo systemctl stop jaeger-query.service || true
+        sudo systemctl disable jaeger-query.service
+      fi
 
       # Configure upload_recordings service
       sudo sed -i -e "s/MYSQL_HOST=/MYSQL_HOST=$MYSQL_HOST/g" /etc/systemd/system/upload_recordings.service

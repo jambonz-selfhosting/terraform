@@ -95,6 +95,7 @@ if [ -f /etc/systemd/system/drachtio.service ]; then
 fi
 
 # Configure freeswitch service
+KRISP_LICENSE_KEY="${krisp_license_key}"
 if [ -f /etc/systemd/system/freeswitch.service ]; then
     sudo sed -i -e "s/JAMBONES_MYSQL_HOST=/JAMBONES_MYSQL_HOST=127.0.0.1/g" /etc/systemd/system/freeswitch.service
     sudo sed -i -e "s/JAMBONES_MYSQL_USER=/JAMBONES_MYSQL_USER=admin/g" /etc/systemd/system/freeswitch.service
@@ -102,6 +103,9 @@ if [ -f /etc/systemd/system/freeswitch.service ]; then
     sudo sed -i -e "s/JAMBONES_MYSQL_DATABASE=/JAMBONES_MYSQL_DATABASE=jambones/g" /etc/systemd/system/freeswitch.service
     sudo sed -i -e "s/JAMBONES_REDIS_HOST=/JAMBONES_REDIS_HOST=127.0.0.1/g" /etc/systemd/system/freeswitch.service
     sudo sed -i -e "s/JAMBONES_REDIS_PORT=/JAMBONES_REDIS_PORT=6379/g" /etc/systemd/system/freeswitch.service
+    if [ -n "$KRISP_LICENSE_KEY" ]; then
+        sudo sed -i -e "s/KRISP_LICENSE_KEY=/KRISP_LICENSE_KEY=$KRISP_LICENSE_KEY/g" /etc/systemd/system/freeswitch.service
+    fi
 fi
 
 sudo systemctl daemon-reload
@@ -131,6 +135,7 @@ if [[ -z "$URL_PORTAL" ]]; then
   # Portals will be accessed by IP address
   echo "Configuring for IP-based access..."
   echo "VITE_API_BASE_URL=http://$PUBLIC_IP/api/v1" > $HOME/apps/webapp/.env
+  echo "VITE_ENABLE_SYSTEM_UPDATES=true" >> "$HOME/apps/webapp/.env"
   API_BASE_URL="http://$PUBLIC_IP/api/v1"
   TAG="<script>window.JAMBONZ = { API_BASE_URL: '$API_BASE_URL'};</script>"
   sed -i -e "\\@</head>@i\\ $TAG" $HOME/apps/webapp/dist/index.html || true
@@ -141,6 +146,7 @@ else
   # Portals will be accessed by DNS name
   echo "Configuring for DNS-based access: $URL_PORTAL"
   echo "VITE_API_BASE_URL=http://$URL_PORTAL/api/v1" > $HOME/apps/webapp/.env
+  echo "VITE_ENABLE_SYSTEM_UPDATES=true" >> "$HOME/apps/webapp/.env"
   API_BASE_URL="http://$URL_PORTAL/api/v1"
   TAG="<script>window.JAMBONZ = { API_BASE_URL: '$API_BASE_URL'};</script>"
   sed -i -e "\\@</head>@i\\ $TAG" $HOME/apps/webapp/dist/index.html || true
@@ -223,13 +229,20 @@ echo "Restarting jaeger..."
 sudo systemctl restart jaeger-collector.service || true
 sudo systemctl restart jaeger-query.service || true
 
-# Configure telegraf to send to local influxdb
-sudo sed -i -e "s/influxdb:8086/127.0.0.1:8086/g" /etc/telegraf/telegraf.conf
-sudo systemctl restart telegraf
+
+# Configure and start jambonz-updater BEFORE pm2 so api-server has correct token
+UPDATER_TOKEN=$(openssl rand -hex 32)
+sudo mkdir -p /etc/jambonz-updater
+echo "$UPDATER_TOKEN" | sudo tee /etc/jambonz-updater/local-token > /dev/null
+sudo chmod 0640 /etc/jambonz-updater/local-token
+sudo sed -i "s/__JAMBONZ_UPDATE_CLIENT_TOKEN__/$UPDATER_TOKEN/g" /etc/systemd/system/jambonz-updater.service
+sudo sed -i "s/__JAMBONZ_UPDATE_CLIENT_TOKEN__/$UPDATER_TOKEN/g" $HOME/apps/ecosystem.config.js
+sudo systemctl daemon-reload
+sudo systemctl enable --now jambonz-updater
 
 # Start PM2 apps
 echo "Starting jambonz apps..."
-sudo -u $USER bash -c "pm2 restart $HOME/apps/ecosystem.config.js"
+sudo -u $USER bash -c "pm2 delete $HOME/apps/ecosystem.config.js; pm2 start $HOME/apps/ecosystem.config.js" || true
 sudo -u $USER bash -c "pm2 save"
 sudo env PATH=$PATH:/usr/bin /usr/lib/node_modules/pm2/bin/pm2 startup systemd -u $USER --hp $HOME
 sudo systemctl enable pm2-$USER.service

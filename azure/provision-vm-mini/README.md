@@ -63,7 +63,7 @@ jambonz images are published to an **Azure Community Gallery** and are automatic
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `jambonz_version` | `10.0.4` | jambonz version to deploy |
+| `jambonz_version` | `10.2.0` | jambonz version to deploy |
 | `community_gallery_name` | `jambonz-8962e4f5-da0f-41ee-b094-8680ad38d302` | Azure Community Gallery name |
 
 To use a different version, set `jambonz_version` in your `terraform.tfvars`:
@@ -84,7 +84,7 @@ jambonz_version = "10.0.5"
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `jambonz_version` | `10.0.4` | jambonz version to deploy |
+| `jambonz_version` | `10.2.0` | jambonz version to deploy |
 | `location` | `eastus` | Azure region (see supported regions below) |
 | `vm_size` | `Standard_D2s_v3` | VM size |
 | `disk_size` | `100` | OS disk size in GB |
@@ -170,7 +170,7 @@ After deployment, Terraform will output:
 - **resource_group_name**: Azure resource group name
 - **vm_name**: Azure VM name
 - **admin_user**: Portal username (admin)
-- **admin_password**: Initial password (VM instance ID)
+- **admin_password**: Initial password (hidden by default, see below)
 - **ssh_connection**: SSH command to connect
 
 View outputs anytime:
@@ -178,6 +178,20 @@ View outputs anytime:
 terraform output
 terraform output -raw server_ip
 ```
+
+### Accessing the Portal
+
+The initial admin password is the VM's instance ID. Since it's marked as sensitive, retrieve it with:
+
+```bash
+terraform output admin_password
+```
+
+Login credentials:
+- **Username**: admin
+- **Password**: (output of command above)
+
+You will be prompted to change the password on first login.
 
 ## VM Sizes
 

@@ -79,19 +79,20 @@ resource "azurerm_linux_virtual_machine" "web_monitoring" {
     mysql_host              = azurerm_mysql_flexible_server.jambonz.fqdn
     mysql_user              = var.mysql_username
     mysql_password          = local.db_password
-    redis_host              = azurerm_redis_cache.jambonz.hostname
-    redis_port              = azurerm_redis_cache.jambonz.port
-    redis_password          = azurerm_redis_cache.jambonz.primary_access_key
+    redis_host              = azurerm_managed_redis.jambonz.hostname
+    redis_port              = 10000
+    redis_password          = azurerm_managed_redis.jambonz.default_database[0].primary_access_key
     jwt_secret              = random_password.encryption_secret.result
     url_portal              = var.url_portal
     vpc_cidr                = var.vpc_cidr
     deploy_recording_cluster = var.deploy_recording_cluster
     key_vault_name          = azurerm_key_vault.jambonz.name
+    enable_otel             = var.enable_otel
   }))
 
   depends_on = [
     azurerm_mysql_flexible_server.jambonz,
-    azurerm_redis_cache.jambonz
+    azurerm_managed_redis.jambonz
   ]
 
   tags = {
@@ -184,9 +185,9 @@ resource "azurerm_linux_virtual_machine" "sbc" {
     mysql_host                = azurerm_mysql_flexible_server.jambonz.fqdn
     mysql_user                = var.mysql_username
     mysql_password            = local.db_password
-    redis_host                = azurerm_redis_cache.jambonz.hostname
-    redis_port                = azurerm_redis_cache.jambonz.port
-    redis_password            = azurerm_redis_cache.jambonz.primary_access_key
+    redis_host                = azurerm_managed_redis.jambonz.hostname
+    redis_port                = 10000
+    redis_password            = azurerm_managed_redis.jambonz.default_database[0].primary_access_key
     jwt_secret                = random_password.encryption_secret.result
     web_monitoring_private_ip = azurerm_network_interface.web_monitoring.private_ip_address
     vpc_cidr                  = var.vpc_cidr
@@ -265,15 +266,17 @@ resource "azurerm_linux_virtual_machine_scale_set" "feature_server" {
     mysql_host                = azurerm_mysql_flexible_server.jambonz.fqdn
     mysql_user                = var.mysql_username
     mysql_password            = local.db_password
-    redis_host                = azurerm_redis_cache.jambonz.hostname
-    redis_port                = azurerm_redis_cache.jambonz.port
-    redis_password            = azurerm_redis_cache.jambonz.primary_access_key
+    redis_host                = azurerm_managed_redis.jambonz.hostname
+    redis_port                = 10000
+    redis_password            = azurerm_managed_redis.jambonz.default_database[0].primary_access_key
     jwt_secret                = random_password.encryption_secret.result
     web_monitoring_private_ip = azurerm_network_interface.web_monitoring.private_ip_address
     vpc_cidr                  = var.vpc_cidr
     url_portal                = var.url_portal
     key_vault_name            = azurerm_key_vault.jambonz.name
     recording_ws_base_url     = var.deploy_recording_cluster ? "ws://${azurerm_lb.recording[0].private_ip_address}" : "ws://${azurerm_network_interface.web_monitoring.private_ip_address}:3017"
+    krisp_license_key         = var.krisp_license_key
+    enable_otel               = var.enable_otel
   }))
 
   depends_on = [
@@ -340,7 +343,7 @@ resource "azurerm_lb_rule" "recording" {
   backend_address_pool_ids       = [azurerm_lb_backend_address_pool.recording[0].id]
   probe_id                       = azurerm_lb_probe.recording[0].id
   idle_timeout_in_minutes        = 30
-  enable_tcp_reset               = true
+  tcp_reset_enabled              = true
 }
 
 resource "azurerm_linux_virtual_machine_scale_set" "recording" {

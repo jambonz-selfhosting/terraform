@@ -335,6 +335,7 @@ resource "exoscale_instance_pool" "feature_server" {
     monitoring_private_ip    = local.monitoring_private_ip
     recording_ws_base_url    = var.deploy_recording_cluster ? "ws://${exoscale_nlb.recording[0].ip_address}" : ""
     scale_in_timeout_seconds = var.scale_in_timeout_seconds
+    krisp_license_key        = var.krisp_license_key
   })
 
   labels = {

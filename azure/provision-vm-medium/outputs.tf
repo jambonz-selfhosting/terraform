@@ -62,8 +62,8 @@ output "mysql_server_fqdn" {
 }
 
 output "redis_hostname" {
-  description = "Redis Cache hostname"
-  value       = azurerm_redis_cache.jambonz.hostname
+  description = "Azure Managed Redis hostname"
+  value       = azurerm_managed_redis.jambonz.hostname
   sensitive   = true
 }
 
@@ -118,4 +118,15 @@ output "key_vault_name" {
 output "managed_identity_client_id" {
   description = "Client ID of the managed identity for Azure resource access"
   value       = azurerm_user_assigned_identity.jambonz.client_id
+}
+
+output "how_to_retrieve_sensitive_values" {
+  description = "Instructions for retrieving sensitive output values"
+  value       = <<-EOT
+    To retrieve the portal password, run:
+      terraform output -raw portal_password
+
+    To retrieve the MySQL server FQDN, run:
+      terraform output -raw mysql_server_fqdn
+  EOT
 }

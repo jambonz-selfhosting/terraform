@@ -70,3 +70,12 @@ disk_size = 100
 # ------------------------------------------------------------------------------
 
 ssh_user = "jambonz"
+
+# ------------------------------------------------------------------------------
+# KRISP (Optional)
+# Noise isolation and turn-taking for voice AI applications
+# Contact support@jambonz.org for information on obtaining a license key
+# ------------------------------------------------------------------------------
+
+# krisp_license_key = ""
+

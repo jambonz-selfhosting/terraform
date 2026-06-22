@@ -417,16 +417,99 @@ def _format_memory(bytes_value: int) -> str:
         return f"{bytes_value / (1024 * 1024 * 1024):.1f}GB"
 
 
+def verify_systemd_services(
+    host: str,
+    ssh_config: dict,
+    jump_host: str = None,
+    role: str = "instance",
+    expected_services: List[str] = None
+) -> List[Dict[str, str]]:
+    """
+    Verify systemd services are running on an instance.
+
+    Args:
+        host: Instance hostname or IP
+        ssh_config: SSH configuration dict
+        jump_host: Optional jump host for private instances
+        role: Instance role name (for logging)
+        expected_services: Optional list of service names to expect
+
+    Returns:
+        List of service dicts with keys: name, status
+
+    Raises:
+        SSHError: If SSH connection fails
+        CloudInitError: If critical systemd services are not running
+    """
+    logger.debug(f"Checking systemd services on {role} ({host})")
+
+    if not expected_services:
+        logger.debug(f"{role}: No expected systemd services specified, skipping check")
+        return []
+
+    services = []
+    failed_services = []
+
+    for service in expected_services:
+        try:
+            stdout, stderr, exit_code = run_ssh_command(
+                host=host,
+                command=f"systemctl is-active {service}",
+                ssh_config=ssh_config,
+                jump_host=jump_host
+            )
+
+            status = stdout.strip().lower()
+            services.append({
+                'name': service,
+                'status': status
+            })
+
+            if status == 'active':
+                logger.debug(f"{role}: systemd service {service} is active")
+            else:
+                # Check if it's an optional service (telegraf, etc.)
+                optional_services = ['telegraf', 'postgresql', 'homer-app', 'heplify-server',
+                                   'cassandra', 'jaeger-query', 'jaeger-collector']
+                if service in optional_services:
+                    logger.debug(f"{role}: optional systemd service {service} is {status}")
+                else:
+                    logger.warning(f"{role}: systemd service {service} is {status}")
+                    failed_services.append(service)
+
+        except SSHError as e:
+            logger.warning(f"{role}: Failed to check systemd service {service}: {e}")
+            services.append({
+                'name': service,
+                'status': 'unknown'
+            })
+
+    # Log summary
+    active_services = [s for s in services if s['status'] == 'active']
+    if active_services:
+        service_list = ', '.join([s['name'] for s in active_services])
+        logger.info(f"✓ {role}: {len(active_services)} systemd services active: {service_list}")
+
+    if failed_services:
+        service_list = ', '.join(failed_services)
+        error_msg = f"{role}: {len(failed_services)} critical systemd services not active: {service_list}"
+        logger.error(error_msg)
+        raise CloudInitError(error_msg)
+
+    return services
+
+
 def verify_instance(
     host: str,
     ssh_config: dict,
     role: str = "instance",
     jump_host: str = None,
     expected_services: List[str] = None,
+    expected_systemd_services: List[str] = None,
     provider: str = None
 ) -> Dict[str, any]:
     """
-    Complete verification of an instance (cloud-init + PM2 services).
+    Complete verification of an instance (cloud-init + systemd + PM2 services).
 
     Args:
         host: Instance hostname or IP
@@ -434,6 +517,7 @@ def verify_instance(
         role: Instance role name
         jump_host: Optional jump host for private instances
         expected_services: Optional list of expected PM2 service names
+        expected_systemd_services: Optional list of expected systemd service names
         provider: Cloud provider (gcp, aws, azure, exoscale, etc.)
 
     Returns:
@@ -441,7 +525,8 @@ def verify_instance(
             'host': str,
             'role': str,
             'cloud_init': bool,
-            'services': List[Dict],
+            'systemd_services': List[Dict],
+            'pm2_services': List[Dict],
             'success': bool
         }
 
@@ -453,7 +538,8 @@ def verify_instance(
         'host': host,
         'role': role,
         'cloud_init': False,
-        'services': [],
+        'systemd_services': [],
+        'pm2_services': [],
         'success': False
     }
 
@@ -467,18 +553,34 @@ def verify_instance(
     )
     result['cloud_init'] = cloud_init_success
 
+    # Verify systemd services (drachtio, rtpengine, freeswitch, etc.)
+    systemd_success = True
+    try:
+        systemd_services = verify_systemd_services(
+            host=host,
+            ssh_config=ssh_config,
+            jump_host=jump_host,
+            role=role,
+            expected_services=expected_systemd_services
+        )
+        result['systemd_services'] = systemd_services
+    except CloudInitError:
+        systemd_success = False
+
     # Verify PM2 services
-    services = verify_pm2_services(
+    pm2_services = verify_pm2_services(
         host=host,
         ssh_config=ssh_config,
         jump_host=jump_host,
         role=role,
         expected_services=expected_services
     )
-    result['services'] = services
+    result['pm2_services'] = pm2_services
+    # Keep backward compatibility with 'services' key
+    result['services'] = pm2_services
 
-    # Overall success if cloud-init passed and at least one service is online
-    online_services = [s for s in services if s['status'] == 'online']
-    result['success'] = cloud_init_success and len(online_services) > 0
+    # Overall success if cloud-init passed, systemd services are up, and at least one PM2 service is online
+    online_pm2_services = [s for s in pm2_services if s['status'] == 'online']
+    result['success'] = cloud_init_success and systemd_success and len(online_pm2_services) > 0
 
     return result

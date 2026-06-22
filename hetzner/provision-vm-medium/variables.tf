@@ -263,7 +263,7 @@ variable "enable_pcaps" {
 variable "enable_otel" {
   description = "Enable OpenTelemetry tracing (Cassandra + Jaeger on monitoring server)"
   type        = string
-  default     = "true"
+  default     = "false"
 }
 
 variable "scale_in_timeout_seconds" {
@@ -275,4 +275,11 @@ variable "scale_in_timeout_seconds" {
     condition     = var.scale_in_timeout_seconds >= 60 && var.scale_in_timeout_seconds <= 3600
     error_message = "scale_in_timeout_seconds must be between 60 and 3600 seconds"
   }
+}
+
+variable "krisp_license_key" {
+  description = "Krisp license key for noise isolation and turn-taking (optional)"
+  type        = string
+  default     = ""
+  sensitive   = true
 }

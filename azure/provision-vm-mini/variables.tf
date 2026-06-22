@@ -79,7 +79,7 @@ variable "environment" {
 variable "jambonz_version" {
   description = "jambonz version to deploy (image version in community gallery)"
   type        = string
-  default     = "10.0.4"
+  default     = "10.2.0"
 }
 
 variable "community_gallery_name" {
@@ -232,6 +232,13 @@ variable "apiban_client_id" {
 
 variable "apiban_client_secret" {
   description = "APIBan client secret for multi-key mode (optional). Used with client_id to auto-provision keys per instance."
+  type        = string
+  default     = ""
+  sensitive   = true
+}
+
+variable "krisp_license_key" {
+  description = "Krisp license key for noise isolation and turn-taking (optional)"
   type        = string
   default     = ""
   sensitive   = true

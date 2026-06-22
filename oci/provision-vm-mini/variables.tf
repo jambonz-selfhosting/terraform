@@ -73,7 +73,7 @@ variable "availability_domain_number" {
 variable "image_par_url" {
   description = "Pre-Authenticated Request URL for the jambonz mini image (from Object Storage)"
   type        = string
-  default     = "https://id580apywcz8.objectstorage.us-ashburn-1.oci.customer-oci.com/p/KTgxwZEWZjce0kAERPvGx9cFNltZnYbAd2jlAVrWJLB4lAGNcVkx1rGe3yTfP1zU/n/id580apywcz8/b/jambonz-images/o/jambonz-mini-v10.0.4.oci"
+  default     = "https://id580apywcz8.objectstorage.us-ashburn-1.oci.customer-oci.com/p/KTgxwZEWZjce0kAERPvGx9cFNltZnYbAd2jlAVrWJLB4lAGNcVkx1rGe3yTfP1zU/n/id580apywcz8/b/jambonz-images/o/jambonz-mini-v10.2.0.oci"
 
   validation {
     condition     = can(regex("^https://.*", var.image_par_url))
@@ -256,6 +256,13 @@ variable "apiban_client_id" {
 
 variable "apiban_client_secret" {
   description = "APIBan client secret for multi-key mode (optional). Used with client_id to auto-provision keys per instance."
+  type        = string
+  default     = ""
+  sensitive   = true
+}
+
+variable "krisp_license_key" {
+  description = "Krisp license key for noise isolation and turn-taking (optional)"
   type        = string
   default     = ""
   sensitive   = true

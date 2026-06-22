@@ -51,7 +51,7 @@ environment = "production"
 # ------------------------------------------------------------------------------
 
 # jambonz version (image version in community gallery)
-jambonz_version = "10.0.4"
+jambonz_version = "10.2.2"
 
 # Community gallery name (default should work for most users)
 # community_gallery_name = "jambonz-8962e4f5-da0f-41ee-b094-8680ad38d302"
@@ -82,3 +82,12 @@ allowed_sip_cidr = "0.0.0.0/0"
 
 # RTP media access (UDP 40000-60000)
 allowed_rtp_cidr = "0.0.0.0/0"
+
+# ------------------------------------------------------------------------------
+# KRISP (Optional)
+# Noise isolation and turn-taking for voice AI applications
+# Contact support@jambonz.org for information on obtaining a license key
+# ------------------------------------------------------------------------------
+
+# krisp_license_key = ""
+

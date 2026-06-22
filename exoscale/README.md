@@ -56,7 +56,7 @@ Generally, you should run the script with no arguments, however the following op
 
 ```bash
 # Register a specific version
-./prepare-images.sh --version 10.0.4
+./prepare-images.sh --version 10.2.0
 
 # Use AWS S3 as image source instead of Exoscale SOS (slower, but works without SOS setup)
 ./prepare-images.sh --from-s3

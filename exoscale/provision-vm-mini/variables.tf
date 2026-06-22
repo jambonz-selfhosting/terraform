@@ -82,9 +82,9 @@ variable "url_portal" {
 # ------------------------------------------------------------------------------
 
 variable "jambonz_version" {
-  description = "Jambonz version for template lookup (e.g., 10.0.4)"
+  description = "Jambonz version for template lookup (e.g., 10.2.0)"
   type        = string
-  default     = "10.0.4"
+  default     = "10.2.0"
 }
 
 variable "instance_type" {
@@ -199,7 +199,7 @@ variable "enable_pcaps" {
 variable "enable_otel" {
   description = "Enable OpenTelemetry tracing (Cassandra + Jaeger)"
   type        = string
-  default     = "true"
+  default     = "false"
 }
 
 variable "apiban_key" {
@@ -218,6 +218,13 @@ variable "apiban_client_id" {
 
 variable "apiban_client_secret" {
   description = "APIBan client secret for multi-key mode (optional)"
+  type        = string
+  default     = ""
+  sensitive   = true
+}
+
+variable "krisp_license_key" {
+  description = "Krisp license key for noise isolation and turn-taking (optional)"
   type        = string
   default     = ""
   sensitive   = true

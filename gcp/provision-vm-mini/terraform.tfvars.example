@@ -57,7 +57,7 @@ allowed_sip_cidr = ["0.0.0.0/0"]    # SIP/RTP access
 # Public jambonz images from drachtio-cpaas project
 # ------------------------------------------------------------------------------
 
-mini_image = "projects/drachtio-cpaas/global/images/jambonz-mini-v10-0-4-debian-12-20260208163012"
+mini_image = "projects/drachtio-cpaas/global/images/jambonz-mini-v10-2-2-debian-12-20260622132548"
 
 # ------------------------------------------------------------------------------
 # MACHINE TYPE CONFIGURATION
@@ -78,3 +78,12 @@ disk_size = 100
 # ------------------------------------------------------------------------------
 
 ssh_user = "jambonz"
+
+# ------------------------------------------------------------------------------
+# KRISP (Optional)
+# Noise isolation and turn-taking for voice AI applications
+# Contact support@jambonz.org for information on obtaining a license key
+# ------------------------------------------------------------------------------
+
+# krisp_license_key = ""
+

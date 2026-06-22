@@ -100,7 +100,7 @@ allowed_rtp_cidr = "0.0.0.0/0"
 # ------------------------------------------------------------------------------
 
 # jambonz version (image version in community gallery)
-jambonz_version = "10.0.4"
+jambonz_version = "10.2.2"
 
 # Community gallery name (default should work for most users)
 # community_gallery_name = "jambonz-8962e4f5-da0f-41ee-b094-8680ad38d302"
@@ -172,10 +172,19 @@ recording_max_capacity     = 8
 mysql_sku_name = "B_Standard_B2s"
 
 # ------------------------------------------------------------------------------
-# REDIS CONFIGURATION
+# REDIS CONFIGURATION (Azure Managed Redis)
 # ------------------------------------------------------------------------------
 
-# Redis SKU: Basic, Standard, Premium
-redis_sku_name = "Standard"
-redis_family   = "C"
-redis_capacity = 1
+# Redis SKU: Balanced_B0, Balanced_B1, Balanced_B3, Balanced_B5,
+#            MemoryOptimized_M10, MemoryOptimized_M20,
+#            ComputeOptimized_X5, ComputeOptimized_X10
+redis_sku_name = "Balanced_B0"
+
+# ------------------------------------------------------------------------------
+# KRISP (Optional)
+# Noise isolation and turn-taking for voice AI applications
+# Contact support@jambonz.org for information on obtaining a license key
+# ------------------------------------------------------------------------------
+
+# krisp_license_key = ""
+

@@ -27,12 +27,12 @@ region           = "us-ashburn-1"
 # Large deployment uses separate images for each role (SIP, RTP, Web, Monitoring)
 # ------------------------------------------------------------------------------
 
-# sip_image_par_url            = "https://objectstorage.us-ashburn-1.oraclecloud.com/p/xxxxx/n/namespace/b/bucket/o/jambonz-sip-v10.0.4.oci"
-# rtp_image_par_url            = "https://objectstorage.us-ashburn-1.oraclecloud.com/p/xxxxx/n/namespace/b/bucket/o/jambonz-rtp-v10.0.4.oci"
-# web_image_par_url            = "https://objectstorage.us-ashburn-1.oraclecloud.com/p/xxxxx/n/namespace/b/bucket/o/jambonz-web-v10.0.4.oci"
-# monitoring_image_par_url     = "https://objectstorage.us-ashburn-1.oraclecloud.com/p/xxxxx/n/namespace/b/bucket/o/jambonz-monitoring-v10.0.4.oci"
-# feature_server_image_par_url = "https://objectstorage.us-ashburn-1.oraclecloud.com/p/xxxxx/n/namespace/b/bucket/o/jambonz-fs-v10.0.4.oci"
-# recording_image_par_url      = "https://objectstorage.us-ashburn-1.oraclecloud.com/p/xxxxx/n/namespace/b/bucket/o/jambonz-recording-v10.0.4.oci"
+# sip_image_par_url            = "https://objectstorage.us-ashburn-1.oraclecloud.com/p/xxxxx/n/namespace/b/bucket/o/jambonz-sip-v10.2.0.oci"
+# rtp_image_par_url            = "https://objectstorage.us-ashburn-1.oraclecloud.com/p/xxxxx/n/namespace/b/bucket/o/jambonz-rtp-v10.2.0.oci"
+# web_image_par_url            = "https://objectstorage.us-ashburn-1.oraclecloud.com/p/xxxxx/n/namespace/b/bucket/o/jambonz-web-v10.2.0.oci"
+# monitoring_image_par_url     = "https://objectstorage.us-ashburn-1.oraclecloud.com/p/xxxxx/n/namespace/b/bucket/o/jambonz-monitoring-v10.2.0.oci"
+# feature_server_image_par_url = "https://objectstorage.us-ashburn-1.oraclecloud.com/p/xxxxx/n/namespace/b/bucket/o/jambonz-fs-v10.2.0.oci"
+# recording_image_par_url      = "https://objectstorage.us-ashburn-1.oraclecloud.com/p/xxxxx/n/namespace/b/bucket/o/jambonz-recording-v10.2.0.oci"
 
 # ------------------------------------------------------------------------------
 # SSH ACCESS
@@ -154,3 +154,12 @@ mysql_username = "jambonz"
 # apiban_key           = "your-apiban-api-key"
 # apiban_client_id     = ""
 # apiban_client_secret = ""
+
+# ------------------------------------------------------------------------------
+# KRISP (Optional)
+# Noise isolation and turn-taking for voice AI applications
+# Contact support@jambonz.org for information on obtaining a license key
+# ------------------------------------------------------------------------------
+
+# krisp_license_key = ""
+

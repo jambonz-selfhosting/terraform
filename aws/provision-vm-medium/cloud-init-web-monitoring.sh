@@ -70,6 +70,11 @@ mysql -h $MYSQL_HOST -u $MYSQL_USER -D jambones -p$MYSQL_PASSWORD < $HOME/apps/a
 sudo sed -i "s/public-apps.jambonz.cloud/public-apps.$URL_PORTAL/g" $HOME/apps/api-server/db/seed-production-database-open-source.sql
 mysql -h $MYSQL_HOST -u $MYSQL_USER -D jambones -p$MYSQL_PASSWORD < $HOME/apps/api-server/db/seed-production-database-open-source.sql || true
 
+# Insert schema version from api-server package.json
+SCHEMA_VERSION=$(node -p "require('$HOME/apps/api-server/package.json').version")
+echo "Setting schema_version to $SCHEMA_VERSION"
+mysql -h $MYSQL_HOST -u $MYSQL_USER -D jambones -p$MYSQL_PASSWORD -e "INSERT INTO schema_version (version) VALUES ('$SCHEMA_VERSION')" || true
+
 # Reset admin password
 JAMBONES_ADMIN_INITIAL_PASSWORD=$INSTANCE_ID \
 JAMBONES_MYSQL_HOST=$MYSQL_HOST \
@@ -131,7 +136,9 @@ module.exports = {
       HOMER_USERNAME: 'admin',
       HOMER_PASSWORD: 'sipcapture',
       JAMBONZ_RECORD_WS_USERNAME: 'jambonz',
-      JAMBONZ_RECORD_WS_PASSWORD: '$JWT_SECRET'
+      JAMBONZ_RECORD_WS_PASSWORD: '$JWT_SECRET',
+      JAMBONZ_UPDATE_CLIENT_TOKEN: '__JAMBONZ_UPDATE_CLIENT_TOKEN__',
+      JAMBONZ_UPDATE_CLIENT_URL: 'http://127.0.0.1:3201'
     }
   },
   {
@@ -164,14 +171,11 @@ EOF
 
 echo "Finished writing config file"
 
-sudo -u $USER bash -c "pm2 start $HOME/apps/ecosystem.config.js"
+sudo -u $USER bash -c "pm2 delete $HOME/apps/ecosystem.config.js; pm2 start $HOME/apps/ecosystem.config.js" || true
 sudo env PATH=$PATH:/usr/bin /usr/lib/node_modules/pm2/bin/pm2 startup systemd -u $USER --hp $HOME
 sudo -u $USER bash -c "pm2 save"
 sudo systemctl enable pm2-$USER.service
 
-# Configure telegraf to send to the monitoring server (which is local)
-sudo sed -i -e "s/influxdb:8086/127.0.0.1:8086/g" /etc/telegraf/telegraf.conf
-sudo systemctl restart telegraf
 
 # Configure nginx
 sudo tee $NGINX_CONFIG > /dev/null << EOF

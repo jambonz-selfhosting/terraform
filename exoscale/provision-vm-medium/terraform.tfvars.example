@@ -165,3 +165,12 @@ enable_pcaps = true
 # 4. SCALING:
 #    You can scale Feature Servers (1-10) and Recording Servers (1-10)
 #    by updating the counts in this file and running terraform apply.
+
+# ------------------------------------------------------------------------------
+# KRISP (Optional)
+# Noise isolation and turn-taking for voice AI applications
+# Contact support@jambonz.org for information on obtaining a license key
+# ------------------------------------------------------------------------------
+
+# krisp_license_key = ""
+

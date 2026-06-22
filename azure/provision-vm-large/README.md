@@ -99,7 +99,7 @@ The large deployment uses 6 separate images (Web, Monitoring, SIP, RTP, Feature 
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `jambonz_version` | `10.0.4` | jambonz version to deploy |
+| `jambonz_version` | `10.2.0` | jambonz version to deploy |
 | `community_gallery_name` | `jambonz-8962e4f5-da0f-41ee-b094-8680ad38d302` | Azure Community Gallery name |
 
 To use a different version, set `jambonz_version` in your `terraform.tfvars`:
@@ -120,7 +120,7 @@ jambonz_version = "10.0.5"
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `jambonz_version` | `10.0.4` | jambonz version to deploy |
+| `jambonz_version` | `10.2.0` | jambonz version to deploy |
 | `location` | `eastus` | Azure region (see supported regions below) |
 | `name_prefix` | `jambonz` | Prefix for resource names |
 | `sip_count` | `2` | Number of SIP servers |
@@ -244,7 +244,21 @@ Key outputs:
 - **monitoring_public_ip**: IP for monitoring DNS records
 - **sip_public_ips**: IPs for SIP servers
 - **rtp_public_ips**: IPs for RTP servers
-- **portal_password**: Initial admin password (Web VM ID)
+- **portal_password**: Initial admin password (hidden by default, see below)
+
+### Accessing the Portal
+
+The initial admin password is the Web VM's instance ID. Since it's marked as sensitive, retrieve it with:
+
+```bash
+terraform output portal_password
+```
+
+Login credentials:
+- **Username**: admin
+- **Password**: (output of command above)
+
+You will be prompted to change the password on first login.
 
 ## VM Sizes
 

@@ -57,10 +57,10 @@ allowed_sbc_cidr  = ["0.0.0.0/0"]
 # ------------------------------------------------------------------------------
 
 # Public jambonz images from drachtio-cpaas project
-feature_server_image = "projects/drachtio-cpaas/global/images/jambonz-fs-v10-0-4-debian-12-20260208163010"
-sbc_image            = "projects/drachtio-cpaas/global/images/jambonz-sip-rtp-v10-0-4-debian-12-20260204151605"
-web_monitoring_image = "projects/drachtio-cpaas/global/images/jambonz-web-monitoring-v10-0-4-debian-12-20260204151711"
-recording_image      = "projects/drachtio-cpaas/global/images/jambonz-recording-v10-0-4-debian-12-20260204152210"
+feature_server_image = "projects/drachtio-cpaas/global/images/jambonz-fs-v10-2-2-debian-12-20260622132548"
+sbc_image            = "projects/drachtio-cpaas/global/images/jambonz-sip-rtp-v10-2-2-debian-12-20260622132548"
+web_monitoring_image = "projects/drachtio-cpaas/global/images/jambonz-web-monitoring-v10-2-2-debian-12-20260622132548"
+recording_image      = "projects/drachtio-cpaas/global/images/jambonz-recording-v10-2-2-debian-12-20260622132548"
 
 # ------------------------------------------------------------------------------
 # MACHINE TYPE CONFIGURATION
@@ -114,3 +114,12 @@ mysql_disk_size = 20
 
 redis_memory_size_gb = 1
 redis_tier           = "BASIC"
+
+# ------------------------------------------------------------------------------
+# KRISP (Optional)
+# Noise isolation and turn-taking for voice AI applications
+# Contact support@jambonz.org for information on obtaining a license key
+# ------------------------------------------------------------------------------
+
+# krisp_license_key = ""
+

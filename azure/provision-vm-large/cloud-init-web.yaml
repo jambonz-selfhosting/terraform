@@ -115,6 +115,7 @@ write_files:
             JAMBONES_REDIS_HOST: '$REDIS_HOST',
             JAMBONES_REDIS_PORT: $REDIS_PORT,
             JAMBONES_REDIS_PASSWORD: '$REDIS_PASSWORD',
+            ENABLE_JAMBONES_REDIS_TLS: 1,
             JAMBONE_API_VERSION: 'v1',
             JAMBONES_TIME_SERIES_HOST: '$MONITORING_PRIVATE_IP',
             ENABLE_METRICS: 1,
@@ -130,6 +131,8 @@ write_files:
             HOMER_PASSWORD: 'sipcapture',
             JAMBONZ_RECORD_WS_USERNAME: 'jambonz',
             JAMBONZ_RECORD_WS_PASSWORD: '$JWT_SECRET',
+            JAMBONZ_UPDATE_CLIENT_TOKEN: '__JAMBONZ_UPDATE_CLIENT_TOKEN__',
+            JAMBONZ_UPDATE_CLIENT_URL: 'http://127.0.0.1:3201'
             },
         },
         {
@@ -162,7 +165,7 @@ write_files:
 
       echo "Finished writing config file"
 
-      sudo -u $USER bash -c "pm2 start $HOME/apps/ecosystem.config.js"
+      sudo -u $USER bash -c "pm2 delete $HOME/apps/ecosystem.config.js; pm2 start $HOME/apps/ecosystem.config.js" || true
       sudo env PATH=$PATH:/usr/bin /usr/lib/node_modules/pm2/bin/pm2 startup systemd -u $USER --hp $HOME
       sudo -u $USER bash -c "pm2 save"
       sudo systemctl enable pm2-$USER.service
@@ -231,7 +234,7 @@ write_files:
       sudo systemctl restart nginx
 
       # Configure telegraf to send to the monitoring server
-      sudo sed -i -e "s/influxdb:8086/$MONITORING_PRIVATE_IP:8086/g" /etc/telegraf/telegraf.conf
+      echo "JAMBONES_INFLUX_URL=http://$MONITORING_PRIVATE_IP:8086" | sudo tee -a /etc/default/telegraf > /dev/null
       sudo systemctl restart telegraf
 
       # Configure upload_recordings service

@@ -159,7 +159,7 @@ variable "allowed_rtp_cidr" {
 variable "sbc_image_par_url" {
   description = "PAR URL for the SBC image (drachtio + rtpengine)"
   type        = string
-  default     = "https://id580apywcz8.objectstorage.us-ashburn-1.oci.customer-oci.com/p/_idK5bFYOon2gmvVT0wm7v2g-yxtV4jeuBArgSU44n4K--5lV-3PQvJw4XCoQ9p5/n/id580apywcz8/b/jambonz-images/o/jambonz-sip-rtp-v10.0.4.oci"
+  default     = "https://id580apywcz8.objectstorage.us-ashburn-1.oci.customer-oci.com/p/_idK5bFYOon2gmvVT0wm7v2g-yxtV4jeuBArgSU44n4K--5lV-3PQvJw4XCoQ9p5/n/id580apywcz8/b/jambonz-images/o/jambonz-sip-rtp-v10.2.0.oci"
 
   validation {
     condition     = can(regex("^https://.*", var.sbc_image_par_url))
@@ -170,7 +170,7 @@ variable "sbc_image_par_url" {
 variable "feature_server_image_par_url" {
   description = "PAR URL for the Feature Server image (FreeSWITCH)"
   type        = string
-  default     = "https://id580apywcz8.objectstorage.us-ashburn-1.oci.customer-oci.com/p/yhBcJMMJPW1lwhoLr4wgIbkcfCv5uOQycMpzaWwwiaIzfDJO-AJbbQUt3A7VQa_b/n/id580apywcz8/b/jambonz-images/o/jambonz-fs-v10.0.4.oci"
+  default     = "https://id580apywcz8.objectstorage.us-ashburn-1.oci.customer-oci.com/p/yhBcJMMJPW1lwhoLr4wgIbkcfCv5uOQycMpzaWwwiaIzfDJO-AJbbQUt3A7VQa_b/n/id580apywcz8/b/jambonz-images/o/jambonz-fs-v10.2.0.oci"
 
   validation {
     condition     = can(regex("^https://.*", var.feature_server_image_par_url))
@@ -181,7 +181,7 @@ variable "feature_server_image_par_url" {
 variable "web_monitoring_image_par_url" {
   description = "PAR URL for the Web/Monitoring image (portal, API, Grafana, Homer, Jaeger)"
   type        = string
-  default     = "https://id580apywcz8.objectstorage.us-ashburn-1.oci.customer-oci.com/p/kIZgkX_bUH-SlPrAJSZHm67GGHgYaBVVR7qLHsQmOHA229VLAIp9Lpg9_G14cO1k/n/id580apywcz8/b/jambonz-images/o/jambonz-web-monitoring-v10.0.4.oci"
+  default     = "https://id580apywcz8.objectstorage.us-ashburn-1.oci.customer-oci.com/p/kIZgkX_bUH-SlPrAJSZHm67GGHgYaBVVR7qLHsQmOHA229VLAIp9Lpg9_G14cO1k/n/id580apywcz8/b/jambonz-images/o/jambonz-web-monitoring-v10.2.0.oci"
 
   validation {
     condition     = can(regex("^https://.*", var.web_monitoring_image_par_url))
@@ -192,7 +192,7 @@ variable "web_monitoring_image_par_url" {
 variable "recording_image_par_url" {
   description = "PAR URL for the Recording Server image (optional, only if deploy_recording_cluster is true)"
   type        = string
-  default     = "https://id580apywcz8.objectstorage.us-ashburn-1.oci.customer-oci.com/p/UK83YeE0eRKUSGV_U8bQcP6kliqD6ZfBcsUKYwFtNlqCFtbgKfKXDR_AMvGW-QCq/n/id580apywcz8/b/jambonz-images/o/jambonz-recording-v10.0.4.oci"
+  default     = "https://id580apywcz8.objectstorage.us-ashburn-1.oci.customer-oci.com/p/UK83YeE0eRKUSGV_U8bQcP6kliqD6ZfBcsUKYwFtNlqCFtbgKfKXDR_AMvGW-QCq/n/id580apywcz8/b/jambonz-images/o/jambonz-recording-v10.2.0.oci"
 }
 
 # ------------------------------------------------------------------------------
@@ -488,4 +488,11 @@ variable "enable_pcaps" {
   description = "Enable PCAP capture for SIP traffic"
   type        = bool
   default     = true
+}
+
+variable "krisp_license_key" {
+  description = "Krisp license key for noise isolation and turn-taking (optional)"
+  type        = string
+  default     = ""
+  sensitive   = true
 }

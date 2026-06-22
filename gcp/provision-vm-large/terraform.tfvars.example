@@ -62,12 +62,12 @@ allowed_rtp_cidr  = ["0.0.0.0/0"]    # RTP media access
 # Public jambonz images from drachtio-cpaas project
 # ------------------------------------------------------------------------------
 
-sip_image            = "projects/drachtio-cpaas/global/images/jambonz-sip-v10-0-4-debian-12-20260204151530"
-rtp_image            = "projects/drachtio-cpaas/global/images/jambonz-rtp-v10-0-4-debian-12-20260204151546"
-web_image            = "projects/drachtio-cpaas/global/images/jambonz-web-v10-0-4-debian-12-20260204151622"
-monitoring_image     = "projects/drachtio-cpaas/global/images/jambonz-monitoring-v10-0-4-debian-12-20260204151643"
-feature_server_image = "projects/drachtio-cpaas/global/images/jambonz-fs-v10-0-4-debian-12-20260208163010"
-recording_image      = "projects/drachtio-cpaas/global/images/jambonz-recording-v10-0-4-debian-12-20260204152210"
+sip_image            = "projects/drachtio-cpaas/global/images/jambonz-sip-v10-2-2-debian-12-20260622132548"
+rtp_image            = "projects/drachtio-cpaas/global/images/jambonz-rtp-v10-2-2-debian-12-20260622132548"
+web_image            = "projects/drachtio-cpaas/global/images/jambonz-web-v10-2-2-debian-12-20260622132548"
+monitoring_image     = "projects/drachtio-cpaas/global/images/jambonz-monitoring-v10-2-2-debian-12-20260622132548"
+feature_server_image = "projects/drachtio-cpaas/global/images/jambonz-fs-v10-2-2-debian-12-20260622132548"
+recording_image      = "projects/drachtio-cpaas/global/images/jambonz-recording-v10-2-2-debian-12-20260622132548"
 
 # ------------------------------------------------------------------------------
 # MACHINE TYPE CONFIGURATION
@@ -136,3 +136,12 @@ mysql_disk_size = 20
 
 redis_memory_size_gb = 1
 redis_tier           = "BASIC"  # or "STANDARD_HA" for high availability
+
+# ------------------------------------------------------------------------------
+# KRISP (Optional)
+# Noise isolation and turn-taking for voice AI applications
+# Contact support@jambonz.org for information on obtaining a license key
+# ------------------------------------------------------------------------------
+
+# krisp_license_key = ""
+

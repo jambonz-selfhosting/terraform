@@ -26,6 +26,7 @@ write_files:
       URL_PORTAL="${url_portal}"
       RECORDING_WS_BASE_URL="${recording_ws_base_url}"
       ENABLE_OTEL="${enable_otel}"
+      KRISP_LICENSE_KEY="${krisp_license_key}"
 
       echo "Starting jambonz Feature Server configuration for Hetzner"
 
@@ -137,6 +138,9 @@ write_files:
       sudo sed -i -e "s/JAMBONES_MYSQL_DATABASE=/JAMBONES_MYSQL_DATABASE=jambones/g" /etc/systemd/system/freeswitch.service
       sudo sed -i -e "s/JAMBONES_REDIS_HOST=/JAMBONES_REDIS_HOST=$REDIS_HOST/g" /etc/systemd/system/freeswitch.service
       sudo sed -i -e "s/JAMBONES_REDIS_PORT=/JAMBONES_REDIS_PORT=$REDIS_PORT/g" /etc/systemd/system/freeswitch.service
+      if [ -n "$KRISP_LICENSE_KEY" ]; then
+          sudo sed -i -e "s/KRISP_LICENSE_KEY=/KRISP_LICENSE_KEY=$KRISP_LICENSE_KEY/g" /etc/systemd/system/freeswitch.service
+      fi
 
       # On Hetzner, FreeSWITCH auto-detects local_ip_v4 as the public IP (eth0)
       # since the default route points there. Override it to use the private IP
@@ -162,7 +166,7 @@ write_files:
       sudo /usr/local/freeswitch/bin/fs_cli -x "sofia status" || true
 
       # Configure telegraf to send to the monitoring server
-      sudo sed -i -e "s/influxdb:8086/$WEB_MONITORING_PRIVATE_IP:8086/g" /etc/telegraf/telegraf.conf
+      echo "JAMBONES_INFLUX_URL=http://$WEB_MONITORING_PRIVATE_IP:8086" | sudo tee -a /etc/default/telegraf > /dev/null
       sudo systemctl restart telegraf
 
       sudo -u $USER bash -c "pm2 start $HOME/apps/ecosystem.config.js"

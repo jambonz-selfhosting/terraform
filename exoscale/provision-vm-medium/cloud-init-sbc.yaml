@@ -274,7 +274,7 @@ write_files:
 
       # Configure telegraf to send to the monitoring server
       echo "Configuring telegraf..."
-      sudo sed -i -e "s/influxdb:8086/$WEB_MONITORING_PRIVATE_IP:8086/g" /etc/telegraf/telegraf.conf
+      echo "JAMBONES_INFLUX_URL=http://$WEB_MONITORING_PRIVATE_IP:8086" | sudo tee -a /etc/default/telegraf > /dev/null
       sudo systemctl restart telegraf
 
       # Configure HEP/PCAP endpoints

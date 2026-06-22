@@ -114,8 +114,8 @@ output "mysql_server_fqdn" {
 }
 
 output "redis_hostname" {
-  description = "Hostname of the Redis cache"
-  value       = azurerm_redis_cache.jambonz.hostname
+  description = "Azure Managed Redis hostname"
+  value       = azurerm_managed_redis.jambonz.hostname
   sensitive   = true
 }
 
@@ -226,4 +226,19 @@ output "dns_records_required" {
     "jaeger.${var.url_portal}"      = azurerm_public_ip.monitoring.ip_address
     "sip.${var.url_portal}"         = azurerm_public_ip.sip[0].ip_address
   }
+}
+
+# ------------------------------------------------------------------------------
+# HELP
+# ------------------------------------------------------------------------------
+
+output "how_to_retrieve_sensitive_values" {
+  description = "Instructions for retrieving sensitive output values"
+  value       = <<-EOT
+    To retrieve the portal password, run:
+      terraform output -raw portal_password
+
+    To retrieve the MySQL server FQDN, run:
+      terraform output -raw mysql_server_fqdn
+  EOT
 }
