@@ -91,10 +91,27 @@ gcloud services enable compute.googleapis.com \
 
 ### 1. Copy and edit variables
 
+jambonz publishes images for both **amd64** and **arm64**, and each has its own
+example file. Copy whichever you want:
+
 ```bash
+# amd64 (x86) -- the default
 cp terraform.tfvars.example terraform.tfvars
+
+# or arm64 (Google Axion / Ampere)
+cp terraform.tfvars.arm64.example terraform.tfvars
+
 # Edit terraform.tfvars with your values
 ```
+
+The arm64 example is not just different image links: an arm64 deployment also
+needs `c4a-*` machine types and `disk_type = "hyperdisk-balanced"`, because the
+c4a family does not support `pd-*` disks at all. The example sets all three, and
+`terraform plan` will stop you if they ever disagree.
+
+Two things to check before choosing arm64: `c4a-*` is not offered in every zone,
+and its CPU quota is tracked separately from x86, so an existing x86 quota
+increase does not cover it.
 
 At minimum, you must set:
 - `project_id` - Your GCP project ID

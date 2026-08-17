@@ -95,16 +95,73 @@ variable "allowed_sbc_cidr" {
 variable "sbc_image" {
   description = "Self-link or name of the SBC image"
   type        = string
+  # An arm64 deployment needs arm64 images, an arm machine family and (for c4a)
+  # a hyperdisk boot disk to agree. GCP images declare their own architecture, so
+  # a mismatch IS rejected -- but only when the instance is created, part-way
+  # through apply, once the network, database and other hosts already exist.
+  # These move that failure to plan time.
+  validation {
+    condition = var.sbc_image == "" ? true : (
+      can(regex("arm64", var.sbc_image)) == can(regex("^(c4a|t2a)-", var.sbc_machine_type))
+    )
+    error_message = "Architecture mismatch: sbc_image and sbc_machine_type must target the same architecture. An arm64 image needs a c4a-* or t2a-* machine type; an amd64 image needs an x86 type (e2-*, n2-*, c3-*)."
+  }
+
+  validation {
+    condition = var.sbc_image == "" ? true : (
+      !can(regex("^c4a-", var.sbc_machine_type)) || can(regex("^hyperdisk", var.disk_type))
+    )
+    error_message = "sbc_machine_type is c4a-* (Axion), which does not support pd-* disks at all. Set disk_type = \"hyperdisk-balanced\" -- the arm64 example file does this. Without it the instance cannot boot."
+  }
+
 }
 
 variable "feature_server_image" {
   description = "Self-link or name of the Feature Server image"
   type        = string
+  # An arm64 deployment needs arm64 images, an arm machine family and (for c4a)
+  # a hyperdisk boot disk to agree. GCP images declare their own architecture, so
+  # a mismatch IS rejected -- but only when the instance is created, part-way
+  # through apply, once the network, database and other hosts already exist.
+  # These move that failure to plan time.
+  validation {
+    condition = var.feature_server_image == "" ? true : (
+      can(regex("arm64", var.feature_server_image)) == can(regex("^(c4a|t2a)-", var.feature_server_machine_type))
+    )
+    error_message = "Architecture mismatch: feature_server_image and feature_server_machine_type must target the same architecture. An arm64 image needs a c4a-* or t2a-* machine type; an amd64 image needs an x86 type (e2-*, n2-*, c3-*)."
+  }
+
+  validation {
+    condition = var.feature_server_image == "" ? true : (
+      !can(regex("^c4a-", var.feature_server_machine_type)) || can(regex("^hyperdisk", var.disk_type))
+    )
+    error_message = "feature_server_machine_type is c4a-* (Axion), which does not support pd-* disks at all. Set disk_type = \"hyperdisk-balanced\" -- the arm64 example file does this. Without it the instance cannot boot."
+  }
+
 }
 
 variable "web_monitoring_image" {
   description = "Self-link or name of the Web/Monitoring image"
   type        = string
+  # An arm64 deployment needs arm64 images, an arm machine family and (for c4a)
+  # a hyperdisk boot disk to agree. GCP images declare their own architecture, so
+  # a mismatch IS rejected -- but only when the instance is created, part-way
+  # through apply, once the network, database and other hosts already exist.
+  # These move that failure to plan time.
+  validation {
+    condition = var.web_monitoring_image == "" ? true : (
+      can(regex("arm64", var.web_monitoring_image)) == can(regex("^(c4a|t2a)-", var.web_monitoring_machine_type))
+    )
+    error_message = "Architecture mismatch: web_monitoring_image and web_monitoring_machine_type must target the same architecture. An arm64 image needs a c4a-* or t2a-* machine type; an amd64 image needs an x86 type (e2-*, n2-*, c3-*)."
+  }
+
+  validation {
+    condition = var.web_monitoring_image == "" ? true : (
+      !can(regex("^c4a-", var.web_monitoring_machine_type)) || can(regex("^hyperdisk", var.disk_type))
+    )
+    error_message = "web_monitoring_machine_type is c4a-* (Axion), which does not support pd-* disks at all. Set disk_type = \"hyperdisk-balanced\" -- the arm64 example file does this. Without it the instance cannot boot."
+  }
+
 }
 
 variable "recording_image" {
@@ -122,6 +179,25 @@ variable "recording_image" {
     condition     = !var.deploy_recording_cluster || length(trimspace(var.recording_image)) > 0
     error_message = "recording_image must be set when deploy_recording_cluster is true (the default). Supply the jambonz recording image, e.g. projects/drachtio-cpaas/global/images/jambonz-recording-<version>-debian-12-amd64-<ts>, or set deploy_recording_cluster = false to skip the recording cluster."
   }
+  # An arm64 deployment needs arm64 images, an arm machine family and (for c4a)
+  # a hyperdisk boot disk to agree. GCP images declare their own architecture, so
+  # a mismatch IS rejected -- but only when the instance is created, part-way
+  # through apply, once the network, database and other hosts already exist.
+  # These move that failure to plan time.
+  validation {
+    condition = var.recording_image == "" ? true : (
+      can(regex("arm64", var.recording_image)) == can(regex("^(c4a|t2a)-", var.recording_machine_type))
+    )
+    error_message = "Architecture mismatch: recording_image and recording_machine_type must target the same architecture. An arm64 image needs a c4a-* or t2a-* machine type; an amd64 image needs an x86 type (e2-*, n2-*, c3-*)."
+  }
+
+  validation {
+    condition = var.recording_image == "" ? true : (
+      !can(regex("^c4a-", var.recording_machine_type)) || can(regex("^hyperdisk", var.disk_type))
+    )
+    error_message = "recording_machine_type is c4a-* (Axion), which does not support pd-* disks at all. Set disk_type = \"hyperdisk-balanced\" -- the arm64 example file does this. Without it the instance cannot boot."
+  }
+
 }
 
 # ------------------------------------------------------------------------------
