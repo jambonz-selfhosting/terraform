@@ -29,7 +29,7 @@ All components run on a single VM:
 |-----------|-------------|
 | drachtio | SIP server |
 | rtpengine | RTP media proxy |
-| Feature Server | Call processing (freeswitch + jambonz apps) |
+| Feature Server | Call processing (mediajam + jambonz apps) |
 | Web Portal | jambonz admin UI |
 | API Server | REST API |
 | MySQL | Local database |
