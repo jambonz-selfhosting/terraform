@@ -21,42 +21,14 @@ echo "Private IP: $PRIVATE_IP"
 echo "Instance ID: $INSTANCE_ID"
 
 
-# Determine nginx config path
-if [ -f /etc/nginx/sites-available/default ]; then
-    NGINX_CONFIG=/etc/nginx/sites-available/default
-else
-    NGINX_CONFIG=/etc/nginx/conf.d/default.conf
-fi
-
-# Configure nginx (monitoring only: grafana, homer)
-sudo cat << EOF > $NGINX_CONFIG
-server {
-  listen 80;
-  server_name grafana.$URL_PORTAL;
-  location / {
-    proxy_pass http://127.0.0.1:3010;
-    proxy_http_version 1.1;
-    proxy_set_header Upgrade \$http_upgrade;
-    proxy_set_header Connection 'upgrade';
-    proxy_set_header Host \$host;
-    proxy_cache_bypass \$http_upgrade;
-  }
-}
-server {
-  listen 80;
-  server_name homer.$URL_PORTAL;
-  location / {
-    proxy_pass http://127.0.0.1:9080;
-    proxy_http_version 1.1;
-    proxy_set_header Upgrade \$http_upgrade;
-    proxy_set_header Connection 'upgrade';
-    proxy_set_header Host \$host;
-    proxy_cache_bypass \$http_upgrade;
-  }
-}
-EOF
-
-sudo systemctl restart nginx
+# nginx deliberately does NOT run on the monitoring host in a large
+# deployment -- it runs on the web host, which already proxies
+# grafana.<portal> -> monitoring:3010 and homer.<portal> -> monitoring:9080
+# (see startup-script-web.sh). Writing an nginx config here targeted a
+# package that is not installed: neither /etc/nginx/sites-available/default
+# nor /etc/nginx/conf.d/ exists, so the redirect failed and -- because this
+# script runs under `bash -xe` -- aborted provisioning before heplify-server,
+# cassandra and jaeger were restarted.
 
 # Start/restart HEPlify server (receives HEP packets from SIP/RTP servers)
 sudo systemctl restart heplify-server.service || true
