@@ -25,7 +25,7 @@ resource "google_compute_instance" "mini" {
     initialize_params {
       image = var.mini_image
       size  = var.disk_size
-      type  = "pd-ssd"
+      type  = var.disk_type
     }
   }
 
