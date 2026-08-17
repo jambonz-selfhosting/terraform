@@ -77,6 +77,21 @@ if [ -f /etc/systemd/system/freeswitch.service ]; then
     fi
 fi
 
+# Configure mediajam media server (v11+ replaced freeswitch with mediajam).
+# /etc/default/mediajam ships from the package with the redis vars COMMENTED
+# OUT and a note to supply them at deploy time. mediajam's licensing needs
+# them: without JAMBONES_REDIS_HOST it exits 1 at startup, systemd restarts it
+# forever, feature-server never reaches it on 127.0.0.1:8021, and every call
+# fails with "no available feature servers" / 480. Guarded so this stays a
+# no-op on pre-v11 images, which have no /etc/default/mediajam.
+if [ -f /etc/default/mediajam ]; then
+    sudo sed -i -e "s|^#\?JAMBONES_REDIS_HOST=.*|JAMBONES_REDIS_HOST=127.0.0.1|" /etc/default/mediajam
+    sudo sed -i -e "s|^#\?JAMBONES_REDIS_PORT=.*|JAMBONES_REDIS_PORT=6379|" /etc/default/mediajam
+    if [ -n "$KRISP_LICENSE_KEY" ]; then
+        sudo sed -i -e "s|^KRISP_API_KEY=.*|KRISP_API_KEY=$KRISP_LICENSE_KEY|" /etc/default/mediajam
+    fi
+fi
+
 sudo systemctl daemon-reload
 sudo systemctl restart drachtio || true
 sudo systemctl restart freeswitch || true
