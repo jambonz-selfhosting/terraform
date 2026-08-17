@@ -128,6 +128,17 @@ variable "recording_image" {
   description = "Self-link or name of the Recording Server image"
   type        = string
   default     = ""
+
+  # deploy_recording_cluster defaults to true, so a deployment that never sets
+  # recording_image reaches `terraform apply` with source_image = "". plan
+  # SUCCEEDS in that state -- it is a valid empty string -- and the failure only
+  # lands mid-apply when the GCP API rejects an image with no source, by which
+  # point ~35 other resources exist and have to be torn down by hand. Fail here
+  # instead, at plan time, with a message that says what to do.
+  validation {
+    condition     = !var.deploy_recording_cluster || length(trimspace(var.recording_image)) > 0
+    error_message = "recording_image must be set when deploy_recording_cluster is true (the default). Supply the jambonz recording image, e.g. projects/drachtio-cpaas/global/images/jambonz-recording-<version>-debian-12-amd64-<ts>, or set deploy_recording_cluster = false to skip the recording cluster."
+  }
 }
 
 # ------------------------------------------------------------------------------
