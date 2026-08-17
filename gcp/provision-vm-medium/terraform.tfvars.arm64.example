@@ -1,0 +1,146 @@
+# ==============================================================================
+# arm64 (Ampere/Axion) variant of terraform.tfvars.example
+# ==============================================================================
+# An arm64 deployment needs THREE things together. Changing only one of them
+# fails, usually confusingly:
+#
+#   1. arm64 images            (the *_image links below, built with
+#                               ami_base_image_arch=arm64)
+#   2. arm64 machine types     (c4a-*; the c4a family is Google Axion)
+#   3. disk_type=hyperdisk-balanced
+#
+# (3) is not optional: the c4a family does not support pd-* disks at all, so a
+# c4a machine with the default pd-ssd boot disk will not start.
+#
+# c4a is not available in every zone, and its CPUS_PER_VM_FAMILY quota is
+# separate from x86 (24 in us-central1 by default). Check both before deploying.
+# ==============================================================================
+
+# Terraform variables for jambonz medium cluster deployment on GCP
+
+# ==============================================================================
+# REQUIRED - You MUST provide values for these variables
+# ==============================================================================
+
+project_id     = ""  # Your GCP project ID (e.g., "my-gcp-project")
+url_portal     = ""  # Your domain name (e.g., "jambonz.example.com")
+region         = ""  # GCP region (e.g., "us-west1", "us-east1", "europe-west1")
+zone           = ""  # GCP zone (e.g., "us-west1-a", "us-east1-b", "europe-west1-c")
+ssh_public_key = ""  # Your SSH public key (e.g., "ssh-rsa AAAAB3Nz... user@host")
+
+# Set to false to disable if not needed
+enable_pcaps             = true
+deploy_recording_cluster = true
+
+# ------------------------------------------------------------------------------
+# APIBAN CONFIGURATION (optional)
+# Get a free key at https://apiban.org/getkey.html
+# ------------------------------------------------------------------------------
+
+# Single key mode (simpler):
+# apiban_key = "YOUR_APIBAN_KEY"
+
+# OR multi-key mode (auto-provisions unique key per instance):
+# apiban_client_id     = "YOUR_CLIENT_ID"
+# apiban_client_secret = "YOUR_CLIENT_SECRET"
+
+# ==============================================================================
+# OPTIONAL - The defaults below work for most deployments
+# ==============================================================================
+
+# ------------------------------------------------------------------------------
+# DEPLOYMENT CONFIGURATION
+# ------------------------------------------------------------------------------
+
+name_prefix = "jambonz"
+environment = "production"
+
+# ------------------------------------------------------------------------------
+# NETWORK CONFIGURATION
+# ------------------------------------------------------------------------------
+
+vpc_cidr           = "172.20.0.0/16"
+public_subnet_cidr = "172.20.10.0/24"
+
+# ------------------------------------------------------------------------------
+# NETWORK ACCESS CONTROLS
+# ------------------------------------------------------------------------------
+
+allowed_ssh_cidr  = ["0.0.0.0/0"]
+allowed_http_cidr = ["0.0.0.0/0"]
+allowed_sbc_cidr  = ["0.0.0.0/0"]
+
+# ------------------------------------------------------------------------------
+# IMAGE CONFIGURATION
+# ------------------------------------------------------------------------------
+
+# Public jambonz images from drachtio-cpaas project
+feature_server_image = "projects/drachtio-cpaas/global/images/jambonz-fs-v11-1-1-debian-12-arm64-20260817183012"
+sbc_image            = "projects/drachtio-cpaas/global/images/jambonz-sip-rtp-v11-1-1-debian-12-arm64-20260817182845"
+web_monitoring_image = "projects/drachtio-cpaas/global/images/jambonz-web-monitoring-v11-1-1-debian-12-arm64-20260817183103"
+recording_image      = "projects/drachtio-cpaas/global/images/jambonz-recording-v11-1-1-debian-12-arm64-20260817183442"
+
+# ------------------------------------------------------------------------------
+# MACHINE TYPE CONFIGURATION
+# ------------------------------------------------------------------------------
+
+sbc_machine_type            = "c4a-standard-4"
+feature_server_machine_type = "c4a-standard-4"
+web_monitoring_machine_type = "c4a-standard-4"
+recording_machine_type      = "c4a-standard-2"
+
+web_monitoring_disk_size = 200
+
+# ------------------------------------------------------------------------------
+# SBC CONFIGURATION
+# ------------------------------------------------------------------------------
+
+sbc_count = 1
+
+# ------------------------------------------------------------------------------
+# MANAGED INSTANCE GROUP CONFIGURATION
+# ------------------------------------------------------------------------------
+
+feature_server_target_size  = 1
+feature_server_min_replicas = 1
+feature_server_max_replicas = 3
+
+recording_target_size  = 1
+recording_min_replicas = 1
+recording_max_replicas = 3
+
+# Graceful scale-in timeout (max 900 seconds / 15 minutes)
+scale_in_timeout_seconds = 900
+
+# ------------------------------------------------------------------------------
+# SSH CONFIGURATION
+# ------------------------------------------------------------------------------
+
+ssh_user = "jambonz"
+
+# ------------------------------------------------------------------------------
+# DATABASE CONFIGURATION
+# ------------------------------------------------------------------------------
+
+mysql_tier      = "db-custom-2-4096"
+mysql_disk_size = 20
+
+# ------------------------------------------------------------------------------
+# REDIS CONFIGURATION (Memorystore)
+# No AUTH, no TLS - simple configuration
+# ------------------------------------------------------------------------------
+
+redis_memory_size_gb = 1
+redis_tier           = "BASIC"
+
+# ------------------------------------------------------------------------------
+# KRISP (Optional)
+# Noise isolation and turn-taking for voice AI applications
+# Contact support@jambonz.org for information on obtaining a license key
+# ------------------------------------------------------------------------------
+
+# krisp_license_key = ""
+
+
+# arm64 REQUIRES hyperdisk; c4a does not support pd-* disks.
+disk_type = "hyperdisk-balanced"

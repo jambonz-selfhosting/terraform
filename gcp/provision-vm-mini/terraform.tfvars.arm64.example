@@ -1,0 +1,110 @@
+# ==============================================================================
+# arm64 (Ampere/Axion) variant of terraform.tfvars.example
+# ==============================================================================
+# An arm64 deployment needs THREE things together. Changing only one of them
+# fails, usually confusingly:
+#
+#   1. arm64 images            (the *_image links below, built with
+#                               ami_base_image_arch=arm64)
+#   2. arm64 machine types     (c4a-*; the c4a family is Google Axion)
+#   3. disk_type=hyperdisk-balanced
+#
+# (3) is not optional: the c4a family does not support pd-* disks at all, so a
+# c4a machine with the default pd-ssd boot disk will not start.
+#
+# c4a is not available in every zone, and its CPUS_PER_VM_FAMILY quota is
+# separate from x86 (24 in us-central1 by default). Check both before deploying.
+# ==============================================================================
+
+# Example terraform.tfvars for jambonz mini (single VM) deployment on GCP
+# All-in-one deployment with local MySQL, Redis, and monitoring
+#
+# Copy this file to terraform.tfvars and fill in the required values
+
+# ==============================================================================
+# REQUIRED - You MUST provide values for these variables
+# ==============================================================================
+
+project_id     = ""  # Your GCP project ID (e.g., "my-gcp-project")
+url_portal     = ""  # Your domain name (e.g., "jambonz.example.com")
+region         = ""  # GCP region (e.g., "us-west1", "us-east1", "europe-west1")
+zone           = ""  # GCP zone (e.g., "us-west1-a", "us-east1-b", "europe-west1-c")
+ssh_public_key = ""  # Your SSH public key (e.g., "ssh-rsa AAAAB3Nz... user@host")
+
+# ------------------------------------------------------------------------------
+# APIBAN CONFIGURATION (optional)
+# Get a free key at https://apiban.org/getkey.html
+# ------------------------------------------------------------------------------
+
+# Single key mode (simpler):
+# apiban_key = "YOUR_APIBAN_KEY"
+
+# OR multi-key mode (auto-provisions unique key per instance):
+# apiban_client_id     = "YOUR_CLIENT_ID"
+# apiban_client_secret = "YOUR_CLIENT_SECRET"
+
+# ==============================================================================
+# OPTIONAL - The defaults below work for most deployments but can be edited as needed
+# ==============================================================================
+
+# ------------------------------------------------------------------------------
+# DEPLOYMENT CONFIGURATION
+# ------------------------------------------------------------------------------
+
+name_prefix = "jambonz"
+environment = "production"
+
+# ------------------------------------------------------------------------------
+# NETWORK CONFIGURATION
+# ------------------------------------------------------------------------------
+
+vpc_cidr           = "10.0.0.0/16"
+public_subnet_cidr = "10.0.0.0/24"
+
+# ------------------------------------------------------------------------------
+# NETWORK ACCESS CONTROLS
+# ------------------------------------------------------------------------------
+
+# IMPORTANT: Restrict these for production use
+allowed_ssh_cidr = ["0.0.0.0/0"]    # SSH access - consider restricting to your IP
+allowed_http_cidr = ["0.0.0.0/0"]   # Web/API access
+allowed_sip_cidr = ["0.0.0.0/0"]    # SIP/RTP access
+
+# ------------------------------------------------------------------------------
+# IMAGE CONFIGURATION
+# Public jambonz images from drachtio-cpaas project
+# ------------------------------------------------------------------------------
+
+mini_image = "projects/drachtio-cpaas/global/images/jambonz-mini-v11-1-1-debian-12-arm64-20260817183009"
+
+# ------------------------------------------------------------------------------
+# MACHINE TYPE CONFIGURATION
+# ------------------------------------------------------------------------------
+
+# c4a-standard-4 recommended for mini (4 vCPU, 16 GB RAM)
+# Can use c4a-standard-2 for very light workloads
+machine_type = "c4a-standard-4"
+
+# ------------------------------------------------------------------------------
+# DISK SIZE CONFIGURATION
+# ------------------------------------------------------------------------------
+
+disk_size = 100
+
+# ------------------------------------------------------------------------------
+# SSH CONFIGURATION
+# ------------------------------------------------------------------------------
+
+ssh_user = "jambonz"
+
+# ------------------------------------------------------------------------------
+# KRISP (Optional)
+# Noise isolation and turn-taking for voice AI applications
+# Contact support@jambonz.org for information on obtaining a license key
+# ------------------------------------------------------------------------------
+
+# krisp_license_key = ""
+
+
+# arm64 REQUIRES hyperdisk; c4a does not support pd-* disks.
+disk_type = "hyperdisk-balanced"
