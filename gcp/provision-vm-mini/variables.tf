@@ -96,6 +96,25 @@ variable "allowed_sip_cidr" {
 variable "mini_image" {
   description = "Self-link or name of the mini (all-in-one) server image"
   type        = string
+  # An arm64 deployment needs arm64 images, an arm machine family and (for c4a)
+  # a hyperdisk boot disk to agree. GCP images declare their own architecture, so
+  # a mismatch IS rejected -- but only when the instance is created, part-way
+  # through apply, once the network, database and other hosts already exist.
+  # These move that failure to plan time.
+  validation {
+    condition = var.mini_image == "" ? true : (
+      can(regex("arm64", var.mini_image)) == can(regex("^(c4a|t2a)-", var.machine_type))
+    )
+    error_message = "Architecture mismatch: mini_image and machine_type must target the same architecture. An arm64 image needs a c4a-* or t2a-* machine type; an amd64 image needs an x86 type (e2-*, n2-*, c3-*)."
+  }
+
+  validation {
+    condition = var.mini_image == "" ? true : (
+      !can(regex("^c4a-", var.machine_type)) || can(regex("^hyperdisk", var.disk_type))
+    )
+    error_message = "machine_type is c4a-* (Axion), which does not support pd-* disks at all. Set disk_type = \"hyperdisk-balanced\" -- the arm64 example file does this. Without it the instance cannot boot."
+  }
+
 }
 
 # ------------------------------------------------------------------------------
