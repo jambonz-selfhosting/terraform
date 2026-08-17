@@ -10,7 +10,7 @@ This Terraform configuration deploys a GCP GKE (Google Kubernetes Engine) region
 |-----------|---------|-------------|-------|-------|-----------|
 | **system** | General workloads, K8s system components | `system-nodes` | None | - | 80, 443 |
 | **sip** | SIP signaling (drachtio-server) | `sip-nodes` | `sip=true:NoSchedule` | `voip-environment=sip` | 5060, 5061, 8443 |
-| **rtp** | RTP media (rtpengine, freeswitch) | `rtp-nodes` | `rtp=true:NoSchedule` | `voip-environment=rtp` | 40000-60000 |
+| **rtp** | RTP media (rtpengine, mediajam) | `rtp-nodes` | `rtp=true:NoSchedule` | `voip-environment=rtp` | 40000-60000 |
 
 ### Network Architecture
 

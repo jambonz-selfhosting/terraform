@@ -63,38 +63,30 @@ if [ -f /etc/systemd/system/drachtio.service ]; then
     sudo sed -i -e "s/JAMBONES_REDIS_PORT=/JAMBONES_REDIS_PORT=6379/g" /etc/systemd/system/drachtio.service
 fi
 
-# Configure freeswitch service
-KRISP_LICENSE_KEY="${krisp_license_key}"
-if [ -f /etc/systemd/system/freeswitch.service ]; then
-    sudo sed -i -e "s/JAMBONES_MYSQL_HOST=/JAMBONES_MYSQL_HOST=127.0.0.1/g" /etc/systemd/system/freeswitch.service
-    sudo sed -i -e "s/JAMBONES_MYSQL_USER=/JAMBONES_MYSQL_USER=admin/g" /etc/systemd/system/freeswitch.service
-    sudo sed -i -e "s/JAMBONES_MYSQL_PASSWORD=/JAMBONES_MYSQL_PASSWORD=$DB_PASSWORD/g" /etc/systemd/system/freeswitch.service
-    sudo sed -i -e "s/JAMBONES_MYSQL_DATABASE=/JAMBONES_MYSQL_DATABASE=jambones/g" /etc/systemd/system/freeswitch.service
-    sudo sed -i -e "s/JAMBONES_REDIS_HOST=/JAMBONES_REDIS_HOST=127.0.0.1/g" /etc/systemd/system/freeswitch.service
-    sudo sed -i -e "s/JAMBONES_REDIS_PORT=/JAMBONES_REDIS_PORT=6379/g" /etc/systemd/system/freeswitch.service
-    if [ -n "$KRISP_LICENSE_KEY" ]; then
-        sudo sed -i -e "s/KRISP_LICENSE_KEY=/KRISP_LICENSE_KEY=$KRISP_LICENSE_KEY/g" /etc/systemd/system/freeswitch.service
-    fi
-fi
-
-# Configure mediajam media server (v11+ replaced freeswitch with mediajam).
+# Configure the mediajam media server.
+#
 # /etc/default/mediajam ships from the package with the redis vars COMMENTED
 # OUT and a note to supply them at deploy time. mediajam's licensing needs
 # them: without JAMBONES_REDIS_HOST it exits 1 at startup, systemd restarts it
-# forever, feature-server never reaches it on 127.0.0.1:8021, and every call
-# fails with "no available feature servers" / 480. Guarded so this stays a
-# no-op on pre-v11 images, which have no /etc/default/mediajam.
-if [ -f /etc/default/mediajam ]; then
-    sudo sed -i -e "s|^#\?JAMBONES_REDIS_HOST=.*|JAMBONES_REDIS_HOST=127.0.0.1|" /etc/default/mediajam
-    sudo sed -i -e "s|^#\?JAMBONES_REDIS_PORT=.*|JAMBONES_REDIS_PORT=6379|" /etc/default/mediajam
-    if [ -n "$KRISP_LICENSE_KEY" ]; then
-        sudo sed -i -e "s|^KRISP_API_KEY=.*|KRISP_API_KEY=$KRISP_LICENSE_KEY|" /etc/default/mediajam
-    fi
+# forever, feature-server never reaches it, and every call fails with
+# "no available feature servers" / 480.
+#
+# mediajam takes no MySQL configuration -- only redis (licensing) and Krisp.
+KRISP_LICENSE_KEY="${krisp_license_key}"
+sudo sed -i -e "s|^#\?JAMBONES_REDIS_HOST=.*|JAMBONES_REDIS_HOST=127.0.0.1|" /etc/default/mediajam
+sudo sed -i -e "s|^#\?JAMBONES_REDIS_PORT=.*|JAMBONES_REDIS_PORT=6379|" /etc/default/mediajam
+if [ -n "$KRISP_LICENSE_KEY" ]; then
+    sudo sed -i -e "s|^KRISP_API_KEY=.*|KRISP_API_KEY=$KRISP_LICENSE_KEY|" /etc/default/mediajam
 fi
 
 sudo systemctl daemon-reload
-sudo systemctl restart drachtio || true
-sudo systemctl restart freeswitch || true
+sudo systemctl restart drachtio
+# mediajam.service reads /etc/default/mediajam via EnvironmentFile, which is
+# evaluated only when the process starts -- so the edits above take effect only
+# on an explicit restart. Do not rely on the Restart=always crash loop to pick
+# them up: that happens to work while mediajam is failing, and silently does
+# not once it is healthy.
+sudo systemctl restart mediajam
 
 # Update ecosystem.config.js with database password
 sudo sed -i -e "s/\(.*\)JAMBONES_MYSQL_PASSWORD.*/\1JAMBONES_MYSQL_PASSWORD: '$DB_PASSWORD',/g" $HOME/apps/ecosystem.config.js
