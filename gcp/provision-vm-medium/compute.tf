@@ -22,7 +22,7 @@ resource "google_compute_instance" "web_monitoring" {
     initialize_params {
       image = var.web_monitoring_image
       size  = var.web_monitoring_disk_size
-      type  = "pd-ssd"
+      type  = var.disk_type
     }
   }
 
@@ -91,7 +91,7 @@ resource "google_compute_instance" "sbc" {
     initialize_params {
       image = var.sbc_image
       size  = var.sbc_disk_size
-      type  = "pd-ssd"
+      type  = var.disk_type
     }
   }
 
@@ -155,7 +155,7 @@ resource "google_compute_instance_template" "feature_server" {
     source_image = google_compute_image.feature_server.self_link
     auto_delete  = true
     boot         = true
-    disk_type    = "pd-ssd"
+    disk_type    = var.disk_type
     disk_size_gb = var.feature_server_disk_size
   }
 
@@ -315,7 +315,7 @@ resource "google_compute_instance_template" "recording" {
     source_image = google_compute_image.recording[0].self_link
     auto_delete  = true
     boot         = true
-    disk_type    = "pd-ssd"
+    disk_type    = var.disk_type
     disk_size_gb = var.recording_disk_size
   }
 

@@ -22,7 +22,7 @@ resource "google_compute_instance" "web" {
     initialize_params {
       image = var.web_image
       size  = var.web_disk_size
-      type  = "pd-ssd"
+      type  = var.disk_type
     }
   }
 
@@ -91,7 +91,7 @@ resource "google_compute_instance" "monitoring" {
     initialize_params {
       image = var.monitoring_image
       size  = var.monitoring_disk_size
-      type  = "pd-ssd"
+      type  = var.disk_type
     }
   }
 
@@ -148,7 +148,7 @@ resource "google_compute_instance" "sip" {
     initialize_params {
       image = var.sip_image
       size  = var.sip_disk_size
-      type  = "pd-ssd"
+      type  = var.disk_type
     }
   }
 
@@ -184,7 +184,7 @@ resource "google_compute_instance" "sip" {
     apiban_client_id      = var.apiban_client_id
     apiban_client_secret  = var.apiban_client_secret
     # Pass all RTP server private IPs as comma-separated list
-    rtp_private_ips       = join(",", [for rtp in google_compute_instance.rtp : rtp.network_interface[0].network_ip])
+    rtp_private_ips = join(",", [for rtp in google_compute_instance.rtp : rtp.network_interface[0].network_ip])
   })
 
   labels = {
@@ -222,7 +222,7 @@ resource "google_compute_instance" "rtp" {
     initialize_params {
       image = var.rtp_image
       size  = var.rtp_disk_size
-      type  = "pd-ssd"
+      type  = var.disk_type
     }
   }
 
@@ -279,7 +279,7 @@ resource "google_compute_instance_template" "feature_server" {
     source_image = google_compute_image.feature_server.self_link
     auto_delete  = true
     boot         = true
-    disk_type    = "pd-ssd"
+    disk_type    = var.disk_type
     disk_size_gb = var.feature_server_disk_size
   }
 
@@ -439,7 +439,7 @@ resource "google_compute_instance_template" "recording" {
     source_image = google_compute_image.recording[0].self_link
     auto_delete  = true
     boot         = true
-    disk_type    = "pd-ssd"
+    disk_type    = var.disk_type
     disk_size_gb = var.recording_disk_size
   }
 

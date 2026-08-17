@@ -179,3 +179,22 @@ variable "krisp_license_key" {
   default     = ""
   sensitive   = true
 }
+
+variable "disk_type" {
+  description = <<-EOT
+    Boot disk type for every jambonz VM in this deployment.
+
+    Leave at pd-ssd for x86 (e2/n2/c3) machine types. The arm64 Axion family
+    (c4a-*) does NOT support pd-* disks at all and requires Hyperdisk, so an
+    arm64 deployment must set this to hyperdisk-balanced alongside arm64
+    machine types and arm64 images. t2a-* (the older Ampere arm family) does
+    accept pd-ssd, but it is region-limited and superseded by c4a.
+  EOT
+  type        = string
+  default     = "pd-ssd"
+
+  validation {
+    condition     = contains(["pd-ssd", "pd-balanced", "pd-standard", "hyperdisk-balanced"], var.disk_type)
+    error_message = "disk_type must be one of pd-ssd, pd-balanced, pd-standard, hyperdisk-balanced."
+  }
+}
