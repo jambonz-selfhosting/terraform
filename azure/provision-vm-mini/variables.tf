@@ -79,7 +79,7 @@ variable "environment" {
 variable "jambonz_version" {
   description = "jambonz version to deploy (image version in community gallery)"
   type        = string
-  default     = "10.2.0"
+  default     = "10.2.2"
 }
 
 variable "community_gallery_name" {
