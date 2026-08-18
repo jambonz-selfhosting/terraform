@@ -76,18 +76,18 @@ resource "azurerm_linux_virtual_machine" "web_monitoring" {
   }
 
   custom_data = base64encode(templatefile("${path.module}/cloud-init-web-monitoring.yaml", {
-    mysql_host              = azurerm_mysql_flexible_server.jambonz.fqdn
-    mysql_user              = var.mysql_username
-    mysql_password          = local.db_password
-    redis_host              = azurerm_managed_redis.jambonz.hostname
-    redis_port              = 10000
-    redis_password          = azurerm_managed_redis.jambonz.default_database[0].primary_access_key
-    jwt_secret              = random_password.encryption_secret.result
-    url_portal              = var.url_portal
-    vpc_cidr                = var.vpc_cidr
+    mysql_host               = azurerm_mysql_flexible_server.jambonz.fqdn
+    mysql_user               = var.mysql_username
+    mysql_password           = local.db_password
+    redis_host               = azurerm_managed_redis.jambonz.hostname
+    redis_port               = 10000
+    redis_password           = azurerm_managed_redis.jambonz.default_database[0].primary_access_key
+    jwt_secret               = random_password.encryption_secret.result
+    url_portal               = var.url_portal
+    vpc_cidr                 = var.vpc_cidr
     deploy_recording_cluster = var.deploy_recording_cluster
-    key_vault_name          = azurerm_key_vault.jambonz.name
-    enable_otel             = var.enable_otel
+    key_vault_name           = azurerm_key_vault.jambonz.name
+    enable_otel              = var.enable_otel
   }))
 
   depends_on = [
@@ -240,9 +240,9 @@ resource "azurerm_linux_virtual_machine_scale_set" "feature_server" {
     primary = true
 
     ip_configuration {
-      name                                   = "internal"
-      primary                                = true
-      subnet_id                              = azurerm_subnet.public1.id
+      name      = "internal"
+      primary   = true
+      subnet_id = azurerm_subnet.public1.id
       public_ip_address {
         name = "fs-pip"
       }

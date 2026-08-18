@@ -106,14 +106,14 @@ resource "azurerm_role_assignment" "vm_contributor" {
 # ------------------------------------------------------------------------------
 
 resource "azurerm_key_vault" "jambonz" {
-  name                        = "${var.name_prefix}-kv"
-  location                    = azurerm_resource_group.jambonz.location
-  resource_group_name         = azurerm_resource_group.jambonz.name
-  enabled_for_deployment      = true
-  tenant_id                   = var.tenant_id
-  soft_delete_retention_days  = 7
-  purge_protection_enabled    = false
-  sku_name                    = "standard"
+  name                       = "${var.name_prefix}-kv"
+  location                   = azurerm_resource_group.jambonz.location
+  resource_group_name        = azurerm_resource_group.jambonz.name
+  enabled_for_deployment     = true
+  tenant_id                  = var.tenant_id
+  soft_delete_retention_days = 7
+  purge_protection_enabled   = false
+  sku_name                   = "standard"
 
   access_policy {
     tenant_id = var.tenant_id
