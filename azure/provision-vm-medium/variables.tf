@@ -1,6 +1,31 @@
 # Variables for jambonz medium cluster deployment on Azure
 
 # ------------------------------------------------------------------------------
+# ARCHITECTURE
+# ------------------------------------------------------------------------------
+
+variable "architecture" {
+  description = "CPU architecture to deploy: amd64 (x86_64) or arm64 (Ampere). Selects the community gallery image definitions; arm64 uses the -arm64 definitions and requires Ampere sizes for every role."
+  type        = string
+  default     = "amd64"
+
+  validation {
+    condition     = contains(["amd64", "arm64"], var.architecture)
+    error_message = "architecture must be \"amd64\" or \"arm64\"."
+  }
+
+  # Azure rejects an arm64 image on an x86 size only when each VM is created,
+  # part-way through apply, after the VNet, MySQL and Redis already exist -- an
+  # expensive way to learn it. This moves the failure to plan time, and checks
+  # EVERY role: one x86 size left behind breaks only that tier, which is worse
+  # than failing outright. Ampere sizes carry a "p" after the vCPU count.
+  validation {
+    condition     = (can(regex("^Standard_[A-Z]+[0-9]+p", var.sbc_vm_size)) == (var.architecture == "arm64")) && (can(regex("^Standard_[A-Z]+[0-9]+p", var.feature_server_vm_size)) == (var.architecture == "arm64")) && (can(regex("^Standard_[A-Z]+[0-9]+p", var.web_monitoring_vm_size)) == (var.architecture == "arm64")) && (can(regex("^Standard_[A-Z]+[0-9]+p", var.recording_vm_size)) == (var.architecture == "arm64"))
+    error_message = "Architecture mismatch: architecture and every vm_size (sbc_vm_size, feature_server_vm_size, web_monitoring_vm_size, recording_vm_size) must agree. arm64 needs Ampere sizes (Standard_D2pls_v6, Standard_D4pls_v6, ...); amd64 needs x86 sizes (Standard_F4s_v2, Standard_D2s_v3, ...). The arm64 example file sets all of them."
+  }
+}
+
+# ------------------------------------------------------------------------------
 # AZURE CREDENTIALS
 # ------------------------------------------------------------------------------
 

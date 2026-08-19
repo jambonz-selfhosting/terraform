@@ -89,6 +89,30 @@ variable "community_gallery_name" {
 }
 
 # ------------------------------------------------------------------------------
+# ARCHITECTURE
+# ------------------------------------------------------------------------------
+
+variable "architecture" {
+  description = "CPU architecture to deploy: amd64 (x86_64) or arm64 (Ampere). Selects the community gallery image definition; arm64 uses the -arm64 definitions and requires an Ampere vm_size."
+  type        = string
+  default     = "amd64"
+
+  validation {
+    condition     = contains(["amd64", "arm64"], var.architecture)
+    error_message = "architecture must be \"amd64\" or \"arm64\"."
+  }
+
+  # Azure rejects an arm64 image on an x86 size (and vice versa) only when the
+  # VM is created, part-way through apply, once the network and NSG already
+  # exist. This moves that failure to plan time. Ampere sizes carry a "p" after
+  # the vCPU count: Standard_D4pls_v6, Standard_D2ps_v6.
+  validation {
+    condition     = can(regex("^Standard_[A-Z]+[0-9]+p", var.vm_size)) == (var.architecture == "arm64")
+    error_message = "Architecture mismatch: architecture and vm_size must agree. arm64 needs an Ampere size (Standard_D2pls_v6, Standard_D4pls_v6, Standard_D2ps_v6, ...); amd64 needs an x86 size (Standard_D2s_v3, Standard_F4s_v2, ...). The arm64 example file sets both."
+  }
+}
+
+# ------------------------------------------------------------------------------
 # INSTANCE CONFIGURATION
 # ------------------------------------------------------------------------------
 
@@ -102,6 +126,14 @@ variable "vm_size" {
       "Standard_B2s",
       "Standard_B2ms",
       "Standard_B4ms",
+      # Ampere (arm64) -- pair with architecture = "arm64"
+      "Standard_D2pls_v6",
+      "Standard_D4pls_v6",
+      "Standard_D8pls_v6",
+      "Standard_D2ps_v6",
+      "Standard_D4ps_v6",
+      "Standard_D8ps_v6",
+      # x86_64
       "Standard_D2s_v3",
       "Standard_D4s_v3",
       "Standard_D8s_v3",
