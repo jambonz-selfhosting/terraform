@@ -30,7 +30,10 @@ provider "azurerm" {
 # ------------------------------------------------------------------------------
 
 locals {
-  image_id = "/communityGalleries/${var.community_gallery_name}/images/jambonz-mini/versions/${var.jambonz_version}"
+  # arm64 images live in separate gallery definitions (jambonz-<variant>-arm64)
+  # because an Azure image definition declares one architecture.
+  image_arch_suffix = var.architecture == "arm64" ? "-arm64" : ""
+  image_id          = "/communityGalleries/${var.community_gallery_name}/images/jambonz-mini${local.image_arch_suffix}/versions/${var.jambonz_version}"
 }
 
 # ------------------------------------------------------------------------------

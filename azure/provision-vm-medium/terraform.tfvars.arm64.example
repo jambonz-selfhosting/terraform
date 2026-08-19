@@ -1,0 +1,54 @@
+# Example Terraform variables for a jambonz medium deployment on Azure, on arm64
+# (Ampere). Copy this file to terraform.tfvars and fill in your values.
+#
+# arm64 needs three things to agree, and this file sets all of them:
+#   1. architecture = "arm64"   -> selects the jambonz-<variant>-arm64 gallery
+#                                  image definitions
+#   2. Ampere vm_size(s)        -> Standard_D*pls_v6 / D*ps_v6; an x86 size with
+#                                  an arm64 image is rejected at plan time
+#   3. a region that offers Ampere -> not every region does (see below)
+#
+# Ampere is not available in every Azure region. As of Aug 2026 these are NOT
+# offered: canadaeast, ukwest, switzerlandnorth, norwayeast, australiasoutheast,
+# japanwest, koreacentral, southindia, brazilsouth, southafricanorth, uaenorth.
+# Check before you commit to a region:
+#   az vm list-skus --location <region> --size Standard_D4pls_v6 \
+#     --resource-type virtualMachines -o table
+#
+# Ampere also has its own vCPU quota, separate from x86. A fresh subscription
+# often has 0 in the Dplsv6 family, in which case no arm64 VM can start until
+# you request an increase.
+
+# ------------------------------------------------------------------------------
+# REQUIRED VARIABLES
+# ------------------------------------------------------------------------------
+
+subscription_id = ""  # REQUIRED: your Azure subscription ID (az account show)
+tenant_id       = ""  # REQUIRED: your Azure tenant ID
+ssh_public_key  = ""  # REQUIRED: your SSH public key content
+url_portal      = ""  # REQUIRED: e.g. "jambonz.example.com"
+
+# ------------------------------------------------------------------------------
+# ARCHITECTURE + SIZES (these must agree)
+# ------------------------------------------------------------------------------
+
+architecture = "arm64"
+sbc_vm_size             = "Standard_D4pls_v6"  # SBC: drachtio + rtpengine
+feature_server_vm_size  = "Standard_D4pls_v6"  # feature server: drachtio + mediajam
+web_monitoring_vm_size  = "Standard_D4pls_v6"  # portal, API, Grafana, Homer, Jaeger
+recording_vm_size       = "Standard_D2pls_v6"  # recording uploader
+
+# ------------------------------------------------------------------------------
+# DEPLOYMENT CONFIGURATION
+# ------------------------------------------------------------------------------
+
+location    = "westus2"   # must be a region that offers Ampere
+name_prefix = "jambonz"
+environment = "production"
+
+# Image version in the community gallery. arm64 versions are published to the
+# -arm64 image definitions; confirm the version exists for arm64 before applying:
+#   az sig image-version list-community \
+#     --public-gallery-name jambonz-8962e4f5-da0f-41ee-b094-8680ad38d302 \
+#     --gallery-image-definition jambonz-sip-rtp-arm64 --location westus2 -o table
+jambonz_version = "11.1.1"
