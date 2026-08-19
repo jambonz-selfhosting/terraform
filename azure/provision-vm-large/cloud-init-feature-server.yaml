@@ -117,7 +117,11 @@ write_files:
             DRACHTIO_PORT: 9022,
             DRACHTIO_SECRET: 'cymru',
             JAMBONES_FEATURE_SERVERS: '127.0.0.1:9022:cymru',
-            JAMBONES_FREESWITCH: '127.0.0.1:8021:JambonzR0ck\$',
+            // Selects the media server. The old selector picked the drachtio-fsmrf
+            // backend and aimed it at what is really a mediajam
+            // server: the ESL handshake never completes, feature-server never
+            // connects to drachtio, nothing registers, and every call fails 480.
+            JAMBONES_MEDIAJAM: '127.0.0.1:8021',
             AUTHENTICATION_KEY: '$JWT_SECRET',
             JAMBONZ_RECORD_WS_USERNAME: 'jambonz',
             JAMBONZ_RECORD_WS_PASSWORD: '$JWT_SECRET',
@@ -139,8 +143,6 @@ write_files:
       # 480.
       #
       # mediajam takes no MySQL configuration -- only redis (licensing) and
-      # Krisp. It replaced FreeSWITCH in v11.0.0, so there is no
-      # freeswitch.service on these images and the seds that targeted it were
       # silent no-ops.
       #
       # Azure Cache for Redis needs a password and TLS, and the shipped env
