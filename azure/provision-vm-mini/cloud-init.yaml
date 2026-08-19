@@ -70,6 +70,14 @@ write_files:
       # Azure metadata service
       PRIVATE_IPV4=$(curl -s -H Metadata:true --noproxy "*" "http://169.254.169.254/metadata/instance/network/interface/0/ipv4/ipAddress/0/privateIpAddress?api-version=2021-02-01&format=text" 2>/dev/null || hostname -I | awk '{print $1}')
       PUBLIC_IPV4=$(curl -s -H Metadata:true --noproxy "*" "http://169.254.169.254/metadata/instance/network/interface/0/ipv4/ipAddress/0/publicIpAddress?api-version=2021-02-01&format=text" 2>/dev/null || curl -s https://api.ipify.org)
+      # Azure IMDS returns an EMPTY STRING (exit 0) for publicIpAddress when the
+      # public IP is a separate resource, so the "|| curl ipify" fallback above
+      # never fires -- it only catches a curl failure, not an empty answer. That
+      # left JAMBONES_API_BASE_URL as "http:///v1" on the v11.1.1 Azure smoke.
+      if [ -z "$PUBLIC_IPV4" ]; then
+          PUBLIC_IPV4=$(curl -s -m 10 https://api.ipify.org)
+          echo "IMDS returned no public IP; using $PUBLIC_IPV4 from ipify"
+      fi
       INSTANCE_ID=$(curl -s -H Metadata:true --noproxy "*" "http://169.254.169.254/metadata/instance/compute/vmId?api-version=2021-02-01&format=text" 2>/dev/null || hostname)
 
       echo "Private IP: $PRIVATE_IPV4"
@@ -214,18 +222,25 @@ write_files:
           sudo sed -i -e "s/JAMBONES_REDIS_PORT=/JAMBONES_REDIS_PORT=6379/g" /etc/systemd/system/drachtio.service
       fi
 
-      # Configure freeswitch service
+      # Configure the mediajam media server.
+      #
+      # /etc/default/mediajam ships from the package with the redis vars
+      # COMMENTED OUT and a note to supply them at deploy time. mediajam's
+      # licensing needs them: without JAMBONES_REDIS_HOST it exits 1 at
+      # startup, systemd restarts it forever, feature-server never reaches it
+      # on :8021, and every call fails with "no available feature servers" /
+      # 480. (This is what the v11.1.1 Azure smoke hit -- mediajam had
+      # restarted 341 times.)
+      #
+      # mediajam takes no MySQL configuration -- only redis (licensing) and
+      # Krisp. It replaced FreeSWITCH in v11.0.0, so there is no
+      # freeswitch.service on these images and the seds that targeted it were
+      # silent no-ops.
       KRISP_LICENSE_KEY="${krisp_license_key}"
-      if [ -f /etc/systemd/system/freeswitch.service ]; then
-          sudo sed -i -e "s/JAMBONES_MYSQL_HOST=/JAMBONES_MYSQL_HOST=127.0.0.1/g" /etc/systemd/system/freeswitch.service
-          sudo sed -i -e "s/JAMBONES_MYSQL_USER=/JAMBONES_MYSQL_USER=admin/g" /etc/systemd/system/freeswitch.service
-          sudo sed -i -e "s/JAMBONES_MYSQL_PASSWORD=/JAMBONES_MYSQL_PASSWORD=$NEW_DB_PASSWD/g" /etc/systemd/system/freeswitch.service
-          sudo sed -i -e "s/JAMBONES_MYSQL_DATABASE=/JAMBONES_MYSQL_DATABASE=jambones/g" /etc/systemd/system/freeswitch.service
-          sudo sed -i -e "s/JAMBONES_REDIS_HOST=/JAMBONES_REDIS_HOST=127.0.0.1/g" /etc/systemd/system/freeswitch.service
-          sudo sed -i -e "s/JAMBONES_REDIS_PORT=/JAMBONES_REDIS_PORT=6379/g" /etc/systemd/system/freeswitch.service
-          if [ -n "$KRISP_LICENSE_KEY" ]; then
-              sudo sed -i -e "s/KRISP_LICENSE_KEY=/KRISP_LICENSE_KEY=$KRISP_LICENSE_KEY/g" /etc/systemd/system/freeswitch.service
-          fi
+      sudo sed -i -e "s|^#\?JAMBONES_REDIS_HOST=.*|JAMBONES_REDIS_HOST=127.0.0.1|" /etc/default/mediajam
+      sudo sed -i -e "s|^#\?JAMBONES_REDIS_PORT=.*|JAMBONES_REDIS_PORT=6379|" /etc/default/mediajam
+      if [ -n "$KRISP_LICENSE_KEY" ]; then
+          sudo sed -i -e "s|^KRISP_API_KEY=.*|KRISP_API_KEY=$KRISP_LICENSE_KEY|" /etc/default/mediajam
       fi
 
       sudo systemctl daemon-reload
@@ -233,7 +248,12 @@ write_files:
       sudo systemctl start upload_recordings || true
 
       sudo systemctl restart drachtio || true
-      sudo systemctl restart freeswitch || true
+      # mediajam.service reads /etc/default/mediajam via EnvironmentFile, which
+      # is evaluated only when the process starts -- so the edits above take
+      # effect only on an explicit restart. Do not rely on the Restart=always
+      # crash loop to pick them up: that happens to work while mediajam is
+      # failing, and silently does not once it is healthy.
+      sudo systemctl restart mediajam || true
 
       # Configure and start jambonz-updater BEFORE pm2 so api-server has correct token
       UPDATER_TOKEN=$(openssl rand -hex 32)

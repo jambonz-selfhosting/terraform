@@ -79,7 +79,7 @@ variable "environment" {
 variable "jambonz_version" {
   description = "jambonz version to deploy (image version in community gallery)"
   type        = string
-  default     = "10.2.2"
+  default     = "11.1.1"
 }
 
 variable "community_gallery_name" {
@@ -126,13 +126,16 @@ variable "vm_size" {
 }
 
 variable "disk_size" {
-  description = "OS disk size in GB"
+  description = "OS disk size in GB. Must be at least as large as the OS disk in the gallery image (100 GB)."
   type        = number
-  default     = 50
+  default     = 100
 
   validation {
-    condition     = var.disk_size >= 30 && var.disk_size <= 1024
-    error_message = "Disk size must be between 30 and 1024 GB."
+    # Azure refuses a VM whose OS disk is smaller than the image's with a 409
+    # OperationNotAllowed at apply time. The jambonz images are built with a
+    # 100 GB OS disk (packer's os_disk_size_gb), so catch it at plan instead.
+    condition     = var.disk_size >= 100 && var.disk_size <= 1024
+    error_message = "Disk size must be between 100 and 1024 GB (the gallery image's OS disk is 100 GB)."
   }
 }
 
