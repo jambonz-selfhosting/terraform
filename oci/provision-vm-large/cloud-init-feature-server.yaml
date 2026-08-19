@@ -119,7 +119,7 @@ write_files:
             DRACHTIO_PORT: 9022,
             DRACHTIO_SECRET: 'cymru',
             JAMBONES_FEATURE_SERVERS: '127.0.0.1:9022:cymru',
-            JAMBONES_FREESWITCH: '127.0.0.1:8021:JambonzR0ck\$',
+            JAMBONES_MEDIAJAM: '127.0.0.1:8021',
             AUTHENTICATION_KEY: '$JWT_SECRET',
             JAMBONZ_RECORD_WS_USERNAME: 'jambonz',
             JAMBONZ_RECORD_WS_PASSWORD: '$JWT_SECRET',
@@ -131,19 +131,30 @@ write_files:
 
       echo "Finished writing config file"
 
-      # Configure freeswitch service
-      sudo sed -i -e "s/JAMBONES_MYSQL_HOST=/JAMBONES_MYSQL_HOST=$MYSQL_HOST/g" /etc/systemd/system/freeswitch.service
-      sudo sed -i -e "s/JAMBONES_MYSQL_USER=/JAMBONES_MYSQL_USER=$MYSQL_USER/g" /etc/systemd/system/freeswitch.service
-      sudo sed -i -e "s/JAMBONES_MYSQL_PASSWORD=/JAMBONES_MYSQL_PASSWORD=$MYSQL_PASSWORD/g" /etc/systemd/system/freeswitch.service
-      sudo sed -i -e "s/JAMBONES_MYSQL_DATABASE=/JAMBONES_MYSQL_DATABASE=jambones/g" /etc/systemd/system/freeswitch.service
-      sudo sed -i -e "s/JAMBONES_REDIS_HOST=/JAMBONES_REDIS_HOST=$REDIS_HOST/g" /etc/systemd/system/freeswitch.service
-      sudo sed -i -e "s/JAMBONES_REDIS_PORT=/JAMBONES_REDIS_PORT=$REDIS_PORT/g" /etc/systemd/system/freeswitch.service
+      # Configure the mediajam media server.
+      #
+      # /etc/default/mediajam ships from the package with the redis vars
+      # COMMENTED OUT and a note to supply them at deploy time. mediajam's
+      # licensing needs them: without JAMBONES_REDIS_HOST it exits 1 at
+      # startup, systemd restarts it forever, feature-server never reaches it
+      # on :8021, and every call fails with "no available feature servers" /
+      # 480.
+      #
+      # mediajam takes no MySQL configuration -- only redis (licensing) and
+      # Krisp. It replaced FreeSWITCH in v11.0.0, so there is no
+      # freeswitch.service on these images and the seds that targeted it were
+      # silent no-ops.
+      sudo sed -i -e "s|^#\?JAMBONES_REDIS_HOST=.*|JAMBONES_REDIS_HOST=$REDIS_HOST|" /etc/default/mediajam
+      sudo sed -i -e "s|^#\?JAMBONES_REDIS_PORT=.*|JAMBONES_REDIS_PORT=$REDIS_PORT|" /etc/default/mediajam
       if [ -n "$KRISP_LICENSE_KEY" ]; then
-          sudo sed -i -e "s/KRISP_LICENSE_KEY=/KRISP_LICENSE_KEY=$KRISP_LICENSE_KEY/g" /etc/systemd/system/freeswitch.service
+          sudo sed -i -e "s|^KRISP_API_KEY=.*|KRISP_API_KEY=$KRISP_LICENSE_KEY|" /etc/default/mediajam
       fi
 
       sudo systemctl daemon-reload
-      sudo systemctl restart freeswitch
+      # mediajam.service reads /etc/default/mediajam via EnvironmentFile, which
+      # is evaluated only when the process starts -- so the edits above take
+      # effect only on an explicit restart.
+      sudo systemctl restart mediajam
 
       # Configure telegraf to send to the monitoring server
       echo "JAMBONES_INFLUX_URL=http://$WEB_MONITORING_PRIVATE_IP:8086" | sudo tee -a /etc/default/telegraf > /dev/null

@@ -174,39 +174,31 @@ write_files:
       sudo sed -i -e "s/JAMBONES_REDIS_HOST=/JAMBONES_REDIS_HOST=127.0.0.1/g" /etc/systemd/system/drachtio.service
       sudo sed -i -e "s/JAMBONES_REDIS_PORT=/JAMBONES_REDIS_PORT=6379/g" /etc/systemd/system/drachtio.service
 
-      # Configure freeswitch service
-      sudo sed -i -e "s/JAMBONES_MYSQL_HOST=/JAMBONES_MYSQL_HOST=127.0.0.1/g" /etc/systemd/system/freeswitch.service
-      sudo sed -i -e "s/JAMBONES_MYSQL_USER=/JAMBONES_MYSQL_USER=admin/g" /etc/systemd/system/freeswitch.service
-      sudo sed -i -e "s/JAMBONES_MYSQL_PASSWORD=/JAMBONES_MYSQL_PASSWORD=$NEW_DB_PASSWD/g" /etc/systemd/system/freeswitch.service
-      sudo sed -i -e "s/JAMBONES_MYSQL_DATABASE=/JAMBONES_MYSQL_DATABASE=jambones/g" /etc/systemd/system/freeswitch.service
-      sudo sed -i -e "s/JAMBONES_REDIS_HOST=/JAMBONES_REDIS_HOST=127.0.0.1/g" /etc/systemd/system/freeswitch.service
-      sudo sed -i -e "s/JAMBONES_REDIS_PORT=/JAMBONES_REDIS_PORT=6379/g" /etc/systemd/system/freeswitch.service
+      # Configure the mediajam media server.
+      #
+      # /etc/default/mediajam ships from the package with the redis vars
+      # COMMENTED OUT and a note to supply them at deploy time. mediajam's
+      # licensing needs them: without JAMBONES_REDIS_HOST it exits 1 at
+      # startup, systemd restarts it forever, feature-server never reaches it
+      # on :8021, and every call fails with "no available feature servers" /
+      # 480.
+      #
+      # mediajam takes no MySQL configuration -- only redis (licensing) and
+      # Krisp. It replaced FreeSWITCH in v11.0.0, so there is no
+      # freeswitch.service on these images and the seds that targeted it were
+      # silent no-ops.
+      sudo sed -i -e "s|^#\?JAMBONES_REDIS_HOST=.*|JAMBONES_REDIS_HOST=127.0.0.1|" /etc/default/mediajam
+      sudo sed -i -e "s|^#\?JAMBONES_REDIS_PORT=.*|JAMBONES_REDIS_PORT=6379|" /etc/default/mediajam
       if [ -n "$KRISP_LICENSE_KEY" ]; then
-          sudo sed -i -e "s/KRISP_LICENSE_KEY=/KRISP_LICENSE_KEY=$KRISP_LICENSE_KEY/g" /etc/systemd/system/freeswitch.service
-      fi
-
-      # Configure upload_recordings service
-      sudo sed -i -e "s/MYSQL_HOST=/MYSQL_HOST=127.0.0.1/g" /etc/systemd/system/upload_recordings.service
-      sudo sed -i -e "s/MYSQL_USER=/MYSQL_USER=admin/g" /etc/systemd/system/upload_recordings.service
-      sudo sed -i -e "s/MYSQL_PASSWORD=/MYSQL_PASSWORD=$NEW_DB_PASSWD/g" /etc/systemd/system/upload_recordings.service
-      sudo sed -i -e "s/MYSQL_DATABASE=/MYSQL_DATABASE=jambones/g" /etc/systemd/system/upload_recordings.service
-      sudo sed -i -e "s/BASIC_AUTH_USERNAME=/BASIC_AUTH_USERNAME=jambonz/g" /etc/systemd/system/upload_recordings.service
-      sudo sed -i -e "s/BASIC_AUTH_PASSWORD=/BASIC_AUTH_PASSWORD=$JWT_SECRET/g" /etc/systemd/system/upload_recordings.service
-      sudo sed -i -e "s/ENCRYPTION_SECRET=/ENCRYPTION_SECRET=$JWT_SECRET/g" /etc/systemd/system/upload_recordings.service
-
-      # Configure HEP endpoints for Homer
-      if [[ "$ENABLE_PCAPS" == "true" ]]; then
-        echo "Enabling PCAPs"
-        sudo sed -i -e "s/--address 0.0.0.0 --port 9022/--address 0.0.0.0 --port 9022 --homer 127.0.0.1:9060 --homer-id 10/g" /etc/systemd/system/drachtio.service
-        sudo sed -i -e "s/--delete-delay 0/--delete-delay 0 --homer=127.0.0.1:9060 --homer-protocol=udp --homer-id=11/g" /etc/systemd/system/rtpengine.service
+          sudo sed -i -e "s|^KRISP_API_KEY=.*|KRISP_API_KEY=$KRISP_LICENSE_KEY|" /etc/default/mediajam
       fi
 
       sudo systemctl daemon-reload
-      sudo systemctl enable upload_recordings
-      sudo systemctl start upload_recordings
-
       sudo systemctl restart drachtio
-      sudo systemctl restart freeswitch
+      # mediajam.service reads /etc/default/mediajam via EnvironmentFile, which
+      # is evaluated only when the process starts -- so the edits above take
+      # effect only on an explicit restart.
+      sudo systemctl restart mediajam
       sudo systemctl restart rtpengine
 
       # Restart heplify-server for Homer (only if pcaps enabled)
