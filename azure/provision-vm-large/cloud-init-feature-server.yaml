@@ -54,6 +54,14 @@ write_files:
       echo "Getting instance metadata from Azure IMDS..."
       PUBLIC_IP=$(curl -s -H Metadata:true --noproxy "*" "http://169.254.169.254/metadata/instance/network/interface/0/ipv4/ipAddress/0/publicIpAddress?api-version=2021-02-01&format=text" 2>/dev/null || curl -s https://api.ipify.org)
       PRIVATE_IP=$(curl -s -H Metadata:true --noproxy "*" "http://169.254.169.254/metadata/instance/network/interface/0/ipv4/ipAddress/0/privateIpAddress?api-version=2021-02-01&format=text" 2>/dev/null || hostname -I | awk '{print $1}')
+      # Azure IMDS returns an EMPTY STRING (exit 0) for publicIpAddress when the
+      # public IP is a separate resource, so the "|| curl ipify" fallback above
+      # never fires -- it only catches a curl failure, not an empty answer. That
+      # left JAMBONES_API_BASE_URL as "http:///v1" on the v11.1.1 Azure smoke.
+      if [ -z "$PUBLIC_IP" ]; then
+          PUBLIC_IP=$(curl -s -m 10 https://api.ipify.org)
+          echo "IMDS returned no public IP; using $PUBLIC_IP from ipify"
+      fi
       INSTANCE_ID=$(curl -s -H Metadata:true --noproxy "*" "http://169.254.169.254/metadata/instance/compute/vmId?api-version=2021-02-01&format=text" 2>/dev/null || hostname)
 
       echo "Public IP: $PUBLIC_IP"
@@ -121,21 +129,38 @@ write_files:
 
       echo "Finished writing config file"
 
-      # Configure freeswitch service
-      sudo sed -i -e "s/MYSQL_HOST=/MYSQL_HOST=$MYSQL_HOST/g" /etc/systemd/system/freeswitch.service
-      sudo sed -i -e "s/MYSQL_USER=/MYSQL_USER=$MYSQL_USER/g" /etc/systemd/system/freeswitch.service
-      sudo sed -i -e "s/MYSQL_PASSWORD=/MYSQL_PASSWORD=$MYSQL_PASSWORD/g" /etc/systemd/system/freeswitch.service
-      sudo sed -i -e "s/MYSQL_DATABASE=/MYSQL_DATABASE=jambones/g" /etc/systemd/system/freeswitch.service
-      sudo sed -i -e "s/JAMBONES_REDIS_HOST=/JAMBONES_REDIS_HOST=$REDIS_HOST/g" /etc/systemd/system/freeswitch.service
-      sudo sed -i -e "s/JAMBONES_REDIS_PORT=/JAMBONES_REDIS_PORT=$REDIS_PORT/g" /etc/systemd/system/freeswitch.service
-      sudo sed -i -e "s/JAMBONES_REDIS_PASSWORD=/JAMBONES_REDIS_PASSWORD=$REDIS_PASSWORD/g" /etc/systemd/system/freeswitch.service
-      sudo sed -i -e "s/JAMBONES_REDIS_TLS=0/JAMBONES_REDIS_TLS=1/g" /etc/systemd/system/freeswitch.service
+      # Configure the mediajam media server.
+      #
+      # /etc/default/mediajam ships from the package with the redis vars
+      # COMMENTED OUT and a note to supply them at deploy time. mediajam's
+      # licensing needs them: without JAMBONES_REDIS_HOST it exits 1 at
+      # startup, systemd restarts it forever, feature-server never reaches it
+      # on :8021, and every call fails with "no available feature servers" /
+      # 480.
+      #
+      # mediajam takes no MySQL configuration -- only redis (licensing) and
+      # Krisp. It replaced FreeSWITCH in v11.0.0, so there is no
+      # freeswitch.service on these images and the seds that targeted it were
+      # silent no-ops.
+      #
+      # Azure Cache for Redis needs a password and TLS, and the shipped env
+      # file has no lines for those at all -- so delete any redis lines and
+      # append the full set rather than sed-replacing what may not be there.
+      # printf, not a heredoc: this block is indented inside the cloud-init
+      # YAML, and a heredoc would write that leading whitespace into the
+      # EnvironmentFile (and its terminator would not match at column 0).
+      sudo sed -i -e "/^#\?JAMBONES_REDIS_\(HOST\|PORT\|TLS\|USERNAME\|PASSWORD\)=/d" /etc/default/mediajam
+      printf 'JAMBONES_REDIS_HOST=%s\nJAMBONES_REDIS_PORT=%s\nJAMBONES_REDIS_PASSWORD=%s\nJAMBONES_REDIS_TLS=1\n' \
+        "$REDIS_HOST" "$REDIS_PORT" "$REDIS_PASSWORD" | sudo tee -a /etc/default/mediajam > /dev/null
       if [ -n "$KRISP_LICENSE_KEY" ]; then
-          sudo sed -i -e "s/KRISP_LICENSE_KEY=/KRISP_LICENSE_KEY=$KRISP_LICENSE_KEY/g" /etc/systemd/system/freeswitch.service
+          sudo sed -i -e "s|^KRISP_API_KEY=.*|KRISP_API_KEY=$KRISP_LICENSE_KEY|" /etc/default/mediajam
       fi
 
       sudo systemctl daemon-reload
-      sudo systemctl restart freeswitch
+      # mediajam.service reads /etc/default/mediajam via EnvironmentFile, which
+      # is evaluated only when the process starts -- so the edits above take
+      # effect only on an explicit restart.
+      sudo systemctl restart mediajam
 
       # Configure telegraf to send to the monitoring server
       echo "JAMBONES_INFLUX_URL=http://$MONITORING_PRIVATE_IP:8086" | sudo tee -a /etc/default/telegraf > /dev/null
