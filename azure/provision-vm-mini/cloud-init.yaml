@@ -233,8 +233,6 @@ write_files:
       # restarted 341 times.)
       #
       # mediajam takes no MySQL configuration -- only redis (licensing) and
-      # Krisp. It replaced FreeSWITCH in v11.0.0, so there is no
-      # freeswitch.service on these images and the seds that targeted it were
       # silent no-ops.
       KRISP_LICENSE_KEY="${krisp_license_key}"
       sudo sed -i -e "s|^#\?JAMBONES_REDIS_HOST=.*|JAMBONES_REDIS_HOST=127.0.0.1|" /etc/default/mediajam
@@ -265,7 +263,6 @@ write_files:
       sudo systemctl daemon-reload
       sudo systemctl enable --now jambonz-updater
 
-      # Restart PM2 apps (after drachtio and freeswitch are configured and running)
       sudo -u $USER bash -c "pm2 delete $HOME/apps/ecosystem.config.js; pm2 start $HOME/apps/ecosystem.config.js" || true
       sudo -u $USER bash -c "pm2 save" || true
       sudo env PATH=$PATH:/usr/bin /usr/lib/node_modules/pm2/bin/pm2 startup systemd -u $USER --hp $HOME || true

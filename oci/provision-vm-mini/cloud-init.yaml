@@ -261,26 +261,33 @@ write_files:
           sudo sed -i -e "s/JAMBONES_REDIS_PORT=/JAMBONES_REDIS_PORT=6379/g" /etc/systemd/system/drachtio.service
       fi
 
-      # Configure freeswitch service
       KRISP_LICENSE_KEY="${krisp_license_key}"
-      if [ -f /etc/systemd/system/freeswitch.service ]; then
-          sudo sed -i -e "s/JAMBONES_MYSQL_HOST=/JAMBONES_MYSQL_HOST=127.0.0.1/g" /etc/systemd/system/freeswitch.service
-          sudo sed -i -e "s/JAMBONES_MYSQL_USER=/JAMBONES_MYSQL_USER=admin/g" /etc/systemd/system/freeswitch.service
-          sudo sed -i -e "s/JAMBONES_MYSQL_PASSWORD=/JAMBONES_MYSQL_PASSWORD=$NEW_DB_PASSWD/g" /etc/systemd/system/freeswitch.service
-          sudo sed -i -e "s/JAMBONES_MYSQL_DATABASE=/JAMBONES_MYSQL_DATABASE=jambones/g" /etc/systemd/system/freeswitch.service
-          sudo sed -i -e "s/JAMBONES_REDIS_HOST=/JAMBONES_REDIS_HOST=127.0.0.1/g" /etc/systemd/system/freeswitch.service
-          sudo sed -i -e "s/JAMBONES_REDIS_PORT=/JAMBONES_REDIS_PORT=6379/g" /etc/systemd/system/freeswitch.service
-          if [ -n "$KRISP_LICENSE_KEY" ]; then
-              sudo sed -i -e "s/KRISP_LICENSE_KEY=/KRISP_LICENSE_KEY=$KRISP_LICENSE_KEY/g" /etc/systemd/system/freeswitch.service
-          fi
+
+      # Configure the mediajam media server.
+      #
+      # /etc/default/mediajam ships from the package with the redis vars
+      # COMMENTED OUT and a note to supply them at deploy time. mediajam's
+      # licensing needs them: without JAMBONES_REDIS_HOST it exits 1 at
+      # startup, systemd restarts it forever, feature-server never reaches it
+      # on :8021, and every call fails with "no available feature servers" /
+      # 480.
+      #
+      # mediajam takes no MySQL configuration -- only redis (licensing) and
+      # Krisp. It replaced FreeSWITCH in v11.0.0, so there is no
+      # freeswitch.service on these images and the seds that targeted it were
+      # silent no-ops.
+      sudo sed -i -e "s|^#\?JAMBONES_REDIS_HOST=.*|JAMBONES_REDIS_HOST=127.0.0.1|" /etc/default/mediajam
+      sudo sed -i -e "s|^#\?JAMBONES_REDIS_PORT=.*|JAMBONES_REDIS_PORT=6379|" /etc/default/mediajam
+      if [ -n "$KRISP_LICENSE_KEY" ]; then
+          sudo sed -i -e "s|^KRISP_API_KEY=.*|KRISP_API_KEY=$KRISP_LICENSE_KEY|" /etc/default/mediajam
       fi
 
       sudo systemctl daemon-reload
-      sudo systemctl enable upload_recordings || true
-      sudo systemctl start upload_recordings || true
-
       sudo systemctl restart drachtio || true
-      sudo systemctl restart freeswitch || true
+      # mediajam.service reads /etc/default/mediajam via EnvironmentFile, which
+      # is evaluated only when the process starts -- so the edits above take
+      # effect only on an explicit restart.
+      sudo systemctl restart mediajam || true
 
       # Configure and start jambonz-updater BEFORE pm2 so api-server has correct token
       UPDATER_TOKEN=$(openssl rand -hex 32)

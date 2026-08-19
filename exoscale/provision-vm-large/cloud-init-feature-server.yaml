@@ -68,25 +68,33 @@ write_files:
         sleep 5
       done
 
-      # Configure FreeSWITCH
-      echo "Configuring FreeSWITCH..."
-      cat > /etc/systemd/system/freeswitch.service.d/override.conf << EOF
-      [Service]
-      Environment="JAMBONES_MYSQL_HOST=$MYSQL_HOST:$MYSQL_PORT"
-      Environment="JAMBONES_MYSQL_USER=$MYSQL_USER"
-      Environment="JAMBONES_MYSQL_PASSWORD=$MYSQL_PASSWORD"
-      Environment="JAMBONES_MYSQL_DATABASE=$MYSQL_DATABASE"
-      Environment="JAMBONES_REDIS_HOST=$REDIS_HOST"
-      Environment="JAMBONES_REDIS_PORT=$REDIS_PORT"
-      Environment="LOCAL_IP=$PRIVATE_IP"
-      EOF
+      # Configure the mediajam media server.
+      #
+      # /etc/default/mediajam ships from the package with the redis vars
+      # COMMENTED OUT and a note to supply them at deploy time. mediajam's
+      # licensing needs them: without JAMBONES_REDIS_HOST it exits 1 at
+      # startup, systemd restarts it forever, feature-server never reaches it
+      # on :8021, and every call fails with "no available feature servers" /
+      # 480.
+      #
+      # mediajam takes no MySQL configuration -- only redis (licensing) and
+      # Krisp. It replaced FreeSWITCH in v11.0.0, so there is no
+      # freeswitch.service on these images: the drop-in this replaced was
+      # written into /etc/systemd/system/freeswitch.service.d/, a directory
+      # nothing creates, so the write itself failed.
+      echo "Configuring mediajam..."
+      sed -i -e "s|^#\?JAMBONES_REDIS_HOST=.*|JAMBONES_REDIS_HOST=$REDIS_HOST|" /etc/default/mediajam
+      sed -i -e "s|^#\?JAMBONES_REDIS_PORT=.*|JAMBONES_REDIS_PORT=$REDIS_PORT|" /etc/default/mediajam
 
       if [ -n "$KRISP_LICENSE_KEY" ]; then
-          echo "Environment=\"KRISP_LICENSE_KEY=$KRISP_LICENSE_KEY\"" >> /etc/systemd/system/freeswitch.service.d/override.conf
+          sed -i -e "s|^KRISP_API_KEY=.*|KRISP_API_KEY=$KRISP_LICENSE_KEY|" /etc/default/mediajam
       fi
 
       systemctl daemon-reload
-      systemctl restart freeswitch
+      # mediajam.service reads /etc/default/mediajam via EnvironmentFile, which
+      # is evaluated only when the process starts -- so the edits above take
+      # effect only on an explicit restart.
+      systemctl restart mediajam
 
       # Write PM2 ecosystem config
       echo "Writing ecosystem.config.js..."
@@ -118,7 +126,7 @@ write_files:
             DRACHTIO_HOST: '127.0.0.1',
             DRACHTIO_PORT: 9022,
             DRACHTIO_SECRET: 'cymru',
-            JAMBONES_FREESWITCH: '127.0.0.1:8021:JambonzR0ck$',
+            JAMBONES_MEDIAJAM: '127.0.0.1:8021',
             JAMBONES_NETWORK_CIDR: 'VPC_CIDR_PLACEHOLDER',
             ENABLE_METRICS: 1,
             STATS_HOST: '127.0.0.1',
