@@ -10,7 +10,7 @@ The deployment creates:
 - **Monitoring Server** (1 VM): Grafana, Homer, Jaeger, InfluxDB, Cassandra
 - **SIP Servers** (VMs): drachtio SIP signaling with static public IPs
 - **RTP Servers** (VMs): rtpengine media processing with static public IPs
-- **Feature Servers** (VMSS): FreeSWITCH-based media servers for call handling
+- **Feature Servers** (VMSS): drachtio + mediajam media servers for call handling
 - **Recording Servers** (VMSS, optional): Dedicated recording upload cluster
 - **Azure MySQL Flexible Server**: Managed MySQL 8.0 database
 - **Azure Redis Cache**: Managed Redis for session state
@@ -99,12 +99,12 @@ The large deployment uses 6 separate images (Web, Monitoring, SIP, RTP, Feature 
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `jambonz_version` | `10.2.2` | jambonz version to deploy |
+| `jambonz_version` | `11.1.1` | jambonz version to deploy |
 | `community_gallery_name` | `jambonz-8962e4f5-da0f-41ee-b094-8680ad38d302` | Azure Community Gallery name |
 
 To use a different version, set `jambonz_version` in your `terraform.tfvars`:
 ```hcl
-jambonz_version = "10.2.2"
+jambonz_version = "11.1.1"
 ```
 
 ### Required Variables
@@ -120,7 +120,7 @@ jambonz_version = "10.2.2"
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `jambonz_version` | `10.2.2` | jambonz version to deploy |
+| `jambonz_version` | `11.1.1` | jambonz version to deploy |
 | `location` | `eastus` | Azure region (see supported regions below) |
 | `name_prefix` | `jambonz` | Prefix for resource names |
 | `sip_count` | `2` | Number of SIP servers |
@@ -322,7 +322,7 @@ sudo systemctl status rtpengine
 pm2 list
 
 # On Feature Server
-sudo systemctl status freeswitch
+sudo systemctl status mediajam
 pm2 list
 ```
 
