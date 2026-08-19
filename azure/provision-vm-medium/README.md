@@ -8,7 +8,7 @@ The deployment creates:
 
 - **Web/Monitoring Server** (1 VM): API server, webapp, Grafana, Homer, Jaeger, InfluxDB
 - **SBC Servers** (VMSS): Session Border Controllers with drachtio, rtpengine
-- **Feature Servers** (VMSS): FreeSWITCH-based media servers for call handling
+- **Feature Servers** (VMSS): drachtio + mediajam media servers for call handling
 - **Recording Servers** (VMSS, optional): Dedicated recording upload cluster
 - **Azure MySQL Flexible Server**: Managed MySQL 8.0 database
 - **Azure Redis Cache**: Managed Redis for session state
@@ -76,12 +76,12 @@ jambonz images are published to an **Azure Community Gallery** and are automatic
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `jambonz_version` | `10.2.2` | jambonz version to deploy |
+| `jambonz_version` | `11.1.1` | jambonz version to deploy |
 | `community_gallery_name` | `jambonz-8962e4f5-da0f-41ee-b094-8680ad38d302` | Azure Community Gallery name |
 
 To use a different version, set `jambonz_version` in your `terraform.tfvars`:
 ```hcl
-jambonz_version = "10.2.2"
+jambonz_version = "11.1.1"
 ```
 
 ### Required Variables
@@ -97,7 +97,7 @@ jambonz_version = "10.2.2"
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `jambonz_version` | `10.2.2` | jambonz version to deploy |
+| `jambonz_version` | `11.1.1` | jambonz version to deploy |
 | `location` | `eastus` | Azure region (see supported regions below) |
 | `name_prefix` | `jambonz` | Prefix for resource names |
 | `sbc_vm_size` | `Standard_F4s_v2` | VM size for SBC |
@@ -253,7 +253,7 @@ sudo cat /var/log/cloud-init-output.log
 ```bash
 sudo systemctl status drachtio
 sudo systemctl status rtpengine
-sudo systemctl status freeswitch
+sudo systemctl status mediajam
 sudo systemctl status nginx
 pm2 list
 ```
