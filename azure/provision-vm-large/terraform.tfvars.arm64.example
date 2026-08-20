@@ -53,4 +53,4 @@ environment = "production"
 #   az sig image-version list-community \
 #     --public-gallery-name jambonz-8962e4f5-da0f-41ee-b094-8680ad38d302 \
 #     --gallery-image-definition jambonz-sip-arm64 --location westus2 -o table
-jambonz_version = "11.1.1"
+jambonz_version = "11.1.2"
