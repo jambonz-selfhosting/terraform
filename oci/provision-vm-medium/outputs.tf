@@ -15,11 +15,6 @@ output "grafana_url" {
   value       = "http://grafana.${var.url_portal}"
 }
 
-output "homer_url" {
-  description = "URL for the Homer portal"
-  value       = "http://homer.${var.url_portal}"
-}
-
 output "web_monitoring_public_ip" {
   description = "Public IP address of the Web/Monitoring server - create DNS A records pointing to this IP"
   value       = oci_core_instance.web_monitoring.public_ip
@@ -147,7 +142,6 @@ output "dns_records_required" {
     "${var.url_portal}"             = oci_core_instance.web_monitoring.public_ip
     "api.${var.url_portal}"         = oci_core_instance.web_monitoring.public_ip
     "grafana.${var.url_portal}"     = oci_core_instance.web_monitoring.public_ip
-    "homer.${var.url_portal}"       = oci_core_instance.web_monitoring.public_ip
     "public-apps.${var.url_portal}" = oci_core_instance.web_monitoring.public_ip
     "sip.${var.url_portal}"         = oci_core_public_ip.sbc[0].ip_address
   }

@@ -157,11 +157,6 @@ output "grafana_url" {
   value       = "http://grafana.${var.url_portal}"
 }
 
-output "homer_url" {
-  description = "URL for Homer SIP capture"
-  value       = "http://homer.${var.url_portal}"
-}
-
 # ------------------------------------------------------------------------------
 # DEFAULT CREDENTIALS
 # ------------------------------------------------------------------------------
@@ -222,7 +217,6 @@ output "dns_records_required" {
     "api.${var.url_portal}"         = azurerm_public_ip.web.ip_address
     "public-apps.${var.url_portal}" = azurerm_public_ip.web.ip_address
     "grafana.${var.url_portal}"     = azurerm_public_ip.monitoring.ip_address
-    "homer.${var.url_portal}"       = azurerm_public_ip.monitoring.ip_address
     "jaeger.${var.url_portal}"      = azurerm_public_ip.monitoring.ip_address
     "sip.${var.url_portal}"         = azurerm_public_ip.sip[0].ip_address
   }

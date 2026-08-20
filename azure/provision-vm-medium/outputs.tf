@@ -15,11 +15,6 @@ output "grafana_url" {
   value       = "http://grafana.${var.url_portal}"
 }
 
-output "homer_url" {
-  description = "URL for the Homer portal"
-  value       = "http://homer.${var.url_portal}"
-}
-
 output "web_monitoring_public_ip" {
   description = "Public IP address of the Web/Monitoring server - create DNS A records pointing to this IP"
   value       = azurerm_public_ip.web_monitoring.ip_address
@@ -99,7 +94,6 @@ output "dns_records_required" {
     "${var.url_portal}"             = azurerm_public_ip.web_monitoring.ip_address
     "api.${var.url_portal}"         = azurerm_public_ip.web_monitoring.ip_address
     "grafana.${var.url_portal}"     = azurerm_public_ip.web_monitoring.ip_address
-    "homer.${var.url_portal}"       = azurerm_public_ip.web_monitoring.ip_address
     "public-apps.${var.url_portal}" = azurerm_public_ip.web_monitoring.ip_address
     "sip.${var.url_portal}"         = azurerm_public_ip.sbc[0].ip_address
   }

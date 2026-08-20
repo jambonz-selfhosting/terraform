@@ -15,11 +15,6 @@ output "grafana_url" {
   value       = var.url_portal != "" ? "http://grafana.${var.url_portal}" : "http://${google_compute_address.mini.address}:3010"
 }
 
-output "homer_url" {
-  description = "URL for the Homer portal"
-  value       = var.url_portal != "" ? "http://homer.${var.url_portal}" : "http://${google_compute_address.mini.address}:9080"
-}
-
 output "public_ip" {
   description = "Public IP address of the mini server - create DNS A records pointing to this IP"
   value       = google_compute_address.mini.address
@@ -67,7 +62,6 @@ output "dns_records_required" {
     "${var.url_portal}"         = google_compute_address.mini.address
     "api.${var.url_portal}"     = google_compute_address.mini.address
     "grafana.${var.url_portal}" = google_compute_address.mini.address
-    "homer.${var.url_portal}"   = google_compute_address.mini.address
     "sip.${var.url_portal}"     = google_compute_address.mini.address
   } : {}
 }

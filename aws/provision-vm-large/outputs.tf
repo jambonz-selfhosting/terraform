@@ -16,11 +16,6 @@ output "grafana_url" {
   value       = "http://grafana.${var.url_portal}"
 }
 
-output "homer_url" {
-  description = "URL for the Homer portal"
-  value       = "http://homer.${var.url_portal}"
-}
-
 # ------------------------------------------------------------------------------
 # WEB SERVER OUTPUTS
 # ------------------------------------------------------------------------------
@@ -202,7 +197,6 @@ output "dns_records_required" {
     "api.${var.url_portal}"         = aws_eip.web.public_ip
     "public-apps.${var.url_portal}" = aws_eip.web.public_ip
     "grafana.${var.url_portal}"     = aws_eip.monitoring.public_ip
-    "homer.${var.url_portal}"       = aws_eip.monitoring.public_ip
     "sip.${var.url_portal}"         = aws_eip.sip[0].public_ip
   }
 }
