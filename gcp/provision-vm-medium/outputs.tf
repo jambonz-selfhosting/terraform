@@ -15,11 +15,6 @@ output "grafana_url" {
   value       = "http://grafana.${var.url_portal}"
 }
 
-output "homer_url" {
-  description = "URL for the Homer portal"
-  value       = "http://homer.${var.url_portal}"
-}
-
 output "web_monitoring_public_ip" {
   description = "Public IP address of the Web/Monitoring server - create DNS A records pointing to this IP"
   value       = google_compute_address.web_monitoring.address
@@ -114,7 +109,6 @@ output "dns_records_required" {
     "${var.url_portal}"             = google_compute_address.web_monitoring.address
     "api.${var.url_portal}"         = google_compute_address.web_monitoring.address
     "grafana.${var.url_portal}"     = google_compute_address.web_monitoring.address
-    "homer.${var.url_portal}"       = google_compute_address.web_monitoring.address
     "public-apps.${var.url_portal}" = google_compute_address.web_monitoring.address
     "sip.${var.url_portal}"         = google_compute_address.sbc[0].address
   }

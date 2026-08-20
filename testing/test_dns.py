@@ -100,7 +100,6 @@ def create(url_portal, subdomain, base_domain, web_ip, sbc_ip, config, ttl, wait
     - <subdomain>.<base_domain> -> web_ip
     - api.<subdomain>.<base_domain> -> web_ip
     - grafana.<subdomain>.<base_domain> -> web_ip
-    - homer.<subdomain>.<base_domain> -> web_ip
     - public-apps.<subdomain>.<base_domain> -> web_ip
     - sip.<subdomain>.<base_domain> -> sbc_ip[0]
     """
@@ -158,7 +157,6 @@ def create(url_portal, subdomain, base_domain, web_ip, sbc_ip, config, ttl, wait
         (subdomain, web_ip),
         (f"api.{subdomain}", web_ip),
         (f"grafana.{subdomain}", web_ip),
-        (f"homer.{subdomain}", web_ip),
         (f"public-apps.{subdomain}", web_ip),
         (f"sip.{subdomain}", sbc_ip[0]),  # Use first SBC IP
     ]
@@ -245,7 +243,6 @@ def test(subdomain, web_ip, sbc_ip):
         (f"{subdomain}.jambonz.io", web_ip),
         (f"api.{subdomain}.jambonz.io", web_ip),
         (f"grafana.{subdomain}.jambonz.io", web_ip),
-        (f"homer.{subdomain}.jambonz.io", web_ip),
         (f"public-apps.{subdomain}.jambonz.io", web_ip),
         (f"sip.{subdomain}.jambonz.io", sbc_ip),
     ]

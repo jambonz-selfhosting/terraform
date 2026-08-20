@@ -94,7 +94,6 @@ def create_dns_records(
         (subdomain, web_ip),
         (f"api.{subdomain}", web_ip),
         (f"grafana.{subdomain}", web_ip),
-        (f"homer.{subdomain}", web_ip),
         (f"public-apps.{subdomain}", web_ip),
         (f"sip.{subdomain}", sbc_ip),
     ]
@@ -559,7 +558,6 @@ def main(terraform_dir, email, config, skip_dns, skip_tls, skip_webapp, staging)
         print("Additional URLs:")
         print(f"  - API: https://api.{portal_url}/api/v1")
         print(f"  - Grafana: https://grafana.{portal_url}")
-        print(f"  - Homer: https://homer.{portal_url}")
         print()
         sys.exit(0)
     else:

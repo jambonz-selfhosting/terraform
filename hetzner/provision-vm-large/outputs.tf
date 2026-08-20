@@ -17,11 +17,6 @@ output "grafana_url" {
   value       = "http://grafana.${var.url_portal}"
 }
 
-output "homer_url" {
-  description = "Homer URL"
-  value       = "http://homer.${var.url_portal}"
-}
-
 output "sip_domain" {
   description = "SIP domain"
   value       = "sip.${var.url_portal}"

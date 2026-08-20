@@ -10,13 +10,8 @@ output "grafana_url" {
   value       = "http://grafana.${var.url_portal}"
 }
 
-output "homer_url" {
-  description = "URL for the Homer portal"
-  value       = "http://homer.${var.url_portal}"
-}
-
 output "server_ip" {
-  description = "Server IP address - create DNS A records pointing to this IP for the domain and subdomains (api, grafana, homer, sip). This IP is stable across reboots."
+  description = "Server IP address - create DNS A records pointing to this IP for the domain and subdomains (api, grafana, sip). This IP is stable across reboots."
   value       = azurerm_public_ip.jambonz.ip_address
 }
 
@@ -57,7 +52,6 @@ output "dns_records_required" {
     "${var.url_portal}"         = azurerm_public_ip.jambonz.ip_address
     "api.${var.url_portal}"     = azurerm_public_ip.jambonz.ip_address
     "grafana.${var.url_portal}" = azurerm_public_ip.jambonz.ip_address
-    "homer.${var.url_portal}"   = azurerm_public_ip.jambonz.ip_address
     "sip.${var.url_portal}"     = azurerm_public_ip.jambonz.ip_address
   }
 }

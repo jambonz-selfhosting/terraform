@@ -15,11 +15,6 @@ output "grafana_url" {
   value       = "http://grafana.${var.url_portal}"
 }
 
-output "homer_url" {
-  description = "URL for the Homer portal"
-  value       = "http://homer.${var.url_portal}"
-}
-
 output "public_ip" {
   description = "Public IP address of the mini server - create DNS A records pointing to this IP"
   value       = aws_eip.mini.public_ip
@@ -67,7 +62,6 @@ output "dns_records_required" {
     "${var.url_portal}"         = aws_eip.mini.public_ip
     "api.${var.url_portal}"     = aws_eip.mini.public_ip
     "grafana.${var.url_portal}" = aws_eip.mini.public_ip
-    "homer.${var.url_portal}"   = aws_eip.mini.public_ip
     "sip.${var.url_portal}"     = aws_eip.mini.public_ip
   }
 }

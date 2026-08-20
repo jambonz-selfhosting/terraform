@@ -30,11 +30,6 @@ output "grafana_url" {
   value       = "https://grafana.${var.url_portal}"
 }
 
-output "homer_url" {
-  description = "URL for Homer SIP capture"
-  value       = "https://homer.${var.url_portal}"
-}
-
 output "jaeger_url" {
   description = "URL for Jaeger tracing"
   value       = "https://jaeger.${var.url_portal}"
@@ -62,7 +57,6 @@ output "dns_records_required" {
     "${var.url_portal}"          = oci_core_public_ip.jambonz_mini.ip_address
     "api.${var.url_portal}"      = oci_core_public_ip.jambonz_mini.ip_address
     "grafana.${var.url_portal}"  = oci_core_public_ip.jambonz_mini.ip_address
-    "homer.${var.url_portal}"    = oci_core_public_ip.jambonz_mini.ip_address
     "jaeger.${var.url_portal}"   = oci_core_public_ip.jambonz_mini.ip_address
     "sip.${var.url_portal}"      = oci_core_public_ip.jambonz_mini.ip_address
   }
