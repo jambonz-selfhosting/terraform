@@ -35,7 +35,12 @@ bootcmd:
   # when eth1 has none -- which makes its two contact pairs identical and
   # kills it with 'Address already in use', the exact failure the mini had.
   # Seen for real on the first boot of a medium SBC.
-  - /bin/bash -c 'for i in $(seq 1 30); do ip -4 addr show eth1 | grep -q "inet " && exit 0; sleep 2; done; echo "WARNING: eth1 has no address after 60s" >&2'
+  - |
+    for i in $(seq 1 30); do
+      ip -4 addr show eth1 | grep -q 'inet ' && exit 0
+      sleep 2
+    done
+    echo 'WARNING eth1 has no address after 60s' >&2
 
 write_files:
   - path: /tmp/configure-web.sh
