@@ -8,14 +8,28 @@ users:
     ssh_authorized_keys:
       - "${ssh_public_key}"
 
-# Configure network interfaces (both public and private)
-network:
-  version: 2
-  ethernets:
-    eth0:
-      dhcp4: true
-    eth1:
-      dhcp4: true
+# Bring up eth1, the Exoscale private network interface.
+#
+# The `network:` block that used to sit here did NOTHING. cloud-init takes
+# network configuration from the DATASOURCE (or /etc/cloud/cloud.cfg.d), not
+# from a top-level `network:` key in cloud-config user-data. DataSourceExoscale
+# supplies eth0 only, so /etc/netplan/50-cloud-init.yaml was generated with a
+# single interface and eth1 stayed DOWN with no address.
+#
+# The damage was not subtle: with no 172.20.x.x address, redis on the
+# web-monitoring host was unreachable, and every host that waits for it sat
+# in `until redis-cli ... PING` -- an unbounded loop -- so cloud-init never
+# finished. It also silently broke inbound/outbound call classification,
+# which relies on feature-server addresses falling inside
+# JAMBONES_NETWORK_CIDR.
+#
+# `netplan set` rather than writing YAML: this sits in an indented block
+# scalar, where both a heredoc and printf-with-escapes have already produced
+# broken files. netplan lives in /usr/sbin, which is not on every PATH.
+bootcmd:
+  - /usr/sbin/netplan set ethernets.eth1.dhcp4=true
+  - /usr/sbin/netplan set ethernets.eth1.optional=true
+  - /usr/sbin/netplan apply
 
 write_files:
   - path: /tmp/configure-web.sh

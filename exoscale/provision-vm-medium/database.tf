@@ -42,7 +42,13 @@ resource "exoscale_dbaas" "mysql" {
   termination_protection = false
 
   mysql {
-    version        = "8"
+    # Exoscale retires DBaaS engine versions: "8" reached end of availability
+    # and is now REJECTED at create time --
+    #   invalid request: Service 'mysql' version '8' has reached end of
+    #   availability and cannot be created
+    # which made medium/large undeployable for everyone, not just new
+    # releases. Check `exo dbaas type show mysql` for Available Versions.
+    version        = "8.4"
     admin_username = var.mysql_username
     admin_password = local.db_password
     # Allow connections from:
