@@ -44,9 +44,9 @@ variable "url_portal" {
 }
 
 variable "jambonz_version" {
-  description = "Jambonz version for template lookup (e.g., 10.2.0)"
+  description = "Jambonz version for template lookup (e.g., 11.1.3)"
   type        = string
-  default     = "10.2.0"
+  default     = "11.1.3"
 }
 
 # Instance Count Variables
