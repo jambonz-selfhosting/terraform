@@ -8,14 +8,34 @@ users:
     ssh_authorized_keys:
       - "${ssh_public_key}"
 
-# Configure network interfaces (both public and private)
-network:
-  version: 2
-  ethernets:
-    eth0:
-      dhcp4: true
-    eth1:
-      dhcp4: true
+# Bring up eth1, the Exoscale private network interface.
+#
+# The `network:` block that used to sit here did NOTHING. cloud-init takes
+# network configuration from the DATASOURCE (or /etc/cloud/cloud.cfg.d), not
+# from a top-level `network:` key in cloud-config user-data. DataSourceExoscale
+# supplies eth0 only, so /etc/netplan/50-cloud-init.yaml was generated with a
+# single interface and eth1 stayed DOWN with no address.
+#
+# The damage was not subtle: with no 172.20.x.x address, redis on the
+# web-monitoring host was unreachable, and every host that waits for it sat
+# in `until redis-cli ... PING` -- an unbounded loop -- so cloud-init never
+# finished. It also silently broke inbound/outbound call classification,
+# which relies on feature-server addresses falling inside
+# JAMBONES_NETWORK_CIDR.
+#
+# `netplan set` rather than writing YAML: this sits in an indented block
+# scalar, where both a heredoc and printf-with-escapes have already produced
+# broken files. netplan lives in /usr/sbin, which is not on every PATH.
+bootcmd:
+  - /usr/sbin/netplan set ethernets.eth1.dhcp4=true
+  - /usr/sbin/netplan set ethernets.eth1.optional=true
+  - /usr/sbin/netplan apply
+  # Wait for the DHCP lease before anything reads the address. drachtio's
+  # ExecStartPre resolves LOCAL_IP from eth1 and FALLS BACK TO THE PUBLIC IP
+  # when eth1 has none -- which makes its two contact pairs identical and
+  # kills it with 'Address already in use', the exact failure the mini had.
+  # Seen for real on the first boot of a medium SBC.
+  - /bin/bash -c 'for i in $(seq 1 30); do ip -4 addr show eth1 | grep -q "inet " && exit 0; sleep 2; done; echo "WARNING: eth1 has no address after 60s" >&2'
 
 write_files:
   - path: /tmp/configure-jambonz.sh
@@ -55,6 +75,39 @@ write_files:
       echo "Public IP: $PUBLIC_IP"
       echo "Private IP: $PRIVATE_IP (eth1)"
       echo "Instance ID: $INSTANCE_ID"
+
+      # ---- Redis --------------------------------------------------------
+      # The web-monitoring IMAGE does not ship redis-server: on AWS/GCP/Azure
+      # this deployment size uses the provider's managed cache, so the image has
+      # no reason to carry it. Exoscale's terraform has always pointed every
+      # host at ${redis_host}:6379 with a comment saying "Redis runs on this
+      # VM" -- but nothing ever installed it, so JAMBONES_REDIS_HOST pointed at
+      # a closed port. The SBC's `until redis-cli ... PING` loop then spun
+      # forever and no feature server could register.
+      #
+      # Install it here and bind it to loopback plus the private address only.
+      # Never bind 0.0.0.0: eth0 holds a PUBLIC ip on Exoscale, and an
+      # internet-facing redis with no auth is a takeover waiting to happen.
+      #
+      # Longer term this belongs on Exoscale's managed service -- `exo dbaas
+      # type list` offers valkey (Redis-compatible), which would match how the
+      # other providers do it -- but that needs TLS and auth wiring through
+      # every cloud-init, as Azure has.
+      echo "Installing and configuring redis-server..."
+      export DEBIAN_FRONTEND=noninteractive
+      apt-get update -qq
+      apt-get install -y -qq redis-server
+      sed -i "s/^bind .*/bind 127.0.0.1 $PRIVATE_IP/" /etc/redis/redis.conf
+      sed -i "s/^protected-mode .*/protected-mode no/" /etc/redis/redis.conf
+      systemctl enable redis-server
+      systemctl restart redis-server
+      for i in $(seq 1 30); do
+        redis-cli -h "$PRIVATE_IP" ping 2>/dev/null | grep -q PONG && break
+        sleep 2
+      done
+      redis-cli -h "$PRIVATE_IP" ping 2>/dev/null | grep -q PONG \
+        && echo "redis listening on $PRIVATE_IP:6379" \
+        || echo "WARNING: redis not answering on $PRIVATE_IP:6379"
 
       # Wait for database to be ready
       echo "Waiting for MySQL to be ready..."
