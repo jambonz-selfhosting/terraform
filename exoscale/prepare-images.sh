@@ -10,7 +10,7 @@ set -e
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 # Defaults
-DEFAULT_VERSION="10.2.0"
+DEFAULT_VERSION="11.1.3"
 SOS_BUCKET="jambonz-images"
 SOS_ZONE="ch-gva-2"
 S3_FALLBACK_URL="https://jambonz-qcow2-images.s3.us-east-1.amazonaws.com"
