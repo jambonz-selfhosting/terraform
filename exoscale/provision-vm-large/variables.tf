@@ -44,9 +44,9 @@ variable "url_portal" {
 }
 
 variable "jambonz_version" {
-  description = "Jambonz version for template lookup (e.g., 11.1.3)"
+  description = "Jambonz version for template lookup (e.g., 11.1.4)"
   type        = string
-  default     = "11.1.3"
+  default     = "11.1.4"
 }
 
 # =============================================================================
