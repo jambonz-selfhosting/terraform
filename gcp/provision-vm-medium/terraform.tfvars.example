@@ -57,10 +57,10 @@ allowed_sbc_cidr  = ["0.0.0.0/0"]
 # ------------------------------------------------------------------------------
 
 # Public jambonz images from drachtio-cpaas project
-feature_server_image = "projects/drachtio-cpaas/global/images/jambonz-fs-v11-1-2-debian-12-amd64-20260820185059"
-sbc_image            = "projects/drachtio-cpaas/global/images/jambonz-sip-rtp-v11-1-2-debian-12-amd64-20260820185100"
-web_monitoring_image = "projects/drachtio-cpaas/global/images/jambonz-web-monitoring-v11-1-2-debian-12-amd64-20260820185105"
-recording_image      = "projects/drachtio-cpaas/global/images/jambonz-recording-v11-1-2-debian-12-amd64-20260820185106"
+feature_server_image = "projects/drachtio-cpaas/global/images/jambonz-fs-v11-1-4-debian-12-amd64-20260824125222"
+sbc_image            = "projects/drachtio-cpaas/global/images/jambonz-sip-rtp-v11-1-4-debian-12-amd64-20260824125223"
+web_monitoring_image = "projects/drachtio-cpaas/global/images/jambonz-web-monitoring-v11-1-4-debian-12-amd64-20260824125228"
+recording_image      = "projects/drachtio-cpaas/global/images/jambonz-recording-v11-1-4-debian-12-amd64-20260824125229"
 
 # ------------------------------------------------------------------------------
 # MACHINE TYPE CONFIGURATION

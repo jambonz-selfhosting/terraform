@@ -57,7 +57,7 @@ allowed_sip_cidr = ["0.0.0.0/0"]    # SIP/RTP access
 # Public jambonz images from drachtio-cpaas project
 # ------------------------------------------------------------------------------
 
-mini_image = "projects/drachtio-cpaas/global/images/jambonz-mini-v11-1-2-debian-12-amd64-20260820185058"
+mini_image = "projects/drachtio-cpaas/global/images/jambonz-mini-v11-1-4-debian-12-amd64-20260824125221"
 
 # ------------------------------------------------------------------------------
 # MACHINE TYPE CONFIGURATION
