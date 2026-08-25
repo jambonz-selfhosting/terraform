@@ -159,6 +159,7 @@ output "usage_instructions" {
 
     SIP Elastic IPs: ${join(", ", exoscale_elastic_ip.sip[*].ip_address)}
     EIP pool label:  role=sip-node
+    RTP nodes use their own public IP -- no EIP (see main.tf for why)
     K8s secret:      exoscale-eip-creds (in jambonz namespace)
 
     ----------------------------------------

@@ -159,11 +159,45 @@ resource "exoscale_sks_nodepool" "rtp" {
 # Used by eip-allocator init container to assign static IPs to SIP nodes
 # =============================================================================
 
+# The healthcheck block is what makes this a MANAGED Elastic IP, and it is not
+# optional. Without it Exoscale creates a *manual* EIP, which is only routed to
+# the instance once the address is configured inside the OS (a lo:1 alias) -- and
+# nothing in SKS does that, so the address silently blackholes: eip-allocator
+# reports "attached successfully", the node never answers on it, and SIP traffic
+# to the EIP is dropped. Measured on a live cluster before this was added.
+#
+# tcp/5060 is the same check provision-vm-medium uses for its SBC EIPs, which is
+# the deployment this pattern is proven on: drachtio listens on TCP 5060 and the
+# sip security group already allows it.
 resource "exoscale_elastic_ip" "sip" {
   count       = var.sip_node_count
   zone        = var.zone
   description = "role=sip-node"
+
+  healthcheck {
+    mode         = "tcp"
+    port         = 5060
+    interval     = 10
+    timeout      = 3
+    strikes_ok   = 2
+    strikes_fail = 3
+  }
 }
+
+# There is deliberately NO Elastic IP for the RTP nodes.
+#
+# A managed EIP needs a TCP healthcheck target, and an RTP node has none that is
+# safe to expose: rtpengine's ng control port (22222) is UDP, and the only TCP
+# ports listening are Kubernetes' own (kubelet, kube-proxy, CNI). Exposing
+# rtpengine's TCP ng port would put media control on the public internet.
+#
+# An EIP that never passes its healthcheck is worse than no EIP: Exoscale stops
+# routing it, while eip-allocator still hands it out and the address blackholes.
+#
+# RTP does not need one: Exoscale gives every SKS node a routable public IP
+# directly (no NAT), and that is what rtpengine advertises. Media works on the
+# node's own address. The tradeoff is that replacing an RTP node changes its
+# media address -- acceptable, since carriers whitelist signalling addresses.
 
 # =============================================================================
 # Kubeconfig
