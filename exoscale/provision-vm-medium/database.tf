@@ -48,7 +48,22 @@ resource "exoscale_dbaas" "mysql" {
     #   availability and cannot be created
     # which made medium/large undeployable for everyone, not just new
     # releases. Check `exo dbaas type show mysql` for Available Versions.
-    version        = "8.4"
+    version = "8.4"
+
+    # Must be set explicitly. Left unset, creating works but every later apply
+    # that touches this resource fails:
+    #
+    #   Error: Validation error
+    #     Unable to parse backup schedule, got error: invalid value "" for
+    #     backup schedule, expecting HH:MM
+    #
+    # because the provider (exoscale 0.68.0) sends an empty string on update
+    # where it omitted the field on create. That makes the module single-shot in
+    # the same way a missing oidc_issuer_enabled does on AKS: any second apply
+    # -- scaling a pool, a cloud-init change, an ip_filter change -- dies here,
+    # after the instances have already been replaced.
+    backup_schedule = "01:00"
+
     admin_username = var.mysql_username
     admin_password = local.db_password
     # Allow connections from:

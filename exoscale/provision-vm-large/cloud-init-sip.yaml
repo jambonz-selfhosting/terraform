@@ -105,18 +105,31 @@ write_files:
       done
 
       # Configure drachtio
+      #
+      # Fill in the placeholders the IMAGE ships. files/exoscale/drachtio.service
+      # in the packer repo declares every one of these as an empty
+      # Environment="JAMBONES_...=" line precisely so a deployment can substitute
+      # values -- that is the contract between the image and the terraform, and
+      # it is what the medium layout does.
+      #
+      # This replaces a systemd drop-in written to
+      # /etc/systemd/system/drachtio.service.d/override.conf, which was a second,
+      # divergent mechanism and did not work: the image has no reason to create
+      # that directory, so the redirect failed with "No such file or directory",
+      # which aborted cloud-init before all the pm2 setup below. drachtio then
+      # started with no environment, exited 1, and systemd gave up with "Start
+      # request repeated too quickly" -- while the script's last line still
+      # printed "SIP server is ready" and the host answered nothing on 5060.
       echo "Configuring drachtio..."
-      cat > /etc/systemd/system/drachtio.service.d/override.conf << EOF
-      [Service]
-      Environment="JAMBONES_MYSQL_HOST=$MYSQL_HOST:$MYSQL_PORT"
-      Environment="JAMBONES_MYSQL_USER=$MYSQL_USER"
-      Environment="JAMBONES_MYSQL_PASSWORD=$MYSQL_PASSWORD"
-      Environment="JAMBONES_MYSQL_DATABASE=$MYSQL_DATABASE"
-      Environment="JAMBONES_REDIS_HOST=$REDIS_HOST"
-      Environment="JAMBONES_REDIS_PORT=$REDIS_PORT"
-      Environment="DRACHTIO_HOST=$PRIVATE_IP"
-      Environment="SOFIA_SEARCH_DOMAINS=1"
-      EOF
+      sudo systemctl stop drachtio || true
+      sudo sed -i -e "s/JAMBONES_MYSQL_HOST=/JAMBONES_MYSQL_HOST=$MYSQL_HOST/g" /etc/systemd/system/drachtio.service
+      sudo sed -i -e "s/JAMBONES_MYSQL_PORT=/JAMBONES_MYSQL_PORT=$MYSQL_PORT/g" /etc/systemd/system/drachtio.service
+      sudo sed -i -e "s/JAMBONES_MYSQL_USER=/JAMBONES_MYSQL_USER=$MYSQL_USER/g" /etc/systemd/system/drachtio.service
+      sudo sed -i -e "s/JAMBONES_MYSQL_PASSWORD=/JAMBONES_MYSQL_PASSWORD=$MYSQL_PASSWORD/g" /etc/systemd/system/drachtio.service
+      sudo sed -i -e "s/JAMBONES_MYSQL_DATABASE=/JAMBONES_MYSQL_DATABASE=$MYSQL_DATABASE/g" /etc/systemd/system/drachtio.service
+      sudo sed -i -e "s/JAMBONES_REDIS_HOST=/JAMBONES_REDIS_HOST=$REDIS_HOST/g" /etc/systemd/system/drachtio.service
+      sudo sed -i -e "s/JAMBONES_REDIS_PORT=/JAMBONES_REDIS_PORT=$REDIS_PORT/g" /etc/systemd/system/drachtio.service
+      sudo systemctl daemon-reload
 
       # Point drachtio to the HEP endpoint on the monitoring server
       if [[ "$ENABLE_PCAPS" == "true" ]]; then
@@ -150,7 +163,8 @@ write_files:
             DRACHTIO_HOST: '127.0.0.1',
             DRACHTIO_PORT: 9022,
             DRACHTIO_SECRET: 'cymru',
-            JAMBONES_MYSQL_HOST: 'MYSQL_HOST_PORT_PLACEHOLDER',
+            JAMBONES_MYSQL_HOST: 'MYSQL_HOST_PLACEHOLDER',
+            JAMBONES_MYSQL_PORT: MYSQL_PORT_PLACEHOLDER,
             JAMBONES_MYSQL_USER: 'MYSQL_USER_PLACEHOLDER',
             JAMBONES_MYSQL_PASSWORD: 'MYSQL_PASSWORD_PLACEHOLDER',
             JAMBONES_MYSQL_DATABASE: 'MYSQL_DATABASE_PLACEHOLDER',
@@ -215,7 +229,8 @@ write_files:
             DRACHTIO_HOST: '127.0.0.1',
             DRACHTIO_PORT: 9022,
             DRACHTIO_SECRET: 'cymru',
-            JAMBONES_MYSQL_HOST: 'MYSQL_HOST_PORT_PLACEHOLDER',
+            JAMBONES_MYSQL_HOST: 'MYSQL_HOST_PLACEHOLDER',
+            JAMBONES_MYSQL_PORT: MYSQL_PORT_PLACEHOLDER,
             JAMBONES_MYSQL_USER: 'MYSQL_USER_PLACEHOLDER',
             JAMBONES_MYSQL_PASSWORD: 'MYSQL_PASSWORD_PLACEHOLDER',
             JAMBONES_MYSQL_DATABASE: 'MYSQL_DATABASE_PLACEHOLDER',
@@ -256,7 +271,8 @@ write_files:
             DRACHTIO_SECRET: 'cymru',
             HTTP_PORT: 3000,
             HTTP_PORT_MAX: 3009,
-            JAMBONES_MYSQL_HOST: 'MYSQL_HOST_PORT_PLACEHOLDER',
+            JAMBONES_MYSQL_HOST: 'MYSQL_HOST_PLACEHOLDER',
+            JAMBONES_MYSQL_PORT: MYSQL_PORT_PLACEHOLDER,
             JAMBONES_MYSQL_USER: 'MYSQL_USER_PLACEHOLDER',
             JAMBONES_MYSQL_PASSWORD: 'MYSQL_PASSWORD_PLACEHOLDER',
             JAMBONES_MYSQL_DATABASE: 'MYSQL_DATABASE_PLACEHOLDER',
@@ -281,7 +297,8 @@ write_files:
 
       # Replace placeholders
       sed -i "s/JWT_SECRET_PLACEHOLDER/$JWT_SECRET/g" $HOME/apps/ecosystem.config.js
-      sed -i "s/MYSQL_HOST_PORT_PLACEHOLDER/$MYSQL_HOST:$MYSQL_PORT/g" $HOME/apps/ecosystem.config.js
+      sed -i "s/MYSQL_HOST_PLACEHOLDER/$MYSQL_HOST/g" $HOME/apps/ecosystem.config.js
+      sed -i "s/MYSQL_PORT_PLACEHOLDER/$MYSQL_PORT/g" $HOME/apps/ecosystem.config.js
       sed -i "s/MYSQL_USER_PLACEHOLDER/$MYSQL_USER/g" $HOME/apps/ecosystem.config.js
       sed -i "s/MYSQL_PASSWORD_PLACEHOLDER/$MYSQL_PASSWORD/g" $HOME/apps/ecosystem.config.js
       sed -i "s/MYSQL_DATABASE_PLACEHOLDER/$MYSQL_DATABASE/g" $HOME/apps/ecosystem.config.js
