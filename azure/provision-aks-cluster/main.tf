@@ -384,6 +384,9 @@ resource "null_resource" "associate_voip_nsgs" {
     rtp_nsg  = azurerm_network_security_group.rtp_nodes.id
     sip_pool = azurerm_kubernetes_cluster_node_pool.sip.id
     rtp_pool = azurerm_kubernetes_cluster_node_pool.rtp.id
+
+    # Needed by the destroy-time provisioner below, which may only read `self`.
+    node_rg = azurerm_kubernetes_cluster.main.node_resource_group
   }
 
   provisioner "local-exec" {
@@ -411,6 +414,47 @@ resource "null_resource" "associate_voip_nsgs" {
         az vmss update-instances -g "$NODE_RG" -n "$VMSS" --instance-ids '*' -o none
       done
       echo "VoIP NSGs associated; allow a few minutes to take effect"
+    EOT
+  }
+
+  # Undo the association on the way out. Azure refuses to delete an NSG that a
+  # scale set still references:
+  #
+  #   Error: deleting Network Security Group ... 400
+  #     NetworkSecurityGroupInUseByVirtualMachineScaleSet: Cannot delete network
+  #     security group .../sip-nodes-nsg since it is in use by virtual machine
+  #     scale set .../AKS-SIP-...-VMSS
+  #
+  # so without this a plain `terraform destroy` fails partway: the node pools go,
+  # then both NSG deletions error out, and the run has to be repeated (which then
+  # succeeds, because by that point the scale sets are gone). Destroying this
+  # resource first -- terraform does, since the NSGs and pools are its
+  # dependencies -- clears the reference while the scale sets still exist.
+  #
+  # Deliberately forgiving: at destroy time the scale sets may already be gone,
+  # or the cluster may never have finished creating. Nothing here should be able
+  # to block a teardown.
+  provisioner "local-exec" {
+    when        = destroy
+    on_failure  = continue
+    interpreter = ["/bin/bash", "-c"]
+
+    environment = {
+      NODE_RG = self.triggers.node_rg
+    }
+
+    command = <<-EOT
+      set +e
+      for pool in sip rtp; do
+        VMSS=$(az vmss list -g "$NODE_RG" --query "[?starts_with(name, 'aks-$pool-')].name" -o tsv 2>/dev/null)
+        if [ -z "$VMSS" ]; then
+          echo "no aks-$pool-* scale set in $NODE_RG; nothing to disassociate"
+          continue
+        fi
+        echo "disassociating NSG from $VMSS"
+        az vmss update -g "$NODE_RG" -n "$VMSS" --remove virtualMachineProfile.networkProfile.networkInterfaceConfigurations[0].networkSecurityGroup -o none
+      done
+      exit 0
     EOT
   }
 }
