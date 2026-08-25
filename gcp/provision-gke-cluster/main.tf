@@ -171,14 +171,47 @@ resource "google_compute_firewall" "rtp" {
 # Used by eip-allocator init container to assign static IPs to SIP nodes
 # =============================================================================
 
+# The zones the SIP and RTP node pools run in. This is deliberately explicit:
+# these pools sit on a REGIONAL cluster, where node_count is per zone, so a
+# count of 1 across three zones is three nodes -- and each of them needs its own
+# static IP. Pinning the zones is what lets the address count below match the
+# node count exactly, which is what eip-allocator requires (one free address per
+# node, or the init container dies and the SBC pod never starts).
+#
+# Defaults to a single zone: an SBC is addressed by its static IP, so you scale
+# by node count, not by zone spread. Set voip_node_locations explicitly to run
+# the SBCs across zones -- addresses are then allocated per zone automatically.
+data "google_compute_zones" "available" {
+  region = var.region
+}
+
+locals {
+  voip_zones = length(var.voip_node_locations) > 0 ? var.voip_node_locations : [data.google_compute_zones.available.names[0]]
+}
+
 resource "google_compute_address" "sip" {
-  count        = var.sip_node_count
+  count        = var.sip_node_count * length(local.voip_zones)
   name         = "${var.cluster_name}-sip-ip-${count.index + 1}"
   region       = var.region
   address_type = "EXTERNAL"
 
   labels = {
     role = "sip-node"
+  }
+}
+
+# RTP needs static IPs for exactly the same reason SIP does -- carriers whitelist
+# media addresses, and eip-allocator refuses to start the pod when the pool is
+# empty ("No free static IPs available in pool role=rtp-node"). These were simply
+# missing, so sbc.eipAllocator.enabled=true could never work on GCP.
+resource "google_compute_address" "rtp" {
+  count        = var.rtp_node_count * length(local.voip_zones)
+  name         = "${var.cluster_name}-rtp-ip-${count.index + 1}"
+  region       = var.region
+  address_type = "EXTERNAL"
+
+  labels = {
+    role = "rtp-node"
   }
 }
 
@@ -269,11 +302,14 @@ resource "google_container_node_pool" "system" {
 
 # SIP Node Pool
 resource "google_container_node_pool" "sip" {
-  name     = "sip"
-  location = var.region
-  cluster  = google_container_cluster.main.name
+  name           = "sip"
+  location       = var.region
+  cluster        = google_container_cluster.main.name
+  node_locations = local.voip_zones
 
-  # Fixed size node pool (per-zone count)
+  # Fixed size node pool -- node_count is PER ZONE, so the total is
+  # sip_node_count * length(local.voip_zones). The static IP pool above is
+  # sized with the same expression so the two cannot disagree.
   node_count = var.sip_node_count
 
   node_config {
@@ -301,11 +337,14 @@ resource "google_container_node_pool" "sip" {
 
 # RTP Node Pool
 resource "google_container_node_pool" "rtp" {
-  name     = "rtp"
-  location = var.region
-  cluster  = google_container_cluster.main.name
+  name           = "rtp"
+  location       = var.region
+  cluster        = google_container_cluster.main.name
+  node_locations = local.voip_zones
 
-  # Fixed size node pool (per-zone count)
+  # Fixed size node pool -- node_count is PER ZONE, so the total is
+  # rtp_node_count * length(local.voip_zones). The static IP pool above is
+  # sized with the same expression so the two cannot disagree.
   node_count = var.rtp_node_count
 
   node_config {
