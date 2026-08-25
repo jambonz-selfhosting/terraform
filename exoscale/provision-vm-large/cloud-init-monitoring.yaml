@@ -70,6 +70,42 @@ write_files:
       echo "Private IP: $PRIVATE_IP (eth1)"
       echo "Instance ID: $INSTANCE_ID"
 
+      # ---- Redis --------------------------------------------------------
+      # The monitoring IMAGE does not ship redis-server: on AWS/GCP/Azure this
+      # deployment size uses the provider's managed cache, so the image has no
+      # reason to carry it. This terraform has always pointed every other host
+      # at this host's private address on port 6379 -- but
+      # nothing here ever installed it, so JAMBONES_REDIS_HOST pointed at a
+      # closed port. The SIP host's `until redis-cli ... PING` loop then spun
+      # forever, cloud-init on that host never finished, drachtio stayed failed
+      # and no call could arrive.
+      #
+      # This is the same defect that was found and fixed for the medium layout;
+      # the block below mirrors it. Bind to loopback plus the private address
+      # only -- never 0.0.0.0, because eth0 holds a PUBLIC ip on Exoscale and an
+      # internet-facing redis with no auth is a takeover waiting to happen.
+      #
+      # Longer term this belongs on Exoscale's managed service: `exo dbaas type
+      # list` offers valkey (Redis-compatible), and this module's
+      # terraform.tfvars already carries a valkey_plan setting for a variable
+      # that was never declared -- so that migration was started and not
+      # finished. Completing it needs TLS and auth wired through every
+      # cloud-init here.
+      echo "Installing and configuring redis-server..."
+      export DEBIAN_FRONTEND=noninteractive
+      apt-get update -qq
+      apt-get install -y -qq redis-server
+      sed -i "s/^bind .*/bind 127.0.0.1 $PRIVATE_IP/" /etc/redis/redis.conf
+      sed -i "s/^protected-mode .*/protected-mode no/" /etc/redis/redis.conf
+      systemctl enable redis-server
+      systemctl restart redis-server
+      for i in $(seq 1 30); do
+        redis-cli -h "$PRIVATE_IP" ping 2>/dev/null | grep -q PONG && break
+        sleep 2
+      done
+      redis-cli -h "$PRIVATE_IP" ping 2>/dev/null | grep -q PONG \
+        && echo "redis listening on $PRIVATE_IP:6379" \
+        || echo "WARNING: redis not answering on $PRIVATE_IP:6379"
 
       # HEPlify server (receives HEP packets from SIP/RTP servers)
       if [[ "$ENABLE_PCAPS" == "true" ]]; then

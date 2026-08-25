@@ -106,6 +106,7 @@ write_files:
           env: {
             JAMBONES_LOGLEVEL: 'info',
             JAMBONES_MYSQL_HOST: 'MYSQL_HOST_PLACEHOLDER',
+            JAMBONES_MYSQL_PORT: MYSQL_PORT_PLACEHOLDER,
             JAMBONES_MYSQL_USER: 'MYSQL_USER_PLACEHOLDER',
             JAMBONES_MYSQL_PASSWORD: 'MYSQL_PASSWORD_PLACEHOLDER',
             JAMBONES_MYSQL_DATABASE: 'MYSQL_DATABASE_PLACEHOLDER',
@@ -117,7 +118,8 @@ write_files:
       EOFECO
 
       # Replace placeholders
-      sed -i "s/MYSQL_HOST_PLACEHOLDER/$MYSQL_HOST:$MYSQL_PORT/g" $HOME/apps/ecosystem.config.js
+      sed -i "s/MYSQL_HOST_PLACEHOLDER/$MYSQL_HOST/g" $HOME/apps/ecosystem.config.js
+      sed -i "s/MYSQL_PORT_PLACEHOLDER/$MYSQL_PORT/g" $HOME/apps/ecosystem.config.js
       sed -i "s/MYSQL_USER_PLACEHOLDER/$MYSQL_USER/g" $HOME/apps/ecosystem.config.js
       sed -i "s/MYSQL_PASSWORD_PLACEHOLDER/$MYSQL_PASSWORD/g" $HOME/apps/ecosystem.config.js
       sed -i "s/MYSQL_DATABASE_PLACEHOLDER/$MYSQL_DATABASE/g" $HOME/apps/ecosystem.config.js

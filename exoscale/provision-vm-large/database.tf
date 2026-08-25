@@ -52,7 +52,22 @@ resource "exoscale_dbaas" "mysql" {
     #   availability and cannot be created
     # which made medium/large undeployable for everyone, not just new
     # releases. Check `exo dbaas type show mysql` for Available Versions.
-    version        = "8.4"
+    version = "8.4"
+
+    # Must be set explicitly. Left unset, creating works but every later apply
+    # that touches this resource fails:
+    #
+    #   Error: Validation error
+    #     Unable to parse backup schedule, got error: invalid value "" for
+    #     backup schedule, expecting HH:MM
+    #
+    # because the provider (exoscale 0.68.0) sends an empty string on update
+    # where it omitted the field on create. That makes the module single-shot in
+    # the same way a missing oidc_issuer_enabled does on AKS: any second apply
+    # -- scaling a pool, a cloud-init change, an ip_filter change -- dies here,
+    # after the instances have already been replaced.
+    backup_schedule = "01:00"
+
     admin_username = var.mysql_username
     admin_password = local.db_password
     ip_filter      = local.dbaas_allowed_ips
@@ -61,6 +76,29 @@ resource "exoscale_dbaas" "mysql" {
     mysql_settings = jsonencode({
       sql_mode = "TRADITIONAL"
     })
+  }
+
+  # The exoscale provider (0.68.0) cannot update this resource in place. It
+  # fails two different ways, and both leave the deployment half-built because
+  # the instances are replaced before the error:
+  #
+  #   Error: Validation error
+  #     Unable to parse backup schedule ... invalid value "" ... expecting HH:MM
+  #
+  # and, once backup_schedule is set explicitly:
+  #
+  #   Error: Provider produced inconsistent result after apply
+  #     .mysql: inconsistent values for sensitive attribute
+  #     This is a bug in the provider ...
+  #
+  # The block also shows a perpetual diff, so EVERY apply touches it -- meaning
+  # every apply after the first one fails, however unrelated the actual change.
+  # Ignoring it here is what makes the module re-appliable at all.
+  #
+  # The cost: changes to ip_filter, plan or mysql_settings are no longer picked
+  # up by an apply. Change them with `exo dbaas update`, or taint and recreate.
+  lifecycle {
+    ignore_changes = [mysql]
   }
 }
 
