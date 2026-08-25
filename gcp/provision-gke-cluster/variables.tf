@@ -85,3 +85,9 @@ variable "rtp_node_count" {
   type        = number
   default     = 1
 }
+
+variable "voip_node_locations" {
+  description = "Zones for the SIP and RTP node pools. Empty means a single zone (the first in the region), which keeps node counts and static IP counts predictable. Set it explicitly to spread the SBCs across zones; one static IP is allocated per node per zone."
+  type        = list(string)
+  default     = []
+}

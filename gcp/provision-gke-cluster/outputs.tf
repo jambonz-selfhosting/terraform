@@ -32,10 +32,27 @@ output "sip_static_ips" {
   value       = google_compute_address.sip[*].address
 }
 
+output "rtp_static_ips" {
+  description = "Static IP addresses for RTP nodes"
+  value       = google_compute_address.rtp[*].address
+}
+
+output "voip_node_locations" {
+  description = "Zones the SIP and RTP node pools run in (node_count is per zone)"
+  value       = local.voip_zones
+}
+
 output "eip_allocator_helm_values" {
   description = "Helm values for eip-allocator init container (sbc.eipAllocator.*)"
+  # These must be the labels actually on the addresses above. This output used to
+  # report "${var.cluster_name}-sip-node", which matches nothing: the label is a
+  # plain "sip-node". Anyone who set the helm value from this output got
+  # "No free static IPs available in pool role=<cluster>-sip-node" and an SBC pod
+  # that never started, while the addresses sat there unused.
   value = {
     sipEipGroupRoleKey = "role"
-    sipEipGroupRole    = "${var.cluster_name}-sip-node"
+    sipEipGroupRole    = "sip-node"
+    rtpEipGroupRoleKey = "role"
+    rtpEipGroupRole    = "rtp-node"
   }
 }
