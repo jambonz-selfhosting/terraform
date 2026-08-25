@@ -43,7 +43,7 @@ output "sip_public_ips" {
 
 output "rtp_public_ips" {
   description = "RTP server public IPs"
-  value       = [for eip in exoscale_elastic_ip.rtp : eip.ip_address]
+  value       = [for i in exoscale_compute_instance.rtp : i.public_ip_address]
 }
 
 # =============================================================================
@@ -165,7 +165,7 @@ output "ssh_sip" {
 
 output "ssh_rtp" {
   description = "SSH commands for RTP servers"
-  value       = [for i, eip in exoscale_elastic_ip.rtp : "ssh jambonz@${eip.ip_address}  # RTP-${i + 1}"]
+  value       = [for i, inst in exoscale_compute_instance.rtp : "ssh jambonz@${inst.public_ip_address}  # RTP-${i + 1}"]
 }
 
 output "ssh_feature_server_via_jump" {
@@ -201,9 +201,9 @@ output "ssh_config_snippet" {
     %{endfor~}
 
     # RTP Servers
-    %{for i, eip in exoscale_elastic_ip.rtp~}
+    %{for i, inst in exoscale_compute_instance.rtp~}
     Host jambonz-rtp-${i + 1}
-      HostName ${eip.ip_address}
+      HostName ${inst.public_ip_address}
       User jambonz
     %{endfor~}
 
@@ -314,7 +314,7 @@ output "deployment_summary" {
     Web Server:        ${exoscale_elastic_ip.web.ip_address}
     Monitoring Server: ${exoscale_elastic_ip.monitoring.ip_address}
     SIP Servers:       ${join(", ", [for eip in exoscale_elastic_ip.sip : eip.ip_address])}
-    RTP Servers:       ${join(", ", [for eip in exoscale_elastic_ip.rtp : eip.ip_address])}
+    RTP Servers:       ${join(", ", [for i in exoscale_compute_instance.rtp : i.public_ip_address])}
 
     Feature Server Pool: ${var.feature_server_count} instance(s)
     Recording Cluster:   ${var.deploy_recording_cluster ? "${var.recording_server_count} instance(s)" : "Not deployed"}
@@ -328,7 +328,7 @@ output "deployment_summary" {
     - Web:        ssh jambonz@${exoscale_elastic_ip.web.ip_address}
     - Monitoring: ssh jambonz@${exoscale_elastic_ip.monitoring.ip_address}
     - SIP:        ${join(", ", [for eip in exoscale_elastic_ip.sip : "ssh jambonz@${eip.ip_address}"])}
-    - RTP:        ${join(", ", [for eip in exoscale_elastic_ip.rtp : "ssh jambonz@${eip.ip_address}"])}
+    - RTP:        ${join(", ", [for i in exoscale_compute_instance.rtp : "ssh jambonz@${i.public_ip_address}"])}
     - Feature/Recording: Use SIP as jump server (see ssh_config_snippet output)
 
     For detailed SSH configuration, run:

@@ -164,21 +164,25 @@ resource "exoscale_compute_instance" "web" {
 # RTP Servers
 # =============================================================================
 
-# Elastic IPs for RTP servers
-resource "exoscale_elastic_ip" "rtp" {
-  count       = var.rtp_count
-  zone        = var.zone
-  description = "${var.name_prefix} RTP ${count.index + 1} public IP"
-
-  healthcheck {
-    mode         = "tcp"
-    port         = 22222
-    interval     = 10
-    timeout      = 3
-    strikes_ok   = 2
-    strikes_fail = 3
-  }
-}
+# RTP servers deliberately have no Elastic IP; they use the public IP Exoscale
+# gives every instance.
+#
+# An Exoscale EIP is only routed when it is "managed", which means it needs a
+# healthcheck, and a healthcheck needs a TCP port. An RTP host has none that is
+# safe to expose: rtpengine's ng control port is UDP (--listen-ng, not
+# --listen-tcp-ng), so the check here was tcp/22222 against a port nothing
+# listens on in TCP. It could never pass, which means Exoscale never routed
+# these addresses -- they were allocated, billed, advertised in the outputs, and
+# dead.
+#
+# An EIP that fails its healthcheck is worse than none: it looks like a stable
+# media address and silently is not. Exposing rtpengine's TCP ng port to make a
+# check pass would put media control on the public internet, so that is not the
+# answer either.
+#
+# What is lost: the media address changes if an RTP instance is replaced. That is
+# acceptable -- carriers whitelist signalling addresses, and the SIP hosts keep
+# their (working, tcp/5060-checked) Elastic IPs.
 
 # RTP compute instances
 resource "exoscale_compute_instance" "rtp" {
@@ -190,8 +194,6 @@ resource "exoscale_compute_instance" "rtp" {
   template_id = data.exoscale_template.jambonz_rtp.id
   disk_size   = var.disk_size_rtp
   ssh_keys    = local.ssh_keys
-
-  elastic_ip_ids = [exoscale_elastic_ip.rtp[count.index].id]
 
   network_interface {
     network_id = exoscale_private_network.jambonz.id
