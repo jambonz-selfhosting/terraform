@@ -21,7 +21,9 @@ locals {
     ["${exoscale_elastic_ip.web.ip_address}/32"],
     ["${exoscale_elastic_ip.monitoring.ip_address}/32"],
     [for eip in exoscale_elastic_ip.sip : "${eip.ip_address}/32"],
-    [for eip in exoscale_elastic_ip.rtp : "${eip.ip_address}/32"],
+    # RTP hosts are deliberately absent: cloud-init-rtp.yaml has no database
+    # configuration at all (rtpengine and its sidecar need redis, not MySQL), so
+    # they never used this. The zone-wide ranges below would cover them anyway.
 
     # Zone-wide CIDR ranges for instance pool members
     local.zone_ipv4_ranges
