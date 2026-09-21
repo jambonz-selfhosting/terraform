@@ -108,6 +108,7 @@ module.exports = {
     max_memory_restart: '2G',
     env: {
       JAMBONES_LOGLEVEL: 'info',
+      JAMBONES_SERVER_CONTROL: 1,
       JWT_SECRET: '$JWT_SECRET',
       RTPENGINE_PING_INTERVAL: 30000,
       DRACHTIO_HOST: '127.0.0.1',
@@ -222,6 +223,7 @@ module.exports = {
     max_memory_restart: '3G',
     env: {
       JAMBONES_LOGLEVEL: 'info',
+      JAMBONES_SERVER_CONTROL: 1,
       JWT_SECRET: '$JWT_SECRET',
       AWS_REGION: '$REGION',
       JAMBONES_NETWORK_CIDR: '$VPC_CIDR',
