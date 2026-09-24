@@ -124,6 +124,10 @@ sudo sed -i -e "s/\(.*\)PRIVATE_IP\(.*\)/\1$PRIVATE_IP\2/g" $HOME/apps/ecosystem
 
 # Replace JWT_SECRET
 sudo sed -i -e "s/\(.*\)JWT-SECRET-GOES_HERE\(.*\)/\1$JWT_SECRET\2/g" $HOME/apps/ecosystem.config.js
+# The image expects the encryption key and the recording auth password to be supplied
+# separately; this template keeps the legacy single-secret layout, so both get JWT_SECRET.
+sudo sed -i -e "s/\(.*\)ENCRYPTION-SECRET-GOES_HERE\(.*\)/\1$JWT_SECRET\2/g" $HOME/apps/ecosystem.config.js
+sudo sed -i -e "s/\(.*\)RECORDING-AUTH-PASSWORD-GOES_HERE\(.*\)/\1$JWT_SECRET\2/g" $HOME/apps/ecosystem.config.js
 
 # Reset admin password to instance ID (user will be forced to change on first login)
 echo "Resetting admin password to instance ID..."
