@@ -151,15 +151,6 @@ resource "aws_security_group" "sbc" {
     cidr_blocks = [var.vpc_cidr]
   }
 
-  # SNS callbacks
-  ingress {
-    description = "SNS callbacks"
-    from_port   = 3010
-    to_port     = 3019
-    protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"]
-  }
-
   # Prometheus scrape
   ingress {
     description = "Prometheus"
@@ -205,15 +196,6 @@ resource "aws_security_group" "sbc" {
     cidr_blocks = [var.vpc_cidr]
   }
 
-  # SNS HTTP access
-  ingress {
-    description = "SNS HTTP"
-    from_port   = 3001
-    to_port     = 3001
-    protocol    = "tcp"
-    cidr_blocks = var.allowed_http_cidr
-  }
-
   egress {
     from_port   = 0
     to_port     = 0
@@ -242,15 +224,6 @@ resource "aws_security_group" "feature_server" {
     to_port     = 3009
     protocol    = "tcp"
     cidr_blocks = [var.vpc_cidr]
-  }
-
-  # SNS callbacks
-  ingress {
-    description = "SNS callbacks"
-    from_port   = 3010
-    to_port     = 3019
-    protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"]
   }
 
   # SIP from VPC

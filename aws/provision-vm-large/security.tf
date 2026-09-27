@@ -130,19 +130,11 @@ resource "aws_security_group" "sbc_sip" {
     cidr_blocks = var.allowed_sbc_cidr
   }
 
-  # Internal HTTP/SNS ports from VPC
+  # Internal HTTP from VPC
   ingress {
     description = "Internal HTTP"
     from_port   = 3000
     to_port     = 3009
-    protocol    = "tcp"
-    cidr_blocks = [var.vpc_cidr]
-  }
-
-  ingress {
-    description = "SNS notification ports"
-    from_port   = 3010
-    to_port     = 3019
     protocol    = "tcp"
     cidr_blocks = [var.vpc_cidr]
   }
@@ -253,14 +245,6 @@ resource "aws_security_group" "feature_server" {
     description = "HTTP from VPC"
     from_port   = 3000
     to_port     = 3009
-    protocol    = "tcp"
-    cidr_blocks = [var.vpc_cidr]
-  }
-
-  ingress {
-    description = "SNS notification ports"
-    from_port   = 3010
-    to_port     = 3019
     protocol    = "tcp"
     cidr_blocks = [var.vpc_cidr]
   }

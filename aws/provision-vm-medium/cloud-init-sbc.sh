@@ -1,6 +1,6 @@
 #!/bin/bash -xe
 # Startup script for jambonz SBC server on AWS
-# Handles EIP self-assignment, drachtio/rtpengine config, and SNS lifecycle hooks
+# Handles EIP self-assignment, drachtio/rtpengine config, and the ASG scale-in drain
 
 # Variables passed from Terraform
 MYSQL_HOST="${mysql_host}"
@@ -18,7 +18,6 @@ APIBAN_KEY="${apiban_key}"
 APIBAN_CLIENT_ID="${apiban_client_id}"
 APIBAN_CLIENT_SECRET="${apiban_client_secret}"
 NAME_PREFIX="${name_prefix}"
-SNS_TOPIC_ARN="${sns_topic_arn}"
 
 echo "Starting jambonz SBC server configuration for AWS deployment"
 
@@ -253,11 +252,9 @@ module.exports = {
       DRACHTIO_HOST: '127.0.0.1',
       DRACHTIO_PORT: 9022,
       DRACHTIO_SECRET: 'cymru',
-      AWS_SNS_TOPIC_ARN: '$SNS_TOPIC_ARN',
+      AWS_LIFECYCLE_DRAIN: 1,
       HTTP_PORT: 3000,
       HTTP_PORT_MAX: 3009,
-      AWS_SNS_PORT: 3010,
-      AWS_SNS_PORT_MAX: 3019,
       JAMBONES_MYSQL_HOST: '$MYSQL_READ_HOST',
       JAMBONES_MYSQL_USER: '$MYSQL_USER',
       JAMBONES_MYSQL_PASSWORD: '$MYSQL_PASSWORD',
