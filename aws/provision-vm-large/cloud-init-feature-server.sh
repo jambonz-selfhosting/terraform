@@ -1,6 +1,6 @@
 #!/bin/bash -xe
 # Startup script for jambonz Feature Server on AWS (Large deployment)
-# Includes SNS lifecycle hook integration for graceful scale-in
+# Includes the ASG scale-in drain (AWS_LIFECYCLE_DRAIN, IMDS lifecycle-state polling)
 
 # Variables passed from Terraform
 MYSQL_HOST="${mysql_host}"
@@ -14,7 +14,6 @@ WEB_PRIVATE_IP="${web_private_ip}"
 VPC_CIDR="${vpc_cidr}"
 URL_PORTAL="${url_portal}"
 RECORDING_WS_BASE_URL="${recording_ws_base_url}"
-SNS_TOPIC_ARN="${sns_topic_arn}"
 
 echo "Starting jambonz Feature Server configuration for AWS large deployment"
 
@@ -90,7 +89,7 @@ apps : [
       OTEL_EXPORTER_JAEGER_ENDPOINT: 'http://$MONITORING_PRIVATE_IP:14268/api/traces',
       OTEL_EXPORTER_OTLP_METRICS_INSECURE: 1,
       OTEL_EXPORTER_JAEGER_GRPC_INSECURE: 1,
-      AWS_SNS_TOPIC_ARN: '$SNS_TOPIC_ARN',
+      AWS_LIFECYCLE_DRAIN: 1,
       JAMBONES_NETWORK_CIDR: '$VPC_CIDR',
       JAMBONES_MYSQL_HOST: '$MYSQL_HOST',
       JAMBONES_MYSQL_USER: '$MYSQL_USER',
@@ -102,8 +101,6 @@ apps : [
       JAMBONES_TIME_SERIES_HOST: '$MONITORING_PRIVATE_IP',
       HTTP_PORT: 3000,
       HTTP_PORT_MAX: 3009,
-      AWS_SNS_PORT: 3010,
-      AWS_SNS_PORT_MAX: 3019,
       DRACHTIO_HOST: '127.0.0.1',
       DRACHTIO_PORT: 9022,
       DRACHTIO_SECRET: 'cymru',
