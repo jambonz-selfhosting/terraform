@@ -19,6 +19,14 @@ resource "oci_network_load_balancer_network_load_balancer" "recording" {
   }
 }
 
+# Feature servers stream recordings to the NLB, which spreads them across the
+# recording servers (it is private, so its only address is the private one)
+locals {
+  recording_nlb_private_ip = [
+    for ip in oci_network_load_balancer_network_load_balancer.recording.ip_addresses : ip.ip_address if !ip.is_public
+  ][0]
+}
+
 # Backend Set
 resource "oci_network_load_balancer_backend_set" "recording" {
   name                     = "recording-backend-set"

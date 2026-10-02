@@ -199,7 +199,7 @@ resource "hcloud_server" "feature_server" {
     vpc_cidr                  = var.vpc_cidr
     web_monitoring_private_ip = local.monitoring_private_ip
     enable_otel               = var.enable_otel
-    recording_ws_base_url     = "ws://${tolist(hcloud_server.recording[0].network)[0].ip}:3000"
+    recording_ws_base_url     = "ws://${hcloud_load_balancer_network.recording.ip}:80"
     ssh_public_key            = local.ssh_public_key
     krisp_license_key         = var.krisp_license_key
   })
