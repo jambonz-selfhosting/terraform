@@ -327,7 +327,7 @@ resource "oci_core_instance" "feature_server" {
       web_monitoring_private_ip = oci_core_instance.monitoring.private_ip
       vpc_cidr                  = var.vcn_cidr
       url_portal                = var.url_portal
-      recording_ws_base_url     = "ws://${oci_core_instance.recording[0].private_ip}:3000"
+      recording_ws_base_url     = "ws://${local.recording_nlb_private_ip}:80"
       krisp_license_key         = var.krisp_license_key
     }))
   }

@@ -252,6 +252,16 @@ resource "oci_core_security_list" "private" {
     }
   }
 
+  # Recording NLB listener, from the feature servers (the NLB has no NSG)
+  ingress_security_rules {
+    protocol = "6"
+    source   = var.vcn_cidr
+    tcp_options {
+      min = 80
+      max = 80
+    }
+  }
+
   freeform_tags = {
     environment = var.environment
     service     = "jambonz"
