@@ -97,12 +97,6 @@ variable "recording_server_count" {
   }
 }
 
-variable "deploy_recording_cluster" {
-  description = "Whether to deploy the recording cluster (set to false to save costs)"
-  type        = bool
-  default     = true
-}
-
 # =============================================================================
 # Database Plan Variables
 # =============================================================================

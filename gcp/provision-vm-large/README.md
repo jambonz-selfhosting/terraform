@@ -47,7 +47,7 @@ This Terraform configuration deploys a jambonz large cluster on Google Cloud Pla
 | SIP | Compute Instance (VM) | drachtio SIP signaling with static IP |
 | RTP | Compute Instance (VM) | rtpengine media with static IP |
 | Feature Server | Managed Instance Group | Scalable call processing |
-| Recording | Managed Instance Group | Optional recording cluster |
+| Recording | Managed Instance Group | Recording cluster |
 | MySQL | Cloud SQL | Private IP, no SSL |
 | Redis | Memorystore | No AUTH, no TLS |
 

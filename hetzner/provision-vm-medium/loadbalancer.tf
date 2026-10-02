@@ -1,10 +1,8 @@
 # =============================================================================
 # Internal Load Balancer for Recording Servers
-# Only created if recording cluster is deployed
 # =============================================================================
 
 resource "hcloud_load_balancer" "recording" {
-  count              = var.deploy_recording_cluster ? 1 : 0
   name               = "${var.name_prefix}-recording-lb"
   load_balancer_type = "lb11"
   location           = var.location
@@ -16,16 +14,14 @@ resource "hcloud_load_balancer" "recording" {
 }
 
 resource "hcloud_load_balancer_network" "recording" {
-  count            = var.deploy_recording_cluster ? 1 : 0
-  load_balancer_id = hcloud_load_balancer.recording[0].id
+  load_balancer_id = hcloud_load_balancer.recording.id
   network_id       = hcloud_network.jambonz.id
 
   depends_on = [hcloud_network_subnet.jambonz]
 }
 
 resource "hcloud_load_balancer_service" "recording_http" {
-  count            = var.deploy_recording_cluster ? 1 : 0
-  load_balancer_id = hcloud_load_balancer.recording[0].id
+  load_balancer_id = hcloud_load_balancer.recording.id
   protocol         = "tcp"
   listen_port      = 80
   destination_port = 3000
@@ -45,8 +41,8 @@ resource "hcloud_load_balancer_service" "recording_http" {
 }
 
 resource "hcloud_load_balancer_target" "recording" {
-  count            = var.deploy_recording_cluster ? var.recording_server_count : 0
-  load_balancer_id = hcloud_load_balancer.recording[0].id
+  count            = var.recording_server_count
+  load_balancer_id = hcloud_load_balancer.recording.id
   type             = "server"
   server_id        = hcloud_server.recording[count.index].id
   use_private_ip   = true

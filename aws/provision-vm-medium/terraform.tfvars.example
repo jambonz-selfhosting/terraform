@@ -87,7 +87,6 @@ url_portal = "jambonz.example.com"
 # -------------------------------------------------------
 
 # enable_pcaps              = true
-# deploy_recording_cluster  = false
 
 # -------------------------------------------------------
 # OPTIONAL - APIBan (SIP firewall)

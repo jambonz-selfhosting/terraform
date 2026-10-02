@@ -190,7 +190,7 @@ variable "web_monitoring_image_par_url" {
 }
 
 variable "recording_image_par_url" {
-  description = "PAR URL for the Recording Server image (optional, only if deploy_recording_cluster is true)"
+  description = "PAR URL for the Recording Server image"
   type        = string
   default     = "https://id580apywcz8.objectstorage.us-ashburn-1.oci.customer-oci.com/p/UK83YeE0eRKUSGV_U8bQcP6kliqD6ZfBcsUKYwFtNlqCFtbgKfKXDR_AMvGW-QCq/n/id580apywcz8/b/jambonz-images/o/jambonz-recording-v10.2.0.oci"
 }
@@ -367,15 +367,9 @@ variable "recording_count" {
   default     = 1
 
   validation {
-    condition     = var.recording_count >= 0 && var.recording_count <= 10
-    error_message = "Recording count must be between 0 and 10."
+    condition     = var.recording_count >= 1 && var.recording_count <= 10
+    error_message = "Recording count must be between 1 and 10."
   }
-}
-
-variable "deploy_recording_cluster" {
-  description = "Deploy the recording server cluster"
-  type        = bool
-  default     = true
 }
 
 # ------------------------------------------------------------------------------

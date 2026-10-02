@@ -1,13 +1,10 @@
 # Network Load Balancer for Recording Servers on OCI
-# Only created if deploy_recording_cluster is true
 
 # ------------------------------------------------------------------------------
 # RECORDING SERVER NETWORK LOAD BALANCER
 # ------------------------------------------------------------------------------
 
 resource "oci_network_load_balancer_network_load_balancer" "recording" {
-  count = var.deploy_recording_cluster ? 1 : 0
-
   compartment_id = var.compartment_id
   display_name   = "${var.name_prefix}-recording-nlb"
   subnet_id      = oci_core_subnet.private.id
@@ -22,12 +19,18 @@ resource "oci_network_load_balancer_network_load_balancer" "recording" {
   }
 }
 
+# Feature servers stream recordings to the NLB, which spreads them across the
+# recording servers (it is private, so its only address is the private one)
+locals {
+  recording_nlb_private_ip = [
+    for ip in oci_network_load_balancer_network_load_balancer.recording.ip_addresses : ip.ip_address if !ip.is_public
+  ][0]
+}
+
 # Backend Set
 resource "oci_network_load_balancer_backend_set" "recording" {
-  count = var.deploy_recording_cluster ? 1 : 0
-
   name                     = "recording-backend-set"
-  network_load_balancer_id = oci_network_load_balancer_network_load_balancer.recording[0].id
+  network_load_balancer_id = oci_network_load_balancer_network_load_balancer.recording.id
   policy                   = "FIVE_TUPLE"
 
   health_checker {
@@ -43,21 +46,19 @@ resource "oci_network_load_balancer_backend_set" "recording" {
 
 # Backends (one for each recording instance)
 resource "oci_network_load_balancer_backend" "recording" {
-  count = var.deploy_recording_cluster ? var.recording_count : 0
+  count = var.recording_count
 
-  backend_set_name         = oci_network_load_balancer_backend_set.recording[0].name
-  network_load_balancer_id = oci_network_load_balancer_network_load_balancer.recording[0].id
+  backend_set_name         = oci_network_load_balancer_backend_set.recording.name
+  network_load_balancer_id = oci_network_load_balancer_network_load_balancer.recording.id
   port                     = 3000
   target_id                = oci_core_instance.recording[count.index].id
 }
 
 # Listener
 resource "oci_network_load_balancer_listener" "recording" {
-  count = var.deploy_recording_cluster ? 1 : 0
-
-  default_backend_set_name = oci_network_load_balancer_backend_set.recording[0].name
+  default_backend_set_name = oci_network_load_balancer_backend_set.recording.name
   name                     = "recording-listener"
-  network_load_balancer_id = oci_network_load_balancer_network_load_balancer.recording[0].id
+  network_load_balancer_id = oci_network_load_balancer_network_load_balancer.recording.id
   port                     = 80
   protocol                 = "TCP"
 }

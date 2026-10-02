@@ -70,13 +70,13 @@ output "feature_server_pool_id" {
 }
 
 output "recording_server_pool_id" {
-  description = "Recording server instance pool ID (if deployed)"
-  value       = var.deploy_recording_cluster ? exoscale_instance_pool.recording[0].id : null
+  description = "Recording server instance pool ID"
+  value       = exoscale_instance_pool.recording.id
 }
 
 output "recording_lb_ip" {
-  description = "Recording load balancer IP (if deployed)"
-  value       = var.deploy_recording_cluster ? exoscale_nlb.recording[0].ip_address : null
+  description = "Recording load balancer IP"
+  value       = exoscale_nlb.recording.ip_address
 }
 
 # =============================================================================
@@ -174,8 +174,8 @@ output "ssh_feature_server_via_jump" {
 }
 
 output "ssh_recording_via_jump" {
-  description = "SSH to recording servers via SIP jump server (if deployed)"
-  value       = var.deploy_recording_cluster ? "ssh -J jambonz@${exoscale_elastic_ip.sip[0].ip_address} jambonz@<RECORDING-SERVER-PRIVATE-IP>" : "N/A - Recording cluster not deployed"
+  description = "SSH to recording servers via SIP jump server"
+  value       = "ssh -J jambonz@${exoscale_elastic_ip.sip[0].ip_address} jambonz@<RECORDING-SERVER-PRIVATE-IP>"
 }
 
 output "ssh_config_snippet" {
@@ -213,11 +213,9 @@ output "ssh_config_snippet" {
       ProxyJump jambonz-sip-1
 
     # Recording Servers (via SIP jump)
-    %{if var.deploy_recording_cluster~}
     Host jambonz-rec-*
       User jambonz
       ProxyJump jambonz-sip-1
-    %{endif~}
   EOT
 }
 
@@ -282,13 +280,11 @@ output "exoscale_cli_commands" {
     # Scale feature server pool
     exo compute instance-pool scale ${exoscale_instance_pool.feature_server.id} --size <NEW-SIZE> --zone ${var.zone}
 
-    %{if var.deploy_recording_cluster~}
     # List recording server pool instances
-    exo compute instance-pool show ${exoscale_instance_pool.recording[0].id} --zone ${var.zone}
+    exo compute instance-pool show ${exoscale_instance_pool.recording.id} --zone ${var.zone}
 
     # Scale recording server pool
-    exo compute instance-pool scale ${exoscale_instance_pool.recording[0].id} --size <NEW-SIZE> --zone ${var.zone}
-    %{endif~}
+    exo compute instance-pool scale ${exoscale_instance_pool.recording.id} --size <NEW-SIZE> --zone ${var.zone}
 
     # Get private IPs of pool instances
     exo compute instance list --zone ${var.zone} --output-format json | jq '.[] | select(.labels.cluster=="${var.name_prefix}") | {name: .name, role: .labels.role}'
@@ -317,7 +313,7 @@ output "deployment_summary" {
     RTP Servers:       ${join(", ", [for i in exoscale_compute_instance.rtp : i.public_ip_address])}
 
     Feature Server Pool: ${var.feature_server_count} instance(s)
-    Recording Cluster:   ${var.deploy_recording_cluster ? "${var.recording_server_count} instance(s)" : "Not deployed"}
+    Recording Cluster:   ${var.recording_server_count} instance(s)
 
     MySQL:  ${data.exoscale_database_uri.mysql.uri}
     Redis:  ${local.monitoring_private_ip}:6379 (local on monitoring VM)

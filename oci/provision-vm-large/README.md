@@ -13,7 +13,7 @@ The large deployment separates SIP and RTP into dedicated servers (unlike medium
 | SIP | 2 | drachtio SIP signaling |
 | RTP | 2 | rtpengine media proxy |
 | Feature Server | 4 | FreeSWITCH, jambonz apps |
-| Recording | 2 | Recording server (optional) |
+| Recording | 2 | Recording server |
 | MySQL | 1 | OCI MySQL HeatWave (managed) |
 
 Redis runs on the monitoring server (not a managed service).
@@ -72,7 +72,7 @@ The large deployment uses separate images for each role. Default PAR URLs point 
 | `web_image_par_url` | PAR URL for Web image (portal, API) |
 | `monitoring_image_par_url` | PAR URL for Monitoring image (Grafana, Homer, etc.) |
 | `feature_server_image_par_url` | PAR URL for Feature Server image |
-| `recording_image_par_url` | PAR URL for Recording image (optional) |
+| `recording_image_par_url` | PAR URL for Recording image |
 
 ### Instance Configuration
 
@@ -96,7 +96,6 @@ The large deployment uses separate images for each role. Default PAR URLs point 
 | `feature_server_ocpus` | `8` | OCPUs per Feature Server |
 | `feature_server_memory_in_gbs` | `16` | Memory per Feature Server |
 | `feature_server_disk_size` | `100` | Disk size per Feature Server |
-| `deploy_recording_cluster` | `true` | Deploy recording servers |
 | `recording_count` | `2` | Number of Recording servers |
 
 ### Database Configuration

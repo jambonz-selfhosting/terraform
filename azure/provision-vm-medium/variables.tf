@@ -468,12 +468,6 @@ variable "enable_otel" {
   default     = false
 }
 
-variable "deploy_recording_cluster" {
-  description = "Deploy the recording server cluster"
-  type        = bool
-  default     = true
-}
-
 variable "db_caching_tts" {
   description = "Number of seconds to cache results from DB queries (0=no caching)"
   type        = number

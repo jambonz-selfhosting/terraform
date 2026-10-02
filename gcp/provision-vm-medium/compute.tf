@@ -45,15 +45,14 @@ resource "google_compute_instance" "web_monitoring" {
   }
 
   metadata_startup_script = templatefile("${path.module}/startup-script-web-monitoring.sh", {
-    mysql_host               = google_sql_database_instance.jambonz.private_ip_address
-    mysql_user               = var.mysql_username
-    mysql_password           = local.db_password
-    redis_host               = google_redis_instance.jambonz.host
-    redis_port               = google_redis_instance.jambonz.port
-    jwt_secret               = random_password.encryption_secret.result
-    url_portal               = var.url_portal
-    vpc_cidr                 = var.vpc_cidr
-    deploy_recording_cluster = var.deploy_recording_cluster
+    mysql_host     = google_sql_database_instance.jambonz.private_ip_address
+    mysql_user     = var.mysql_username
+    mysql_password = local.db_password
+    redis_host     = google_redis_instance.jambonz.host
+    redis_port     = google_redis_instance.jambonz.port
+    jwt_secret     = random_password.encryption_secret.result
+    url_portal     = var.url_portal
+    vpc_cidr       = var.vpc_cidr
   })
 
   labels = {
@@ -191,7 +190,7 @@ resource "google_compute_instance_template" "feature_server" {
     web_monitoring_private_ip = google_compute_instance.web_monitoring.network_interface[0].network_ip
     vpc_cidr                  = var.vpc_cidr
     url_portal                = var.url_portal
-    recording_ws_base_url     = var.deploy_recording_cluster ? "ws://${google_compute_forwarding_rule.recording[0].ip_address}:3000" : "ws://${google_compute_instance.web_monitoring.network_interface[0].network_ip}:3017"
+    recording_ws_base_url     = "ws://${google_compute_forwarding_rule.recording.ip_address}:3000"
     scale_in_timeout_seconds  = var.scale_in_timeout_seconds
     project_id                = var.project_id
     zone                      = var.zone
@@ -258,38 +257,35 @@ resource "google_compute_instance_group_manager" "feature_server" {
 }
 
 # ------------------------------------------------------------------------------
-# RECORDING SERVER CLUSTER (CONDITIONAL)
+# RECORDING SERVER CLUSTER
 # ------------------------------------------------------------------------------
 
 # Internal Load Balancer for Recording Servers
 resource "google_compute_forwarding_rule" "recording" {
-  count                 = var.deploy_recording_cluster ? 1 : 0
   name                  = "${var.name_prefix}-recording-lb"
   region                = var.region
   load_balancing_scheme = "INTERNAL"
-  backend_service       = google_compute_region_backend_service.recording[0].id
+  backend_service       = google_compute_region_backend_service.recording.id
   ports                 = ["3000"]
   network               = google_compute_network.jambonz.id
   subnetwork            = google_compute_subnetwork.public.id
 }
 
 resource "google_compute_region_backend_service" "recording" {
-  count                 = var.deploy_recording_cluster ? 1 : 0
   name                  = "${var.name_prefix}-recording-backend"
   region                = var.region
   load_balancing_scheme = "INTERNAL"
   protocol              = "TCP"
 
   backend {
-    group          = google_compute_instance_group_manager.recording[0].instance_group
+    group          = google_compute_instance_group_manager.recording.instance_group
     balancing_mode = "CONNECTION"
   }
 
-  health_checks = [google_compute_health_check.recording[0].id]
+  health_checks = [google_compute_health_check.recording.id]
 }
 
 resource "google_compute_health_check" "recording" {
-  count               = var.deploy_recording_cluster ? 1 : 0
   name                = "${var.name_prefix}-recording-health"
   check_interval_sec  = 15
   timeout_sec         = 5
@@ -304,7 +300,6 @@ resource "google_compute_health_check" "recording" {
 
 # Instance template for Recording Servers
 resource "google_compute_instance_template" "recording" {
-  count        = var.deploy_recording_cluster ? 1 : 0
   name_prefix  = "${var.name_prefix}-recording-"
   machine_type = var.recording_machine_type
   region       = var.region
@@ -312,7 +307,7 @@ resource "google_compute_instance_template" "recording" {
   tags = ["jambonz", "jambonz-recording"]
 
   disk {
-    source_image = google_compute_image.recording[0].self_link
+    source_image = google_compute_image.recording.self_link
     auto_delete  = true
     boot         = true
     disk_type    = var.disk_type
@@ -355,18 +350,17 @@ resource "google_compute_instance_template" "recording" {
 
 # Managed Instance Group for Recording Servers
 resource "google_compute_instance_group_manager" "recording" {
-  count              = var.deploy_recording_cluster ? 1 : 0
   name               = "${var.name_prefix}-recording-mig"
   base_instance_name = "${var.name_prefix}-recording"
   zone               = var.zone
   target_size        = var.recording_target_size
 
   version {
-    instance_template = google_compute_instance_template.recording[0].id
+    instance_template = google_compute_instance_template.recording.id
   }
 
   auto_healing_policies {
-    health_check      = google_compute_health_check.recording[0].id
+    health_check      = google_compute_health_check.recording.id
     initial_delay_sec = 300
   }
 
@@ -390,10 +384,9 @@ resource "google_compute_instance_group_manager" "recording" {
 
 # Autoscaler for Recording Servers
 resource "google_compute_autoscaler" "recording" {
-  count  = var.deploy_recording_cluster ? 1 : 0
   name   = "${var.name_prefix}-recording-autoscaler"
   zone   = var.zone
-  target = google_compute_instance_group_manager.recording[0].id
+  target = google_compute_instance_group_manager.recording.id
 
   autoscaling_policy {
     min_replicas    = var.recording_min_replicas

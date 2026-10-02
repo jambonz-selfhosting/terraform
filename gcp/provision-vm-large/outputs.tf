@@ -116,13 +116,13 @@ output "scale_feature_servers_command" {
 # ------------------------------------------------------------------------------
 
 output "recording_mig_name" {
-  description = "Recording Server Managed Instance Group name (if deployed)"
-  value       = var.deploy_recording_cluster ? google_compute_instance_group_manager.recording[0].name : "Not deployed"
+  description = "Recording Server Managed Instance Group name"
+  value       = google_compute_instance_group_manager.recording.name
 }
 
 output "recording_lb_ip" {
-  description = "Recording Server Load Balancer IP (if deployed)"
-  value       = var.deploy_recording_cluster ? google_compute_forwarding_rule.recording[0].ip_address : "Not deployed"
+  description = "Recording Server Load Balancer IP"
+  value       = google_compute_forwarding_rule.recording.ip_address
 }
 
 # ------------------------------------------------------------------------------

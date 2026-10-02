@@ -32,9 +32,6 @@ url_portal = ""  # REQUIRED: e.g., "jambonz.example.com"
 # Enable PCAP capture for SIP traffic
 enable_pcaps = true
 
-# Deploy the recording server cluster
-deploy_recording_cluster = true
-
 # Database query caching (0 = disabled)
 db_caching_tts = 0
 
@@ -96,7 +93,7 @@ allowed_rtp_cidr = "0.0.0.0/0"
 # - SIP (drachtio signaling)
 # - RTP (rtpengine media)
 # - Feature Server
-# - Recording (optional)
+# - Recording
 # ------------------------------------------------------------------------------
 
 # jambonz version (image version in community gallery)

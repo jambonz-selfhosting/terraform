@@ -19,7 +19,6 @@ resource "google_compute_image" "feature_server" {
 }
 
 resource "google_compute_image" "recording" {
-  count        = var.deploy_recording_cluster ? 1 : 0
   name         = "${var.name_prefix}-recording-image"
   source_image = var.recording_image
   project      = var.project_id

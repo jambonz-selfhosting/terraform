@@ -208,7 +208,6 @@ resource "google_compute_firewall" "health_check" {
 
 # Recording Server ports
 resource "google_compute_firewall" "recording" {
-  count   = var.deploy_recording_cluster ? 1 : 0
   name    = "${var.name_prefix}-allow-recording"
   network = google_compute_network.jambonz.name
 

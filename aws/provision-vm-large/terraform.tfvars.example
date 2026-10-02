@@ -40,8 +40,7 @@ url_portal     = "jambonz.example.com"
 # Optional: features
 # enable_pcaps = true
 
-# Optional: recording cluster
-# deploy_recording_cluster       = false
+# Optional: recording cluster sizing
 # recording_min_size             = 1
 # recording_max_size             = 8
 # recording_desired_capacity     = 1

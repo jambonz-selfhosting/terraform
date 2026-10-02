@@ -340,7 +340,6 @@ resource "aws_ami_copy" "monitoring" {
 }
 
 resource "aws_ami_copy" "recording" {
-  count             = var.deploy_recording_cluster ? 1 : 0
   name              = "${var.name_prefix}-recording-ami"
   description       = "Local copy of jambonz Recording AMI for ${var.name_prefix}"
   source_ami_id     = local.source_amis[var.region]["recording"]

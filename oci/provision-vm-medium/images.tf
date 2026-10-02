@@ -77,12 +77,10 @@ resource "oci_core_image" "web_monitoring" {
 }
 
 # ------------------------------------------------------------------------------
-# RECORDING IMAGE (optional)
+# RECORDING IMAGE
 # ------------------------------------------------------------------------------
 
 resource "oci_core_image" "recording" {
-  count = var.deploy_recording_cluster && var.recording_image_par_url != "" ? 1 : 0
-
   compartment_id = var.compartment_id
   display_name   = "${var.name_prefix}-jambonz-recording"
 

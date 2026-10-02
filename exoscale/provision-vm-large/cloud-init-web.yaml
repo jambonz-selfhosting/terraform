@@ -61,7 +61,6 @@ write_files:
       URL_PORTAL="${url_portal}"
       VPC_CIDR="${vpc_cidr}"
       MONITORING_PRIVATE_IP="${monitoring_private_ip}"
-      DEPLOY_RECORDING_CLUSTER="${deploy_recording_cluster}"
 
       echo "Starting jambonz Web server configuration for Exoscale"
 

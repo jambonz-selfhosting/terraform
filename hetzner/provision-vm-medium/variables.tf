@@ -94,12 +94,6 @@ variable "recording_server_count" {
   }
 }
 
-variable "deploy_recording_cluster" {
-  description = "Whether to deploy the recording cluster"
-  type        = bool
-  default     = false
-}
-
 # Server Type Variables
 variable "server_type_web" {
   description = "Hetzner server type for web/monitoring server"
@@ -163,7 +157,6 @@ variable "image_feature_server" {
 variable "image_recording" {
   description = "Hetzner snapshot ID for recording server"
   type        = string
-  default     = ""
 }
 
 variable "image_db" {

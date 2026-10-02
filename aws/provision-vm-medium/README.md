@@ -36,7 +36,7 @@ Multi-VM deployment with managed Aurora MySQL and ElastiCache Redis. SBC and Fea
 | SBC | ASG + Launch Template | SIP signaling, RTP media, call routing |
 | Feature Server | ASG + Launch Template | FreeSWITCH, jambonz application logic |
 | Web/Monitoring | Single EC2 + EIP | Portal, API, Grafana, Homer, Jaeger |
-| Recording | ASG + ALB (optional) | Call recording servers |
+| Recording | ASG + ALB | Call recording servers |
 | Aurora MySQL | Serverless v2 | Database (private subnets) |
 | ElastiCache Redis | Replication Group | Cache and pub/sub (private subnets) |
 
