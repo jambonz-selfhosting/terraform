@@ -39,7 +39,7 @@ The medium cluster consists of:
   - Scalable with health checks
   - Access via SBC jump server
 
-- **0-10 Recording Servers** (optional, private IPs only, in Instance Pool)
+- **1-10 Recording Servers** (private IPs only, in Instance Pool)
   - Recording upload processing
   - Internal load balancer (TCP port 80)
   - Access via SBC jump server
@@ -257,9 +257,8 @@ template_recording      = "jambonz-recording"
 ssh_public_key = "ssh-rsa AAAAB3... your-email@example.com"
 
 # Minimal instance counts
-sbc_count                = 1
-feature_server_count     = 1
-deploy_recording_cluster = false
+sbc_count            = 1
+feature_server_count = 1
 
 # Hobbyist database plan
 mysql_plan  = "hobbyist-2"
@@ -281,10 +280,9 @@ For production with redundancy:
 name_prefix = "jambonz-prod"
 
 # Multiple instances
-sbc_count                = 2
-feature_server_count     = 4
-recording_server_count   = 2
-deploy_recording_cluster = true
+sbc_count              = 2
+feature_server_count   = 4
+recording_server_count = 2
 
 # Business tier database (99.99% SLA)
 mysql_plan  = "business-8"
@@ -354,7 +352,7 @@ Review the plan carefully. You should see:
 - Web/monitoring server with elastic IP
 - SBC servers with elastic IPs
 - Feature server instance pool
-- (Optional) Recording server instance pool and load balancer
+- Recording server instance pool and load balancer
 
 ### Step 4: Apply
 
@@ -626,8 +624,7 @@ terraform apply
 Edit `terraform.tfvars`:
 
 ```hcl
-deploy_recording_cluster = true  # Enable if disabled
-recording_server_count   = 2     # Scale to 2 instances
+recording_server_count = 2  # Scale to 2 instances
 ```
 
 Apply:
@@ -661,7 +658,6 @@ For testing with minimal cost (~€100-150/month):
 ```hcl
 sbc_count                = 1
 feature_server_count     = 1
-deploy_recording_cluster = false
 mysql_plan               = "hobbyist-2"
 instance_type_web        = "standard.medium"
 instance_type_sbc        = "standard.medium"

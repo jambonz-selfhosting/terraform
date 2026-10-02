@@ -169,15 +169,15 @@ variable "recording_image" {
   type        = string
   default     = ""
 
-  # deploy_recording_cluster defaults to true, so a deployment that never sets
+  # The recording cluster is always deployed, so a deployment that never sets
   # recording_image reaches `terraform apply` with source_image = "". plan
   # SUCCEEDS in that state -- it is a valid empty string -- and the failure only
   # lands mid-apply when the GCP API rejects an image with no source, by which
   # point ~35 other resources exist and have to be torn down by hand. Fail here
   # instead, at plan time, with a message that says what to do.
   validation {
-    condition     = !var.deploy_recording_cluster || length(trimspace(var.recording_image)) > 0
-    error_message = "recording_image must be set when deploy_recording_cluster is true (the default). Supply the jambonz recording image, e.g. projects/drachtio-cpaas/global/images/jambonz-recording-<version>-debian-12-amd64-<ts>, or set deploy_recording_cluster = false to skip the recording cluster."
+    condition     = length(trimspace(var.recording_image)) > 0
+    error_message = "recording_image must be set. Supply the jambonz recording image, e.g. projects/drachtio-cpaas/global/images/jambonz-recording-<version>-debian-12-amd64-<ts>."
   }
   # An arm64 deployment needs arm64 images, an arm machine family and (for c4a)
   # a hyperdisk boot disk to agree. GCP images declare their own architecture, so
@@ -441,12 +441,6 @@ variable "apiban_client_secret" {
 
 variable "enable_pcaps" {
   description = "Enable PCAP capture for SIP traffic"
-  type        = bool
-  default     = true
-}
-
-variable "deploy_recording_cluster" {
-  description = "Deploy the recording server cluster"
   type        = bool
   default     = true
 }

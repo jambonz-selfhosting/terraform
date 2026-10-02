@@ -11,7 +11,7 @@ The deployment creates:
 - **SIP Servers** (VMs): drachtio SIP signaling with static public IPs
 - **RTP Servers** (VMs): rtpengine media processing with static public IPs
 - **Feature Servers** (VMSS): drachtio + mediajam media servers for call handling
-- **Recording Servers** (VMSS, optional): Dedicated recording upload cluster
+- **Recording Servers** (VMSS): Dedicated recording upload cluster
 - **Azure MySQL Flexible Server**: Managed MySQL 8.0 database
 - **Azure Redis Cache**: Managed Redis for session state
 - **Azure Key Vault**: Secure storage for secrets
@@ -132,7 +132,6 @@ jambonz_version = "11.1.2"
 | `feature_server_vm_size` | `Standard_F4s_v2` | VM size for Feature Servers |
 | `feature_server_desired_capacity` | `2` | Initial Feature Server count |
 | `feature_server_max_capacity` | `8` | Maximum Feature Server count |
-| `deploy_recording_cluster` | `true` | Deploy recording server cluster |
 | `enable_pcaps` | `true` | Enable SIP PCAP capture |
 | `apiban_key` | `""` | APIBan API key for single-key mode |
 | `apiban_client_id` | `""` | APIBan client ID for multi-key mode |

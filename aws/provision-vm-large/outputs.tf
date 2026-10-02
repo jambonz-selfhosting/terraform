@@ -106,13 +106,13 @@ output "feature_server_asg_name" {
 # ------------------------------------------------------------------------------
 
 output "recording_asg_name" {
-  description = "Recording Server Auto Scaling Group name (if deployed)"
-  value       = var.deploy_recording_cluster ? aws_autoscaling_group.recording[0].name : "Not deployed"
+  description = "Recording Server Auto Scaling Group name"
+  value       = aws_autoscaling_group.recording.name
 }
 
 output "recording_alb_dns" {
-  description = "Recording ALB DNS name (if deployed)"
-  value       = var.deploy_recording_cluster ? aws_lb.recording[0].dns_name : "Not deployed"
+  description = "Recording ALB DNS name"
+  value       = aws_lb.recording.dns_name
 }
 
 # ------------------------------------------------------------------------------

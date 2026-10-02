@@ -632,18 +632,6 @@ resource "azurerm_network_security_group" "web_monitoring" {
   }
 
   security_rule {
-    name                       = "Upload-Recordings"
-    priority                   = 1004
-    direction                  = "Inbound"
-    access                     = "Allow"
-    protocol                   = "Tcp"
-    source_port_range          = "*"
-    destination_port_range     = "3017"
-    source_address_prefix      = var.vpc_cidr
-    destination_address_prefix = "*"
-  }
-
-  security_rule {
     name                       = "Grafana"
     priority                   = 1005
     direction                  = "Inbound"
@@ -733,9 +721,8 @@ resource "azurerm_network_security_group" "web_monitoring" {
   }
 }
 
-# Recording ALB Security Group (conditional)
+# Recording ALB Security Group
 resource "azurerm_network_security_group" "recording_lb" {
-  count               = var.deploy_recording_cluster ? 1 : 0
   name                = "${var.name_prefix}-recording-lb-nsg"
   location            = azurerm_resource_group.jambonz.location
   resource_group_name = azurerm_resource_group.jambonz.name
@@ -758,9 +745,8 @@ resource "azurerm_network_security_group" "recording_lb" {
   }
 }
 
-# Recording Instance Security Group (conditional)
+# Recording Instance Security Group
 resource "azurerm_network_security_group" "recording_instance" {
-  count               = var.deploy_recording_cluster ? 1 : 0
   name                = "${var.name_prefix}-recording-instance-nsg"
   location            = azurerm_resource_group.jambonz.location
   resource_group_name = azurerm_resource_group.jambonz.name

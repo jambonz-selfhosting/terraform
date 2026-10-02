@@ -40,7 +40,7 @@ This Terraform configuration deploys a jambonz large cluster on Hetzner Cloud wi
 | SIP | drachtio SIP signaling with static IP |
 | RTP | rtpengine media with static IP |
 | Feature Server | Call processing (freeswitch + jambonz apps) |
-| Recording | Optional recording cluster with load balancer |
+| Recording | Recording cluster with load balancer |
 | Database | Dedicated VM running MySQL + Redis |
 
 ## Network Architecture
@@ -84,7 +84,7 @@ Build the jambonz snapshots using Packer before deploying:
 # - jambonz-rtp (RTP media)
 # - jambonz-fs (Feature Server)
 # - jambonz-db (Database)
-# - jambonz-recording (optional)
+# - jambonz-recording
 ```
 
 ## Deployment

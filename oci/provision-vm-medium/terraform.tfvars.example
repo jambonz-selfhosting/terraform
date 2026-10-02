@@ -40,9 +40,6 @@ url_portal = "jambonz.example.com"
 # Enable PCAP capture for SIP traffic
 enable_pcaps = true
 
-# Deploy the recording server cluster
-deploy_recording_cluster = true
-
 # ------------------------------------------------------------------------------
 # DEPLOYMENT CONFIGURATION
 # ------------------------------------------------------------------------------
@@ -101,7 +98,7 @@ feature_server_memory_in_gbs = 8
 feature_server_disk_size     = 200
 feature_server_count         = 1
 
-# Recording Servers (only used if deploy_recording_cluster = true)
+# Recording Servers
 recording_shape         = "VM.Standard.E4.Flex"
 recording_ocpus         = 4
 recording_memory_in_gbs = 8

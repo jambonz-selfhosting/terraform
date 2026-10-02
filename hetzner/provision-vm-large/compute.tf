@@ -69,17 +69,16 @@ resource "hcloud_server" "web" {
   }
 
   user_data = templatefile("${path.module}/cloud-init-web.yaml", {
-    mysql_host               = local.db_private_ip
-    mysql_user               = var.mysql_username
-    mysql_password           = local.db_password
-    redis_host               = local.db_private_ip
-    redis_port               = 6379
-    jwt_secret               = random_password.encryption_secret.result
-    url_portal               = var.url_portal
-    vpc_cidr                 = var.vpc_cidr
-    monitoring_private_ip    = local.monitoring_private_ip
-    deploy_recording_cluster = var.deploy_recording_cluster
-    ssh_public_key           = local.ssh_public_key
+    mysql_host            = local.db_private_ip
+    mysql_user            = var.mysql_username
+    mysql_password        = local.db_password
+    redis_host            = local.db_private_ip
+    redis_port            = 6379
+    jwt_secret            = random_password.encryption_secret.result
+    url_portal            = var.url_portal
+    vpc_cidr              = var.vpc_cidr
+    monitoring_private_ip = local.monitoring_private_ip
+    ssh_public_key        = local.ssh_public_key
   })
 
   depends_on = [hcloud_network_subnet.jambonz, hcloud_server.monitoring, hcloud_server.db]
@@ -190,35 +189,35 @@ resource "hcloud_server" "feature_server" {
   }
 
   user_data = templatefile("${path.module}/cloud-init-feature-server.yaml", {
-    mysql_host               = local.db_private_ip
-    mysql_user               = var.mysql_username
-    mysql_password           = local.db_password
-    redis_host               = local.db_private_ip
-    redis_port               = 6379
-    jwt_secret               = random_password.encryption_secret.result
-    url_portal               = var.url_portal
-    vpc_cidr                 = var.vpc_cidr
+    mysql_host                = local.db_private_ip
+    mysql_user                = var.mysql_username
+    mysql_password            = local.db_password
+    redis_host                = local.db_private_ip
+    redis_port                = 6379
+    jwt_secret                = random_password.encryption_secret.result
+    url_portal                = var.url_portal
+    vpc_cidr                  = var.vpc_cidr
     web_monitoring_private_ip = local.monitoring_private_ip
     enable_otel               = var.enable_otel
-    recording_ws_base_url     = var.deploy_recording_cluster && length(hcloud_server.recording) > 0 ? "ws://${tolist(hcloud_server.recording[0].network)[0].ip}:3000" : "ws://${tolist(hcloud_server.web.network)[0].ip}:3017"
-    ssh_public_key           = local.ssh_public_key
-    krisp_license_key        = var.krisp_license_key
+    recording_ws_base_url     = "ws://${tolist(hcloud_server.recording[0].network)[0].ip}:3000"
+    ssh_public_key            = local.ssh_public_key
+    krisp_license_key         = var.krisp_license_key
   })
 
   depends_on = [hcloud_network_subnet.jambonz, hcloud_server.monitoring, hcloud_server.db]
 }
 
 # =============================================================================
-# Recording Servers (Optional)
+# Recording Servers
 # =============================================================================
 
 resource "hcloud_server" "recording" {
-  count       = var.deploy_recording_cluster ? var.recording_server_count : 0
-  name        = "${var.name_prefix}-rec-${count.index + 1}"
-  server_type = var.server_type_recording
-  location    = var.location
-  image       = var.image_recording
-  ssh_keys    = [local.ssh_key_id]
+  count        = var.recording_server_count
+  name         = "${var.name_prefix}-rec-${count.index + 1}"
+  server_type  = var.server_type_recording
+  location     = var.location
+  image        = var.image_recording
+  ssh_keys     = [local.ssh_key_id]
   firewall_ids = [hcloud_firewall.ssh_only.id]
 
   network {

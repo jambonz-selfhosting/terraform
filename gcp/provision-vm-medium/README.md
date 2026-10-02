@@ -45,7 +45,7 @@ This Terraform configuration deploys a jambonz medium cluster on Google Cloud Pl
 | Web/Monitoring | Compute Instance (VM) | Portal, API, Grafana, Homer, Jaeger |
 | SBC | Compute Instance (VM) | SIP/RTP traffic with static IP |
 | Feature Server | Managed Instance Group | Manually-scaled call processing |
-| Recording | Managed Instance Group | Optional recording cluster |
+| Recording | Managed Instance Group | Recording cluster |
 | MySQL | Cloud SQL | Private IP, no SSL |
 | Redis | Memorystore | No AUTH, no TLS |
 

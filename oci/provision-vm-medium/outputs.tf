@@ -46,8 +46,8 @@ output "feature_server_private_ips" {
 }
 
 output "recording_private_ips" {
-  description = "Private IP addresses for Recording Server instances (if deployed)"
-  value       = var.deploy_recording_cluster ? oci_core_instance.recording[*].private_ip : []
+  description = "Private IP addresses for Recording Server instances"
+  value       = oci_core_instance.recording[*].private_ip
 }
 
 output "compartment_id" {
@@ -76,8 +76,8 @@ output "feature_server_instance_ids" {
 }
 
 output "recording_instance_ids" {
-  description = "Recording Server instance OCIDs (if deployed)"
-  value       = var.deploy_recording_cluster ? oci_core_instance.recording[*].id : []
+  description = "Recording Server instance OCIDs"
+  value       = oci_core_instance.recording[*].id
 }
 
 output "mysql_endpoint" {
@@ -148,8 +148,8 @@ output "dns_records_required" {
 }
 
 output "recording_lb_ip" {
-  description = "Recording Server Load Balancer IP (if deployed)"
-  value       = var.deploy_recording_cluster ? [for ip in oci_network_load_balancer_network_load_balancer.recording[0].ip_addresses : ip.ip_address if ip.is_public == false][0] : "Not deployed"
+  description = "Recording Server Load Balancer IP"
+  value       = [for ip in oci_network_load_balancer_network_load_balancer.recording.ip_addresses : ip.ip_address if ip.is_public == false][0]
 }
 
 output "image_ocids" {
@@ -158,6 +158,6 @@ output "image_ocids" {
     sbc            = oci_core_image.sbc.id
     feature_server = oci_core_image.feature_server.id
     web_monitoring = oci_core_image.web_monitoring.id
-    recording      = var.deploy_recording_cluster ? oci_core_image.recording[0].id : "Not deployed"
+    recording      = oci_core_image.recording.id
   }
 }

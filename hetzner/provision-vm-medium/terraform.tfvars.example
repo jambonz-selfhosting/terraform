@@ -50,7 +50,7 @@ image_web_monitoring = "0"   # jambonz-web-monitoring snapshot ID
 image_sbc            = "0"   # jambonz-sip-rtp snapshot ID
 image_feature_server = "0"   # jambonz-fs snapshot ID
 image_db             = "0"   # jambonz-db snapshot ID (MySQL pre-installed)
-# image_recording    = "0"   # jambonz-recording snapshot ID (if using recording)
+image_recording      = "0"   # jambonz-recording snapshot ID
 
 # =============================================================================
 # MINIMAL COST CONFIGURATION (Testing/Development)
@@ -62,8 +62,7 @@ image_db             = "0"   # jambonz-db snapshot ID (MySQL pre-installed)
 ## Instance Counts
 #sbc_count                = 1      # 1 SBC server
 #feature_server_count     = 1      # 1 Feature Server
-#recording_server_count   = 1      # Not used when deploy_recording_cluster=false
-#deploy_recording_cluster = false  # Disable recording to save costs
+#recording_server_count   = 1      # 1 Recording server
 
 ## Server Types (CX33 = 4 vCPU, 8 GB RAM — default for all)
 ## NOTE: Not all server types are available in all locations.
@@ -89,7 +88,6 @@ image_db             = "0"   # jambonz-db snapshot ID (MySQL pre-installed)
 sbc_count                = 1     
 feature_server_count     = 1     
 recording_server_count   = 1      
-deploy_recording_cluster = true
 
 ## Server Types (list available types with: hcloud server-type list)
 server_type_web       = "cx33"   # 4 vCPU, 8 GB RAM

@@ -69,20 +69,19 @@ resource "exoscale_compute_instance" "web_monitoring" {
   ]
 
   user_data = templatefile("${path.module}/cloud-init-web-monitoring.yaml", {
-    mysql_host               = data.exoscale_database_uri.mysql.host
-    mysql_port               = data.exoscale_database_uri.mysql.port
-    mysql_user               = data.exoscale_database_uri.mysql.username
-    mysql_password           = data.exoscale_database_uri.mysql.password
-    mysql_database           = data.exoscale_database_uri.mysql.db_name
-    redis_host               = "127.0.0.1"
-    redis_port               = 6379
-    jwt_secret               = random_password.encryption_secret.result
-    url_portal               = var.url_portal
-    vpc_cidr                 = var.vpc_cidr
-    deploy_recording_cluster = var.deploy_recording_cluster
-    enable_otel              = var.enable_otel
-    enable_pcaps             = var.enable_pcaps
-    ssh_public_key           = local.ssh_public_key
+    mysql_host     = data.exoscale_database_uri.mysql.host
+    mysql_port     = data.exoscale_database_uri.mysql.port
+    mysql_user     = data.exoscale_database_uri.mysql.username
+    mysql_password = data.exoscale_database_uri.mysql.password
+    mysql_database = data.exoscale_database_uri.mysql.db_name
+    redis_host     = "127.0.0.1"
+    redis_port     = 6379
+    jwt_secret     = random_password.encryption_secret.result
+    url_portal     = var.url_portal
+    vpc_cidr       = var.vpc_cidr
+    enable_otel    = var.enable_otel
+    enable_pcaps   = var.enable_pcaps
+    ssh_public_key = local.ssh_public_key
   })
 
   labels = {
@@ -199,7 +198,7 @@ resource "exoscale_instance_pool" "feature_server" {
     url_portal                = var.url_portal
     vpc_cidr                  = var.vpc_cidr
     web_monitoring_private_ip = local.web_monitoring_private_ip
-    recording_ws_base_url     = var.deploy_recording_cluster ? "ws://${exoscale_nlb.recording[0].ip_address}:80" : "ws://${local.web_monitoring_private_ip}:3017"
+    recording_ws_base_url     = "ws://${exoscale_nlb.recording.ip_address}:80"
     krisp_license_key         = var.krisp_license_key
   })
 
@@ -210,12 +209,10 @@ resource "exoscale_instance_pool" "feature_server" {
 }
 
 # =============================================================================
-# Recording Server Instance Pool (Optional)
+# Recording Server Instance Pool
 # =============================================================================
 
 resource "exoscale_instance_pool" "recording" {
-  count = var.deploy_recording_cluster ? 1 : 0
-
   zone = var.zone
   name = "${var.name_prefix}-recording-pool"
 
