@@ -83,12 +83,6 @@ variable "recording_server_count" {
   }
 }
 
-variable "deploy_recording_cluster" {
-  description = "Whether to deploy the recording cluster (set to false to save costs)"
-  type        = bool
-  default     = false
-}
-
 # Database Plan Variables
 variable "mysql_plan" {
   description = "Exoscale DBaaS MySQL plan (hobbyist-2, startup-4/8/16/32, business-4/8/16/32, premium-*)"

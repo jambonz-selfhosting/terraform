@@ -37,7 +37,6 @@ ssh_public_key = "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQC... your-email@example.
 #rtp_count                = 1      # 1 RTP server (default)
 #feature_server_count     = 1      # 1 Feature Server (default)
 #recording_server_count   = 1      # 1 Recording Server (default)
-#deploy_recording_cluster = true   # Enable recording cluster (default)
 
 ## Database Plans (Hobbyist tier - lowest cost)
 #mysql_plan  = "hobbyist-2"  # ~€42/month
@@ -61,7 +60,6 @@ sip_count                = 2      # 2 SIP servers for redundancy
 rtp_count                = 2      # 2 RTP servers for redundancy
 feature_server_count     = 4      # 4 Feature Servers for load distribution
 recording_server_count   = 2      # 2 Recording servers
-deploy_recording_cluster = true   # Enable recording cluster
 
 ## Database Plans (Business tier - 99.99% SLA, HA)
 mysql_plan  = "business-8"   # 8GB RAM, high performance

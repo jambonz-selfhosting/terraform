@@ -289,12 +289,6 @@ variable "enable_pcaps" {
   default     = true
 }
 
-variable "deploy_recording_cluster" {
-  description = "Deploy optional recording server cluster behind ALB"
-  type        = bool
-  default     = true
-}
-
 variable "apiban_key" {
   description = "APIBan API key for single-key mode (optional)"
   type        = string

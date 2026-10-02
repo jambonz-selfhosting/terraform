@@ -221,7 +221,7 @@ resource "google_compute_firewall" "ssh" {
 locals {
   internal_rules = {
     feature-server = { tag = "jambonz-fs", tcp = ["3000-3009", "5060"], udp = ["5060", "16000-32000"] }
-    web            = { tag = "jambonz-web", tcp = var.deploy_recording_cluster ? ["3000"] : ["3000", "3017"], udp = [] }
+    web            = { tag = "jambonz-web", tcp = ["3000"], udp = [] }
     # Grafana (3010) is reached through nginx on the web server (grafana.<portal>)
     monitoring = { tag = "jambonz-monitoring", tcp = ["3010", "8086", "8088", "9080", "16686", "14268-14269"], udp = ["9060"] }
     sip        = { tag = "jambonz-sip", tcp = ["3000-3009", "5060", "8080", "9090"], udp = ["5060", "22222-22223", "22224-22233"] }

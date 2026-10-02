@@ -149,7 +149,6 @@ deployments:
       count: 1-5
       scalable: true
       managed_instance_group: true
-      optional: true
 
   # Large deployment - separate web and monitoring, split SIP/RTP
   large:
@@ -177,7 +176,6 @@ deployments:
       count: 1-10
       scalable: true
       managed_instance_group: true
-      optional: true
 
 # Service checking behavior
 service_checks:

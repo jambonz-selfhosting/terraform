@@ -11,13 +11,13 @@ Internet
     │        │
     ├─── RTP Servers (count-based, EIPs) ──── RTPEngine + sidecar
     │
-    ├─── Web Server (EC2 + EIP) ──────────── API, webapp, public-apps, upload_recordings
+    ├─── Web Server (EC2 + EIP) ──────────── API, webapp, public-apps
     │
     ├─── Monitoring Server (EC2 + EIP) ───── Grafana, Homer, Jaeger, InfluxDB
     │
     ├─── Feature Server ASG ──────────────── FreeSWITCH + feature-server app
     │
-    └─── Recording ASG + ALB (optional) ──── upload_recordings
+    └─── Recording ASG + ALB ─────────────── upload_recordings
          │
     VPC Private Subnets
     ├─── Aurora Serverless v2 MySQL
@@ -35,7 +35,7 @@ Internet
 | Monitoring Server | EC2 | Grafana, Homer, Jaeger, InfluxDB, Cassandra |
 | Aurora MySQL | Serverless v2 | Database (0.5–8 ACU) |
 | ElastiCache Redis | Single node | Cache and session store |
-| Recording | ASG + ALB (optional) | Dedicated recording cluster |
+| Recording | ASG + ALB | Dedicated recording cluster |
 
 ## Key Differences from Medium
 

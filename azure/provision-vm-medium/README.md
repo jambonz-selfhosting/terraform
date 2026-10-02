@@ -9,7 +9,7 @@ The deployment creates:
 - **Web/Monitoring Server** (1 VM): API server, webapp, Grafana, Homer, Jaeger, InfluxDB
 - **SBC Servers** (VMSS): Session Border Controllers with drachtio, rtpengine
 - **Feature Servers** (VMSS): drachtio + mediajam media servers for call handling
-- **Recording Servers** (VMSS, optional): Dedicated recording upload cluster
+- **Recording Servers** (VMSS): Dedicated recording upload cluster
 - **Azure MySQL Flexible Server**: Managed MySQL 8.0 database
 - **Azure Managed Redis**: Managed Redis for session state, reached through a private endpoint
 - **Azure Key Vault**: Holds every secret; VMs read them at boot with their managed identity
@@ -125,7 +125,6 @@ jambonz_version = "11.1.2"
 | `web_monitoring_vm_size` | `Standard_F4s_v2` | VM size for Web/Monitoring |
 | `sbc_desired_capacity` | `1` | Initial SBC instance count |
 | `feature_server_desired_capacity` | `1` | Initial Feature Server count |
-| `deploy_recording_cluster` | `true` | Deploy recording server cluster |
 | `enable_pcaps` | `true` | Enable SIP PCAP capture |
 | `apiban_key` | `""` | APIBan API key for single-key mode |
 | `apiban_client_id` | `""` | APIBan client ID for multi-key mode |

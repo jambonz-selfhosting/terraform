@@ -364,12 +364,10 @@ resource "oci_core_network_security_group_security_rule" "feature_server_rtp" {
 }
 
 # ------------------------------------------------------------------------------
-# RECORDING NSG (conditional)
+# RECORDING NSG
 # ------------------------------------------------------------------------------
 
 resource "oci_core_network_security_group" "recording" {
-  count = var.deploy_recording_cluster ? 1 : 0
-
   compartment_id = var.compartment_id
   vcn_id         = oci_core_vcn.jambonz.id
   display_name   = "${var.name_prefix}-recording-nsg"
@@ -383,9 +381,7 @@ resource "oci_core_network_security_group" "recording" {
 
 # Egress - Allow all outbound
 resource "oci_core_network_security_group_security_rule" "recording_egress" {
-  count = var.deploy_recording_cluster ? 1 : 0
-
-  network_security_group_id = oci_core_network_security_group.recording[0].id
+  network_security_group_id = oci_core_network_security_group.recording.id
   direction                 = "EGRESS"
   protocol                  = "all"
   destination               = "0.0.0.0/0"
@@ -394,9 +390,7 @@ resource "oci_core_network_security_group_security_rule" "recording_egress" {
 
 # SSH
 resource "oci_core_network_security_group_security_rule" "recording_ssh" {
-  count = var.deploy_recording_cluster ? 1 : 0
-
-  network_security_group_id = oci_core_network_security_group.recording[0].id
+  network_security_group_id = oci_core_network_security_group.recording.id
   direction                 = "INGRESS"
   protocol                  = "6"
   source                    = var.allowed_ssh_cidr
@@ -412,9 +406,7 @@ resource "oci_core_network_security_group_security_rule" "recording_ssh" {
 
 # Internal WebSocket from Feature Server
 resource "oci_core_network_security_group_security_rule" "recording_ws" {
-  count = var.deploy_recording_cluster ? 1 : 0
-
-  network_security_group_id = oci_core_network_security_group.recording[0].id
+  network_security_group_id = oci_core_network_security_group.recording.id
   direction                 = "INGRESS"
   protocol                  = "6"
   source                    = var.vcn_cidr

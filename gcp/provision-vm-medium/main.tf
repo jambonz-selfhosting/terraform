@@ -222,7 +222,7 @@ locals {
     feature-server = { tag = "jambonz-fs", tcp = ["3000-3009", "5060"], udp = ["5060", "16000-32000"] }
     # Web and monitoring share one host: the portal, API and webapp, plus
     # Grafana, InfluxDB, Homer and Jaeger.
-    web-monitoring = { tag = "jambonz-web", tcp = concat(["3000", "3010", "8086", "8088", "9080", "16686", "14268-14269"], var.deploy_recording_cluster ? [] : ["3017"]), udp = ["9060"] }
+    web-monitoring = { tag = "jambonz-web", tcp = ["3000", "3010", "8086", "8088", "9080", "16686", "14268-14269"], udp = ["9060"] }
     # SIP and RTP share one host.
     sbc       = { tag = "jambonz-sbc", tcp = ["3000-3009", "5060", "8080", "9090"], udp = ["5060", "22222-22223", "22224-22233", "40000-60000"] }
     recording = { tag = "jambonz-recording", tcp = ["3000"], udp = [] }

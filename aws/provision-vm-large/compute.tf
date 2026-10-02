@@ -92,16 +92,15 @@ resource "aws_instance" "web" {
   }
 
   user_data = templatefile("${path.module}/cloud-init-web.sh", {
-    mysql_host               = aws_rds_cluster.jambonz.endpoint
-    mysql_user               = var.mysql_username
-    mysql_password           = local.db_password
-    redis_host               = aws_elasticache_replication_group.jambonz.primary_endpoint_address
-    redis_port               = 6379
-    jwt_secret               = random_password.jwt_secret.result
-    url_portal               = var.url_portal
-    vpc_cidr                 = var.vpc_cidr
-    monitoring_private_ip    = aws_instance.monitoring.private_ip
-    deploy_recording_cluster = var.deploy_recording_cluster
+    mysql_host            = aws_rds_cluster.jambonz.endpoint
+    mysql_user            = var.mysql_username
+    mysql_password        = local.db_password
+    redis_host            = aws_elasticache_replication_group.jambonz.primary_endpoint_address
+    redis_port            = 6379
+    jwt_secret            = random_password.jwt_secret.result
+    url_portal            = var.url_portal
+    vpc_cidr              = var.vpc_cidr
+    monitoring_private_ip = aws_instance.monitoring.private_ip
   })
 
   tags = {
@@ -255,7 +254,7 @@ resource "aws_launch_template" "feature_server" {
     web_private_ip        = aws_instance.web.private_ip
     vpc_cidr              = var.vpc_cidr
     url_portal            = var.url_portal
-    recording_ws_base_url = var.deploy_recording_cluster ? "ws://${aws_lb.recording[0].dns_name}:80" : "ws://${aws_instance.web.private_ip}:3017"
+    recording_ws_base_url = "ws://${aws_lb.recording.dns_name}:80"
     krisp_license_key     = var.krisp_license_key
   }))
 
@@ -304,16 +303,15 @@ resource "aws_autoscaling_lifecycle_hook" "fs_terminating" {
 }
 
 # ------------------------------------------------------------------------------
-# RECORDING CLUSTER (conditional)
+# RECORDING CLUSTER
 # ------------------------------------------------------------------------------
 
 # Application Load Balancer
 resource "aws_lb" "recording" {
-  count              = var.deploy_recording_cluster ? 1 : 0
   name               = "${var.name_prefix}-recording-alb"
   internal           = false
   load_balancer_type = "application"
-  security_groups    = [aws_security_group.recording_alb[0].id]
+  security_groups    = [aws_security_group.recording_alb.id]
   subnets            = aws_subnet.public[*].id
 
   idle_timeout = 4000
@@ -324,7 +322,6 @@ resource "aws_lb" "recording" {
 }
 
 resource "aws_lb_target_group" "recording" {
-  count    = var.deploy_recording_cluster ? 1 : 0
   name     = "${var.name_prefix}-recording-tg"
   port     = 3000
   protocol = "HTTP"
@@ -342,22 +339,20 @@ resource "aws_lb_target_group" "recording" {
 }
 
 resource "aws_lb_listener" "recording" {
-  count             = var.deploy_recording_cluster ? 1 : 0
-  load_balancer_arn = aws_lb.recording[0].arn
+  load_balancer_arn = aws_lb.recording.arn
   port              = 80
   protocol          = "HTTP"
 
   default_action {
     type             = "forward"
-    target_group_arn = aws_lb_target_group.recording[0].arn
+    target_group_arn = aws_lb_target_group.recording.arn
   }
 }
 
 # Recording Launch Template
 resource "aws_launch_template" "recording" {
-  count         = var.deploy_recording_cluster ? 1 : 0
   name_prefix   = "${var.name_prefix}-recording-"
-  image_id      = aws_ami_copy.recording[0].id
+  image_id      = aws_ami_copy.recording.id
   instance_type = var.recording_instance_type
   key_name      = aws_key_pair.jambonz.key_name
 
@@ -367,7 +362,7 @@ resource "aws_launch_template" "recording" {
 
   network_interfaces {
     associate_public_ip_address = true
-    security_groups             = [aws_security_group.ssh.id, aws_security_group.recording[0].id]
+    security_groups             = [aws_security_group.ssh.id, aws_security_group.recording.id]
   }
 
   block_device_mappings {
@@ -402,16 +397,15 @@ resource "aws_launch_template" "recording" {
 
 # Recording ASG
 resource "aws_autoscaling_group" "recording" {
-  count               = var.deploy_recording_cluster ? 1 : 0
   name                = "${var.name_prefix}-recording-asg"
   min_size            = var.recording_min_size
   max_size            = var.recording_max_size
   desired_capacity    = var.recording_desired_capacity
   vpc_zone_identifier = aws_subnet.public[*].id
-  target_group_arns   = [aws_lb_target_group.recording[0].arn]
+  target_group_arns   = [aws_lb_target_group.recording.arn]
 
   launch_template {
-    id      = aws_launch_template.recording[0].id
+    id      = aws_launch_template.recording.id
     version = "$Latest"
   }
 

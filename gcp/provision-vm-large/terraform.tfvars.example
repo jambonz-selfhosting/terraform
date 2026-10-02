@@ -15,8 +15,7 @@ region         = ""  # GCP region (e.g., "us-west1", "us-east1", "europe-west1")
 ssh_public_key = ""  # Your SSH public key (e.g., "ssh-rsa AAAAB3Nz... user@host")
 
 # Set to false to disable if not needed
-enable_pcaps             = true
-deploy_recording_cluster = true
+enable_pcaps = true
 
 # ------------------------------------------------------------------------------
 # APIBAN CONFIGURATION (optional)

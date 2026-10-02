@@ -52,7 +52,7 @@ image_sip            = "0"   # jambonz-sip snapshot ID
 image_rtp            = "0"   # jambonz-rtp snapshot ID
 image_feature_server = "0"   # jambonz-fs snapshot ID
 image_db             = "0"   # jambonz-db snapshot ID (MySQL pre-installed)
-image_recording      = "0"   # jambonz-recording snapshot ID (if using recording)
+image_recording      = "0"   # jambonz-recording snapshot ID
 
 # =============================================================================
 # INSTANCE COUNTS
@@ -62,7 +62,6 @@ sip_count                = 1
 rtp_count                = 1
 feature_server_count     = 1
 recording_server_count   = 1
-deploy_recording_cluster = true
 
 # =============================================================================
 # SERVER TYPES

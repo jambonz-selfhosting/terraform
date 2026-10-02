@@ -269,16 +269,14 @@ locals {
       { name = "RTP-mediajam", priority = 1004, access = "Allow", protocol = "Udp", ports = "16000-32000", source = var.vpc_cidr },
     ]
 
-    web = concat([
+    web = [
       local.ssh_rule,
       { name = "HTTP", priority = 1001, access = "Allow", protocol = "Tcp", ports = "80", source = var.allowed_http_cidr },
       { name = "HTTPS", priority = 1002, access = "Allow", protocol = "Tcp", ports = "443", source = var.allowed_http_cidr },
       # The API is reached publicly through nginx on 80/443; port 3000 is only
       # for feature servers inside the VNet.
       { name = "API-Internal", priority = 1003, access = "Allow", protocol = "Tcp", ports = "3000", source = var.vpc_cidr },
-      ], var.deploy_recording_cluster ? [] : [
-      { name = "Upload-Recordings", priority = 1004, access = "Allow", protocol = "Tcp", ports = "3017", source = var.vpc_cidr },
-    ])
+    ]
 
     monitoring = [
       local.ssh_rule,
@@ -459,7 +457,6 @@ resource "azurerm_network_security_group" "rtp" {
 }
 
 resource "azurerm_network_security_group" "recording_instance" {
-  count               = var.deploy_recording_cluster ? 1 : 0
   name                = "${var.name_prefix}-recording-instance-nsg"
   location            = azurerm_resource_group.jambonz.location
   resource_group_name = azurerm_resource_group.jambonz.name

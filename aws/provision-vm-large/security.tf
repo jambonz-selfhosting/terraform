@@ -330,15 +330,6 @@ resource "aws_security_group" "web" {
     cidr_blocks = var.allowed_http_cidr
   }
 
-  # upload_recordings from feature servers
-  ingress {
-    description = "upload_recordings"
-    from_port   = 3017
-    to_port     = 3017
-    protocol    = "tcp"
-    cidr_blocks = [var.vpc_cidr]
-  }
-
   # public-apps
   ingress {
     description = "public-apps"
@@ -458,11 +449,10 @@ resource "aws_security_group" "monitoring" {
 }
 
 # ------------------------------------------------------------------------------
-# RECORDING SECURITY GROUPS (conditional)
+# RECORDING SECURITY GROUPS
 # ------------------------------------------------------------------------------
 
 resource "aws_security_group" "recording_alb" {
-  count       = var.deploy_recording_cluster ? 1 : 0
   name_prefix = "${var.name_prefix}-recording-alb-"
   vpc_id      = aws_vpc.jambonz.id
 
@@ -491,7 +481,6 @@ resource "aws_security_group" "recording_alb" {
 }
 
 resource "aws_security_group" "recording" {
-  count       = var.deploy_recording_cluster ? 1 : 0
   name_prefix = "${var.name_prefix}-recording-"
   vpc_id      = aws_vpc.jambonz.id
 
@@ -500,7 +489,7 @@ resource "aws_security_group" "recording" {
     from_port       = 3000
     to_port         = 3000
     protocol        = "tcp"
-    security_groups = [aws_security_group.recording_alb[0].id]
+    security_groups = [aws_security_group.recording_alb.id]
   }
 
   egress {

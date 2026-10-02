@@ -9,10 +9,10 @@ This Terraform configuration deploys a multi-VM jambonz cluster on Oracle Cloud 
 | Web/Monitoring | Portal, API, Grafana, Homer, Jaeger, Redis |
 | SBC | drachtio SIP server, rtpengine RTP proxy |
 | Feature Server | FreeSWITCH, jambonz apps |
-| Recording | Recording server (optional, on private subnet) |
+| Recording | Recording server (on private subnet) |
 | MySQL | OCI MySQL HeatWave (managed) |
 
-Default: 1 SBC + 1 Feature Server + 1 Web/Monitoring (+ optional Recording)
+Default: 1 SBC + 1 Feature Server + 1 Web/Monitoring + 1 Recording
 
 ## Prerequisites
 
@@ -115,7 +115,7 @@ jambonz images are distributed via **Pre-Authenticated Request (PAR) URLs** from
 | `sbc_image_par_url` | PAR URL for SBC image |
 | `feature_server_image_par_url` | PAR URL for Feature Server image |
 | `web_monitoring_image_par_url` | PAR URL for Web/Monitoring image |
-| `recording_image_par_url` | PAR URL for Recording image (optional) |
+| `recording_image_par_url` | PAR URL for Recording image |
 
 ### Required Variables
 
@@ -147,7 +147,6 @@ jambonz images are distributed via **Pre-Authenticated Request (PAR) URLs** from
 | `web_monitoring_ocpus` | `4` | OCPUs for Web/Monitoring |
 | `web_monitoring_memory_in_gbs` | `8` | Memory for Web/Monitoring |
 | `web_monitoring_disk_size` | `200` | Disk size for Web/Monitoring |
-| `deploy_recording_cluster` | `true` | Deploy recording servers |
 | `recording_count` | `1` | Number of Recording servers |
 
 ### Database Configuration

@@ -12,7 +12,6 @@ REDIS_PORT="${redis_port}"
 URL_PORTAL="${url_portal}"
 VPC_CIDR="${vpc_cidr}"
 MONITORING_PRIVATE_IP="${monitoring_private_ip}"
-DEPLOY_RECORDING_CLUSTER="${deploy_recording_cluster}"
 
 MYSQL_PASSWORD=$(gcp_secret mysql-password)
 REDIS_PASSWORD=$(gcp_secret redis-auth)
@@ -216,26 +215,6 @@ server {
 EOF
 
 sudo systemctl restart nginx
-
-# Configure upload_recordings service (only if not using recording cluster)
-sudo sed -i -e "s/MYSQL_HOST=/MYSQL_HOST=$MYSQL_HOST/g" /etc/systemd/system/upload_recordings.service
-sudo sed -i -e "s/MYSQL_USER=/MYSQL_USER=$MYSQL_USER/g" /etc/systemd/system/upload_recordings.service
-sudo sed -i -e "s/MYSQL_PASSWORD=/MYSQL_PASSWORD=$MYSQL_PASSWORD/g" /etc/systemd/system/upload_recordings.service
-sudo sed -i -e "s/MYSQL_DATABASE=/MYSQL_DATABASE=jambones/g" /etc/systemd/system/upload_recordings.service
-sudo sed -i -e "s/BASIC_AUTH_USERNAME=/BASIC_AUTH_USERNAME=jambonz/g" /etc/systemd/system/upload_recordings.service
-sudo sed -i -e "s/BASIC_AUTH_PASSWORD=/BASIC_AUTH_PASSWORD=$JWT_SECRET/g" /etc/systemd/system/upload_recordings.service
-sudo sed -i -e "s/ENCRYPTION_SECRET=/ENCRYPTION_SECRET=$JWT_SECRET/g" /etc/systemd/system/upload_recordings.service
-
-sudo systemctl daemon-reload
-sudo systemctl enable upload_recordings
-sudo systemctl start upload_recordings
-
-# Check if recording cluster is deployed
-if [[ "$DEPLOY_RECORDING_CLUSTER" == "true" ]]; then
-  echo "Recording cluster is deployed, disabling local upload_recordings service"
-  sudo systemctl stop upload_recordings 2>/dev/null || true
-  sudo systemctl disable upload_recordings 2>/dev/null || true
-fi
 
 install_ops_agent
 

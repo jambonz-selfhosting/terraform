@@ -328,7 +328,7 @@ locals {
 
     # Portal/API and monitoring on one host. Grafana is reached through nginx on
     # this host, so it needs no rule of its own.
-    web_monitoring = concat([
+    web_monitoring = [
       local.ssh_rule,
       { name = "HTTP", priority = 1001, access = "Allow", protocol = "Tcp", ports = "80", source = var.allowed_http_cidr },
       { name = "HTTPS", priority = 1002, access = "Allow", protocol = "Tcp", ports = "443", source = var.allowed_http_cidr },
@@ -341,9 +341,7 @@ locals {
       { name = "Homer-HEP", priority = 1007, access = "Allow", protocol = "Udp", ports = "9060", source = var.vpc_cidr },
       { name = "Jaeger-Query", priority = 1008, access = "Allow", protocol = "Tcp", ports = "16686", source = var.vpc_cidr },
       { name = "Jaeger-Collector", priority = 1009, access = "Allow", protocol = "Tcp", ports = "14268-14269", source = var.vpc_cidr },
-      ], var.deploy_recording_cluster ? [] : [
-      { name = "Upload-Recordings", priority = 1010, access = "Allow", protocol = "Tcp", ports = "3017", source = var.vpc_cidr },
-    ])
+    ]
 
     recording = [
       local.ssh_rule,
@@ -434,7 +432,6 @@ resource "azurerm_network_security_group" "web_monitoring" {
 }
 
 resource "azurerm_network_security_group" "recording_instance" {
-  count               = var.deploy_recording_cluster ? 1 : 0
   name                = "${var.name_prefix}-recording-instance-nsg"
   location            = azurerm_resource_group.jambonz.location
   resource_group_name = azurerm_resource_group.jambonz.name

@@ -33,16 +33,15 @@ resource "oci_core_instance" "web_monitoring" {
 
   metadata = {
     ssh_authorized_keys = var.ssh_public_key
-    user_data           = base64encode(templatefile("${path.module}/cloud-init-web-monitoring.yaml", {
-      mysql_host               = oci_mysql_mysql_db_system.jambonz.ip_address
-      mysql_user               = var.mysql_username
-      mysql_password           = local.db_password
-      redis_host               = "127.0.0.1"
-      redis_port               = 6379
-      jwt_secret               = random_password.encryption_secret.result
-      url_portal               = var.url_portal
-      vpc_cidr                 = var.vcn_cidr
-      deploy_recording_cluster = var.deploy_recording_cluster
+    user_data = base64encode(templatefile("${path.module}/cloud-init-web-monitoring.yaml", {
+      mysql_host     = oci_mysql_mysql_db_system.jambonz.ip_address
+      mysql_user     = var.mysql_username
+      mysql_password = local.db_password
+      redis_host     = "127.0.0.1"
+      redis_port     = 6379
+      jwt_secret     = random_password.encryption_secret.result
+      url_portal     = var.url_portal
+      vpc_cidr       = var.vcn_cidr
     }))
   }
 
@@ -178,7 +177,7 @@ resource "oci_core_instance" "feature_server" {
 
   metadata = {
     ssh_authorized_keys = var.ssh_public_key
-    user_data           = base64encode(templatefile("${path.module}/cloud-init-feature-server.yaml", {
+    user_data = base64encode(templatefile("${path.module}/cloud-init-feature-server.yaml", {
       mysql_host                = oci_mysql_mysql_db_system.jambonz.ip_address
       mysql_user                = var.mysql_username
       mysql_password            = local.db_password
@@ -188,7 +187,7 @@ resource "oci_core_instance" "feature_server" {
       web_monitoring_private_ip = oci_core_instance.web_monitoring.private_ip
       vpc_cidr                  = var.vcn_cidr
       url_portal                = var.url_portal
-      recording_ws_base_url     = var.deploy_recording_cluster && length(oci_core_instance.recording) > 0 ? "ws://${oci_core_instance.recording[0].private_ip}:3000" : "ws://${oci_core_instance.web_monitoring.private_ip}:3017"
+      recording_ws_base_url     = "ws://${oci_core_instance.recording[0].private_ip}:3000"
       krisp_license_key         = var.krisp_license_key
     }))
   }
@@ -203,11 +202,11 @@ resource "oci_core_instance" "feature_server" {
 }
 
 # ------------------------------------------------------------------------------
-# RECORDING SERVERS (conditional)
+# RECORDING SERVERS
 # ------------------------------------------------------------------------------
 
 resource "oci_core_instance" "recording" {
-  count = var.deploy_recording_cluster ? var.recording_count : 0
+  count = var.recording_count
 
   availability_domain = local.availability_domain
   compartment_id      = var.compartment_id
@@ -221,7 +220,7 @@ resource "oci_core_instance" "recording" {
 
   source_details {
     source_type             = "image"
-    source_id               = oci_core_image.recording[0].id
+    source_id               = oci_core_image.recording.id
     boot_volume_size_in_gbs = var.recording_disk_size
   }
 
@@ -230,7 +229,7 @@ resource "oci_core_instance" "recording" {
     assign_public_ip          = false
     display_name              = "${var.name_prefix}-recording-${count.index}-vnic"
     hostname_label            = "recording${count.index}"
-    nsg_ids                   = [oci_core_network_security_group.recording[0].id]
+    nsg_ids                   = [oci_core_network_security_group.recording.id]
     skip_source_dest_check    = false
     assign_private_dns_record = true
   }
