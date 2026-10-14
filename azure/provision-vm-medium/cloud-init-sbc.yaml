@@ -8,20 +8,39 @@ write_files:
   - path: /tmp/jambonz-setup.sh
     permissions: '0755'
     content: |
-      #!/bin/bash -xe
+      #!/bin/bash -e
 
       # Variables passed from Terraform
       MYSQL_HOST="${mysql_host}"
       MYSQL_USER="${mysql_user}"
-      MYSQL_PASSWORD="${mysql_password}"
       REDIS_HOST="${redis_host}"
       REDIS_PORT="${redis_port}"
-      REDIS_PASSWORD="${redis_password}"
-      JWT_SECRET="${jwt_secret}"
       WEB_MONITORING_PRIVATE_IP="${web_monitoring_private_ip}"
       VPC_CIDR="${vpc_cidr}"
       ENABLE_PCAPS="${enable_pcaps}"
+      # Secrets are read from Key Vault with this VM's managed identity, not
+      # passed in custom_data. The script runs without xtrace (-x) so that no
+      # secret is echoed into /var/log/jambonz-setup.log.
       KEY_VAULT_NAME="${key_vault_name}"
+      IDENTITY_CLIENT_ID="${identity_client_id}"
+      kv_secret() {
+        local token value i
+        for i in $(seq 1 30); do
+          token=$(curl -sf -H Metadata:true --noproxy "*" \
+            "http://169.254.169.254/metadata/identity/oauth2/token?api-version=2018-02-01&resource=https%3A%2F%2Fvault.azure.net&client_id=$IDENTITY_CLIENT_ID" \
+            | python3 -c 'import sys, json; print(json.load(sys.stdin)["access_token"])') &&
+          value=$(curl -sf -H "Authorization: Bearer $token" \
+            "https://$KEY_VAULT_NAME.vault.azure.net/secrets/$1?api-version=7.4" \
+            | python3 -c 'import sys, json; print(json.load(sys.stdin)["value"])') &&
+          { printf '%s' "$value"; return 0; }
+          sleep 10
+        done
+        echo "FATAL: could not read secret $1 from Key Vault $KEY_VAULT_NAME" >&2
+        return 1
+      }
+      MYSQL_PASSWORD=$(kv_secret mysql-password)
+      REDIS_PASSWORD=$(kv_secret redis-password)
+      JWT_SECRET=$(kv_secret encryption-secret)
 
       echo "Starting jambonz SBC server configuration for Azure deployment"
 
@@ -284,9 +303,11 @@ write_files:
       # Configure APIBan - supports two modes:
       # 1. Client credentials mode: auto-provision unique key per instance (preferred)
       # 2. Single key mode: use customer-provided key
-      APIBAN_KEY="${apiban_key}"
+      APIBAN_KEY=""
       APIBAN_CLIENT_ID="${apiban_client_id}"
-      APIBAN_CLIENT_SECRET="${apiban_client_secret}"
+      APIBAN_CLIENT_SECRET=""
+      if [ "${apiban_key_set}" = "true" ]; then APIBAN_KEY=$(kv_secret apiban-key); fi
+      if [ "${apiban_client_set}" = "true" ]; then APIBAN_CLIENT_SECRET=$(kv_secret apiban-client-secret); fi
 
       if [ -n "$APIBAN_CLIENT_ID" ] && [ -n "$APIBAN_CLIENT_SECRET" ]; then
           echo "Provisioning APIBan key via client credentials..."

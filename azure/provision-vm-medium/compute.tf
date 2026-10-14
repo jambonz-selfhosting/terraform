@@ -13,6 +13,7 @@ resource "azurerm_public_ip" "web_monitoring" {
   resource_group_name = azurerm_resource_group.jambonz.name
   allocation_method   = "Static"
   sku                 = "Standard"
+  zones               = local.zonal ? var.zones : null
 
   tags = {
     environment = var.environment
@@ -51,6 +52,7 @@ resource "azurerm_linux_virtual_machine" "web_monitoring" {
   resource_group_name = azurerm_resource_group.jambonz.name
   location            = azurerm_resource_group.jambonz.location
   size                = var.web_monitoring_vm_size
+  zone                = local.zonal ? var.zones[0] : null
   admin_username      = "jambonz"
 
   network_interface_ids = [
@@ -78,19 +80,24 @@ resource "azurerm_linux_virtual_machine" "web_monitoring" {
   custom_data = base64encode(templatefile("${path.module}/cloud-init-web-monitoring.yaml", {
     mysql_host               = azurerm_mysql_flexible_server.jambonz.fqdn
     mysql_user               = var.mysql_username
-    mysql_password           = local.db_password
     redis_host               = azurerm_managed_redis.jambonz.hostname
     redis_port               = 10000
-    redis_password           = azurerm_managed_redis.jambonz.default_database[0].primary_access_key
-    jwt_secret               = random_password.encryption_secret.result
     url_portal               = var.url_portal
     vpc_cidr                 = var.vpc_cidr
     deploy_recording_cluster = var.deploy_recording_cluster
     key_vault_name           = azurerm_key_vault.jambonz.name
+    identity_client_id       = azurerm_user_assigned_identity.jambonz.client_id
     enable_otel              = var.enable_otel
   }))
 
   depends_on = [
+    azurerm_key_vault_secret.encryption_secret,
+    azurerm_key_vault_secret.mysql_password,
+    azurerm_key_vault_secret.redis_password,
+    azurerm_key_vault_secret.apiban_key,
+    azurerm_key_vault_secret.apiban_client_secret,
+    azurerm_key_vault_secret.krisp_license_key,
+    azurerm_private_endpoint.redis,
     azurerm_mysql_flexible_server.jambonz,
     azurerm_managed_redis.jambonz
   ]
@@ -114,6 +121,7 @@ resource "azurerm_public_ip" "sbc" {
   resource_group_name = azurerm_resource_group.jambonz.name
   allocation_method   = "Static"
   sku                 = "Standard"
+  zones               = local.zonal ? var.zones : null
 
   tags = {
     environment = var.environment
@@ -157,7 +165,9 @@ resource "azurerm_linux_virtual_machine" "sbc" {
   resource_group_name = azurerm_resource_group.jambonz.name
   location            = azurerm_resource_group.jambonz.location
   size                = var.sbc_vm_size
-  admin_username      = "jambonz"
+  # Round-robin across zones, so two or more SBCs survive a zone outage.
+  zone           = local.zonal ? var.zones[count.index % length(var.zones)] : null
+  admin_username = "jambonz"
 
   network_interface_ids = [
     azurerm_network_interface.sbc[count.index].id,
@@ -184,21 +194,26 @@ resource "azurerm_linux_virtual_machine" "sbc" {
   custom_data = base64encode(templatefile("${path.module}/cloud-init-sbc.yaml", {
     mysql_host                = azurerm_mysql_flexible_server.jambonz.fqdn
     mysql_user                = var.mysql_username
-    mysql_password            = local.db_password
     redis_host                = azurerm_managed_redis.jambonz.hostname
     redis_port                = 10000
-    redis_password            = azurerm_managed_redis.jambonz.default_database[0].primary_access_key
-    jwt_secret                = random_password.encryption_secret.result
     web_monitoring_private_ip = azurerm_network_interface.web_monitoring.private_ip_address
     vpc_cidr                  = var.vpc_cidr
     enable_pcaps              = var.enable_pcaps
     key_vault_name            = azurerm_key_vault.jambonz.name
-    apiban_key                = var.apiban_key
+    identity_client_id        = azurerm_user_assigned_identity.jambonz.client_id
+    apiban_key_set            = var.apiban_key != ""
     apiban_client_id          = var.apiban_client_id
-    apiban_client_secret      = var.apiban_client_secret
+    apiban_client_set         = var.apiban_client_secret != ""
   }))
 
   depends_on = [
+    azurerm_key_vault_secret.encryption_secret,
+    azurerm_key_vault_secret.mysql_password,
+    azurerm_key_vault_secret.redis_password,
+    azurerm_key_vault_secret.apiban_key,
+    azurerm_key_vault_secret.apiban_client_secret,
+    azurerm_key_vault_secret.krisp_license_key,
+    azurerm_private_endpoint.redis,
     azurerm_linux_virtual_machine.web_monitoring
   ]
 
@@ -221,6 +236,8 @@ resource "azurerm_linux_virtual_machine_scale_set" "feature_server" {
   instances           = var.feature_server_desired_capacity
   admin_username      = "jambonz"
   upgrade_mode        = "Manual"
+  zones               = local.zonal ? var.zones : null
+  zone_balance        = local.zonal
 
   admin_ssh_key {
     username   = "jambonz"
@@ -256,6 +273,17 @@ resource "azurerm_linux_virtual_machine_scale_set" "feature_server" {
     identity_ids = [azurerm_user_assigned_identity.jambonz.id]
   }
 
+
+  # Azure Monitor Agent ships this scale set's logs to Log Analytics (logging.tf)
+  extension {
+    name                       = "AzureMonitorLinuxAgent"
+    publisher                  = "Microsoft.Azure.Monitor"
+    type                       = "AzureMonitorLinuxAgent"
+    type_handler_version       = "1.0"
+    auto_upgrade_minor_version = true
+    automatic_upgrade_enabled  = true
+    settings                   = jsonencode(local.ama_settings)
+  }
   # 15-minute termination notification for graceful scale-in
   termination_notification {
     enabled = true
@@ -265,21 +293,26 @@ resource "azurerm_linux_virtual_machine_scale_set" "feature_server" {
   custom_data = base64encode(templatefile("${path.module}/cloud-init-feature-server.yaml", {
     mysql_host                = azurerm_mysql_flexible_server.jambonz.fqdn
     mysql_user                = var.mysql_username
-    mysql_password            = local.db_password
     redis_host                = azurerm_managed_redis.jambonz.hostname
     redis_port                = 10000
-    redis_password            = azurerm_managed_redis.jambonz.default_database[0].primary_access_key
-    jwt_secret                = random_password.encryption_secret.result
     web_monitoring_private_ip = azurerm_network_interface.web_monitoring.private_ip_address
     vpc_cidr                  = var.vpc_cidr
     url_portal                = var.url_portal
     key_vault_name            = azurerm_key_vault.jambonz.name
+    identity_client_id        = azurerm_user_assigned_identity.jambonz.client_id
     recording_ws_base_url     = var.deploy_recording_cluster ? "ws://${azurerm_lb.recording[0].private_ip_address}" : "ws://${azurerm_network_interface.web_monitoring.private_ip_address}:3017"
-    krisp_license_key         = var.krisp_license_key
+    krisp_key_set             = var.krisp_license_key != ""
     enable_otel               = var.enable_otel
   }))
 
   depends_on = [
+    azurerm_key_vault_secret.encryption_secret,
+    azurerm_key_vault_secret.mysql_password,
+    azurerm_key_vault_secret.redis_password,
+    azurerm_key_vault_secret.apiban_key,
+    azurerm_key_vault_secret.apiban_client_secret,
+    azurerm_key_vault_secret.krisp_license_key,
+    azurerm_private_endpoint.redis,
     azurerm_linux_virtual_machine.web_monitoring
   ]
 
@@ -306,6 +339,7 @@ resource "azurerm_lb" "recording" {
     name                          = "RecordingFrontend"
     subnet_id                     = azurerm_subnet.public2.id
     private_ip_address_allocation = "Dynamic"
+    zones                         = local.zonal ? var.zones : null
   }
 
   tags = {
@@ -355,6 +389,8 @@ resource "azurerm_linux_virtual_machine_scale_set" "recording" {
   instances           = var.recording_desired_capacity
   admin_username      = "jambonz"
   upgrade_mode        = "Manual"
+  zones               = local.zonal ? var.zones : null
+  zone_balance        = local.zonal
 
   admin_ssh_key {
     username   = "jambonz"
@@ -388,16 +424,33 @@ resource "azurerm_linux_virtual_machine_scale_set" "recording" {
     identity_ids = [azurerm_user_assigned_identity.jambonz.id]
   }
 
+
+  # Azure Monitor Agent ships this scale set's logs to Log Analytics (logging.tf)
+  extension {
+    name                       = "AzureMonitorLinuxAgent"
+    publisher                  = "Microsoft.Azure.Monitor"
+    type                       = "AzureMonitorLinuxAgent"
+    type_handler_version       = "1.0"
+    auto_upgrade_minor_version = true
+    automatic_upgrade_enabled  = true
+    settings                   = jsonencode(local.ama_settings)
+  }
   custom_data = base64encode(templatefile("${path.module}/cloud-init-recording.yaml", {
     mysql_host                = azurerm_mysql_flexible_server.jambonz.fqdn
     mysql_user                = var.mysql_username
-    mysql_password            = local.db_password
-    jwt_secret                = random_password.encryption_secret.result
     web_monitoring_private_ip = azurerm_network_interface.web_monitoring.private_ip_address
     key_vault_name            = azurerm_key_vault.jambonz.name
+    identity_client_id        = azurerm_user_assigned_identity.jambonz.client_id
   }))
 
   depends_on = [
+    azurerm_key_vault_secret.encryption_secret,
+    azurerm_key_vault_secret.mysql_password,
+    azurerm_key_vault_secret.redis_password,
+    azurerm_key_vault_secret.apiban_key,
+    azurerm_key_vault_secret.apiban_client_secret,
+    azurerm_key_vault_secret.krisp_license_key,
+    azurerm_private_endpoint.redis,
     azurerm_linux_virtual_machine.web_monitoring,
     azurerm_lb_rule.recording
   ]
