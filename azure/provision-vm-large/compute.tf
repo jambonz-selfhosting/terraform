@@ -637,6 +637,14 @@ resource "azurerm_linux_virtual_machine_scale_set" "recording" {
       primary                                = true
       subnet_id                              = azurerm_subnet.public1.id
       load_balancer_backend_address_pool_ids = [azurerm_lb_backend_address_pool.recording[0].id]
+
+      # Outbound internet, for uploading recordings to customer storage and for
+      # agent installs. Members of a Standard internal load balancer's backend
+      # pool get no default outbound access, so without this the instances can
+      # reach nothing outside the VNet. Inbound is still limited by the NSG.
+      public_ip_address {
+        name = "recording-pip"
+      }
     }
 
     network_security_group_id = azurerm_network_security_group.recording_instance[0].id
