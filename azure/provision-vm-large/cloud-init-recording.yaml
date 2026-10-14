@@ -8,15 +8,34 @@ write_files:
   - path: /tmp/jambonz-setup.sh
     permissions: '0755'
     content: |
-      #!/bin/bash -xe
+      #!/bin/bash -e
 
       # Variables passed from Terraform
       MYSQL_HOST="${mysql_host}"
       MYSQL_USER="${mysql_user}"
-      MYSQL_PASSWORD="${mysql_password}"
-      JWT_SECRET="${jwt_secret}"
       MONITORING_PRIVATE_IP="${monitoring_private_ip}"
+      # Secrets are read from Key Vault with this VM's managed identity, not
+      # passed in custom_data. The script runs without xtrace (-x) so that no
+      # secret is echoed into /var/log/jambonz-setup.log.
       KEY_VAULT_NAME="${key_vault_name}"
+      IDENTITY_CLIENT_ID="${identity_client_id}"
+      kv_secret() {
+        local token value i
+        for i in $(seq 1 30); do
+          token=$(curl -sf -H Metadata:true --noproxy "*" \
+            "http://169.254.169.254/metadata/identity/oauth2/token?api-version=2018-02-01&resource=https%3A%2F%2Fvault.azure.net&client_id=$IDENTITY_CLIENT_ID" \
+            | python3 -c 'import sys, json; print(json.load(sys.stdin)["access_token"])') &&
+          value=$(curl -sf -H "Authorization: Bearer $token" \
+            "https://$KEY_VAULT_NAME.vault.azure.net/secrets/$1?api-version=7.4" \
+            | python3 -c 'import sys, json; print(json.load(sys.stdin)["value"])') &&
+          { printf '%s' "$value"; return 0; }
+          sleep 10
+        done
+        echo "FATAL: could not read secret $1 from Key Vault $KEY_VAULT_NAME" >&2
+        return 1
+      }
+      MYSQL_PASSWORD=$(kv_secret mysql-password)
+      JWT_SECRET=$(kv_secret encryption-secret)
 
       echo "Starting jambonz Recording Server configuration for Azure large deployment"
 

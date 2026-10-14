@@ -159,9 +159,8 @@ variable "mysql_subnet_cidr" {
 # ------------------------------------------------------------------------------
 
 variable "allowed_ssh_cidr" {
-  description = "CIDR block allowed SSH access (e.g., x.x.x.x/32 for single IP)"
+  description = "REQUIRED: the one source range allowed to SSH to any server: your admin IP as x.x.x.x/32, or your VPN range. There is no default on purpose; 0.0.0.0/0 opens SSH to the whole internet."
   type        = string
-  default     = "0.0.0.0/0"
 
   validation {
     condition     = can(cidrhost(var.allowed_ssh_cidr, 0))
@@ -348,9 +347,9 @@ variable "recording_disk_size" {
 # ------------------------------------------------------------------------------
 
 variable "sip_count" {
-  description = "Number of SIP server instances to deploy (each gets a static public IP)"
+  description = "Number of SIP server instances to deploy (each gets a static public IP). Two or more are spread across availability zones."
   type        = number
-  default     = 1
+  default     = 2
 
   validation {
     condition     = var.sip_count >= 1 && var.sip_count <= 10
@@ -359,9 +358,9 @@ variable "sip_count" {
 }
 
 variable "rtp_count" {
-  description = "Number of RTP server instances to deploy (each gets a static public IP)"
+  description = "Number of RTP server instances to deploy (each gets a static public IP). Two or more are spread across availability zones."
   type        = number
-  default     = 1
+  default     = 2
 
   validation {
     condition     = var.rtp_count >= 1 && var.rtp_count <= 10
@@ -375,9 +374,9 @@ variable "rtp_count" {
 # ------------------------------------------------------------------------------
 
 variable "feature_server_desired_capacity" {
-  description = "Desired number of Feature Server instances"
+  description = "Desired number of Feature Server instances. Two or more are balanced across availability zones."
   type        = number
-  default     = 1
+  default     = 2
 }
 
 variable "feature_server_min_capacity" {
@@ -442,9 +441,9 @@ variable "mysql_password" {
 }
 
 variable "mysql_sku_name" {
-  description = "Azure MySQL Flexible Server SKU"
+  description = "Azure MySQL Flexible Server SKU. Zone-redundant high availability needs a General Purpose (GP_) or Memory Optimized (MO_) SKU; Burstable (B_) SKUs only work with mysql_high_availability = false."
   type        = string
-  default     = "B_Standard_B2s"
+  default     = "GP_Standard_D2ds_v4"
 
   validation {
     condition = contains([
@@ -554,4 +553,42 @@ variable "krisp_license_key" {
   type        = string
   default     = ""
   sensitive   = true
+}
+
+# ------------------------------------------------------------------------------
+# AVAILABILITY ZONES, DATABASE PROTECTION AND LOGGING
+# ------------------------------------------------------------------------------
+
+variable "zones" {
+  description = "Availability zones to spread the deployment across. SIP and RTP servers are placed round-robin, the scale sets are balanced across them, public IPs and the recording load balancer are zone-redundant, and MySQL keeps a standby in the second zone. Set to [] in a region without availability zones (check with: az vm list-skus --location <region> --zone)."
+  type        = list(string)
+  default     = ["1", "2", "3"]
+
+  validation {
+    condition     = length(var.zones) != 1 && alltrue([for z in var.zones : contains(["1", "2", "3"], z)])
+    error_message = "zones must be [] or two or more of \"1\", \"2\", \"3\"."
+  }
+}
+
+variable "mysql_high_availability" {
+  description = "Keep a zone-redundant standby for MySQL with automatic failover. Requires a GP_ or MO_ mysql_sku_name and availability zones."
+  type        = bool
+  default     = true
+}
+
+variable "mysql_delete_lock" {
+  description = "Put a CanNotDelete lock on the MySQL server so it can't be deleted from the portal, the CLI or with its resource group. terraform destroy removes the lock first."
+  type        = bool
+  default     = true
+}
+
+variable "log_retention_days" {
+  description = "Days to keep logs in Log Analytics. SOC 2 typically expects 90 days or more."
+  type        = number
+  default     = 90
+
+  validation {
+    condition     = contains([90, 180, 365], var.log_retention_days)
+    error_message = "log_retention_days must be 90, 180 or 365."
+  }
 }

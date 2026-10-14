@@ -74,7 +74,8 @@ mysql_subnet_cidr   = "172.20.20.0/24"
 # Use x.x.x.x/32 for a single IP, or 0.0.0.0/0 for any IP (less secure)
 # ------------------------------------------------------------------------------
 
-allowed_ssh_cidr = "0.0.0.0/0"
+# REQUIRED, no default: your admin IP as x.x.x.x/32, or your VPN range
+allowed_ssh_cidr = "203.0.113.10/32"
 
 # HTTP/HTTPS access
 allowed_http_cidr = "0.0.0.0/0"
@@ -137,17 +138,17 @@ recording_disk_size      = 100
 # ------------------------------------------------------------------------------
 
 # Number of SIP servers (drachtio signaling)
-sip_count = 1
+sip_count = 2
 
 # Number of RTP servers (rtpengine media)
-rtp_count = 1
+rtp_count = 2
 
 # ------------------------------------------------------------------------------
 # SCALE SET CONFIGURATION
 # Feature Server VMSS has higher max capacity for large deployments
 # ------------------------------------------------------------------------------
 
-feature_server_desired_capacity = 1
+feature_server_desired_capacity = 2
 feature_server_min_capacity     = 1
 feature_server_max_capacity     = 8
 
@@ -169,7 +170,19 @@ recording_max_capacity     = 8
 # Burstable: B_Standard_B1s, B_Standard_B1ms, B_Standard_B2s, B_Standard_B2ms
 # General Purpose: GP_Standard_D2ds_v4, GP_Standard_D4ds_v4, etc.
 # Memory Optimized: MO_Standard_E2ds_v4, MO_Standard_E4ds_v4, etc.
-mysql_sku_name = "B_Standard_B2s"
+# Zone-redundant high availability needs GP_ or MO_. To run a Burstable SKU,
+# also set mysql_high_availability = false.
+mysql_sku_name = "GP_Standard_D2ds_v4"
+
+# mysql_high_availability = true  # standby in a second zone, automatic failover
+# mysql_delete_lock       = true  # CanNotDelete lock on the server
+
+# ------------------------------------------------------------------------------
+# AVAILABILITY ZONES AND LOGGING
+# ------------------------------------------------------------------------------
+
+# zones = ["1", "2", "3"]   # set to [] in a region without availability zones
+# log_retention_days = 90   # 90, 180 or 365
 
 # ------------------------------------------------------------------------------
 # REDIS CONFIGURATION (Azure Managed Redis)
