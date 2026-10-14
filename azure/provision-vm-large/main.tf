@@ -614,13 +614,26 @@ resource "azurerm_mysql_flexible_server_configuration" "audit_log_events" {
 
 # Azure's equivalent of deletion protection: the server can't be deleted from
 # the portal, the CLI or by deleting the resource group while this exists.
-# terraform destroy removes the lock first, so it does not block a destroy.
+#
+# The lock also covers everything under the server (its database, settings
+# and diagnostic setting), so it must be created after them and destroyed
+# before them -- hence the depends_on. Without it terraform destroy deletes
+# them in parallel with the lock and Azure refuses with ScopeLocked.
 resource "azurerm_management_lock" "mysql" {
   count      = var.mysql_delete_lock ? 1 : 0
   name       = "${var.name_prefix}-mysql-no-delete"
   scope      = azurerm_mysql_flexible_server.jambonz.id
   lock_level = "CanNotDelete"
   notes      = "jambonz database. Remove this lock deliberately before deleting the server."
+
+  depends_on = [
+    azurerm_mysql_flexible_database.jambonz,
+    azurerm_mysql_flexible_server_configuration.max_connections,
+    azurerm_mysql_flexible_server_configuration.require_secure_transport,
+    azurerm_mysql_flexible_server_configuration.audit_log_enabled,
+    azurerm_mysql_flexible_server_configuration.audit_log_events,
+    azurerm_monitor_diagnostic_setting.mysql,
+  ]
 }
 
 # ------------------------------------------------------------------------------
