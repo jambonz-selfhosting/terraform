@@ -1,7 +1,8 @@
 #cloud-config
 # Cloud-init configuration for jambonz SIP server on Azure (Large deployment)
 # Handles Drachtio and SIP-related applications only (no RTPEngine)
-# RTP servers are separate, their IPs are passed via rtp_private_ips
+# RTP servers are separate; the SBC apps find them in Redis, where each RTP
+# server's sbc-rtpengine-sidecar registers itself (default:active-rtp)
 
 package_update: false
 package_upgrade: false
@@ -43,7 +44,6 @@ write_files:
       MYSQL_PASSWORD=$(kv_secret mysql-password)
       REDIS_PASSWORD=$(kv_secret redis-password)
       JWT_SECRET=$(kv_secret encryption-secret)
-      RTP_PRIVATE_IPS="${rtp_private_ips}"
 
       echo "Starting jambonz SIP server configuration for Azure large deployment"
 
@@ -70,28 +70,14 @@ write_files:
 
       echo "Private IP: $PRIVATE_IP"
       echo "Instance ID: $INSTANCE_ID"
-      echo "RTP Private IPs: $RTP_PRIVATE_IPS"
 
       # Get the public IP (already assigned via Terraform)
       PUBLIC_IP=$(curl -s https://api.ipify.org 2>/dev/null || echo "")
       echo "Public IP: $PUBLIC_IP"
 
-      # Build RTP engines connection string (IP:port format)
-      # Convert comma-separated IPs to comma-separated IP:22222 format
-      RTPENGINES=""
-      IFS=',' read -ra RTP_IPS <<< "$RTP_PRIVATE_IPS"
-      for i in "$${!RTP_IPS[@]}"; do
-          IP="$(echo "$${RTP_IPS[$i]}" | tr -d ' ')"
-          if [ -n "$IP" ]; then
-              if [ -n "$RTPENGINES" ]; then
-                  RTPENGINES="$RTPENGINES,$IP:22222"
-              else
-                  RTPENGINES="$IP:22222"
-              fi
-          fi
-      done
-
-      echo "RTPEngines connection string: $RTPENGINES"
+      # No JAMBONES_RTPENGINES: inbound/outbound take a static list as a single
+      # host:port, so a comma-separated list of RTP servers broke every call.
+      # Without it they discover the RTP servers from Redis, as on AWS.
 
       # Configure drachtio service
       sudo sed -i -e "s/MYSQL_HOST=/MYSQL_HOST=$MYSQL_HOST/g" /etc/systemd/system/drachtio.service
@@ -191,7 +177,6 @@ write_files:
             JAMBONES_NETWORK_CIDR: '$VPC_CIDR',
             JAMBONES_RTPENGINE_INJECT_DTMF_ALWAYS: 0,
             JAMBONES_RTPENGINE_UDP_PORT: 6000,
-            JAMBONES_RTPENGINES: '$RTPENGINES',
             MIN_CALL_LIMIT: 9999,
             RTPENGINE_PING_INTERVAL: 30000,
             DRACHTIO_HOST: '127.0.0.1',
@@ -237,7 +222,6 @@ write_files:
             JAMBONES_NETWORK_CIDR: '$VPC_CIDR',
             JAMBONES_RTPENGINE_INJECT_DTMF_ALWAYS: 0,
             JAMBONES_RTPENGINE_UDP_PORT: 7000,
-            JAMBONES_RTPENGINES: '$RTPENGINES',
             DRACHTIO_HOST: '127.0.0.1',
             DRACHTIO_PORT: 9022,
             DRACHTIO_SECRET: 'cymru',

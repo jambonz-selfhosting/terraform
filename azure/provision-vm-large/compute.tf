@@ -419,7 +419,6 @@ resource "azurerm_linux_virtual_machine" "sip" {
     redis_host            = azurerm_managed_redis.jambonz.hostname
     redis_port            = 10000
     monitoring_private_ip = azurerm_network_interface.monitoring.private_ip_address
-    rtp_private_ips       = join(",", azurerm_network_interface.rtp[*].private_ip_address)
     vpc_cidr              = var.vpc_cidr
     enable_pcaps          = var.enable_pcaps
     key_vault_name        = azurerm_key_vault.jambonz.name
