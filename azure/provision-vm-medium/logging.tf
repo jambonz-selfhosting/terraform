@@ -5,6 +5,11 @@
 # - The Azure Monitor Agent on every VM and scale set sends syslog (including
 #   auth, so SSH logins are recorded) and the jambonz application logs.
 # - The MySQL audit log (connections, failed logins) goes to the same place.
+#
+# On the scale sets the agent is installed with the scale set, before the rule
+# can be attached, so the first instances of a new deployment start collecting
+# a few minutes after boot. Instances added later find the rule already
+# attached and collect from boot.
 
 locals {
   # The agent authenticates with the deployment's user-assigned identity.
@@ -155,6 +160,11 @@ resource "azurerm_virtual_machine_extension" "ama" {
   auto_upgrade_minor_version = true
   automatic_upgrade_enabled  = true
   settings                   = jsonencode(local.ama_settings)
+
+  # Install the agent after the rule is attached, so its first config fetch
+  # already includes the rule and it tails the log files from boot. Otherwise
+  # it picks the rule up minutes later and misses everything logged before.
+  depends_on = [azurerm_monitor_data_collection_rule_association.vm]
 }
 
 resource "azurerm_monitor_data_collection_rule_association" "vm" {
