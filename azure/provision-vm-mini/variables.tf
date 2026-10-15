@@ -190,9 +190,8 @@ variable "ssh_public_key" {
 # ------------------------------------------------------------------------------
 
 variable "allowed_ssh_cidr" {
-  description = "CIDR block allowed SSH access (e.g., x.x.x.x/32 for single IP)"
+  description = "REQUIRED: the one source range allowed to SSH to the server: your admin IP as x.x.x.x/32, or your VPN range. There is no default on purpose; 0.0.0.0/0 opens SSH to the whole internet."
   type        = string
-  default     = "0.0.0.0/0"
 
   validation {
     condition     = can(cidrhost(var.allowed_ssh_cidr, 0))
@@ -277,4 +276,15 @@ variable "krisp_license_key" {
   type        = string
   default     = ""
   sensitive   = true
+}
+
+variable "log_retention_days" {
+  description = "Days to keep logs in Log Analytics. SOC 2 typically expects 90 days or more."
+  type        = number
+  default     = 90
+
+  validation {
+    condition     = contains([90, 180, 365], var.log_retention_days)
+    error_message = "log_retention_days must be 90, 180 or 365."
+  }
 }

@@ -72,7 +72,10 @@ disk_size = 100
 # Use x.x.x.x/32 for a single IP, or 0.0.0.0/0 for any IP (less secure)
 # ------------------------------------------------------------------------------
 
-allowed_ssh_cidr = "0.0.0.0/0"
+# REQUIRED, no default: your admin IP as x.x.x.x/32, or your VPN range
+allowed_ssh_cidr = "203.0.113.10/32"
+
+# log_retention_days = 90   # Log Analytics retention: 90, 180 or 365
 
 # HTTP/HTTPS access
 allowed_http_cidr = "0.0.0.0/0"
