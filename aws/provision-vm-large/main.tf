@@ -25,6 +25,10 @@ resource "random_password" "db_password" {
 
 locals {
   db_password = var.mysql_password != "" ? var.mysql_password : random_password.db_password.result
+
+  # Literal ASG name so iam.tf can scope CompleteLifecycleAction without
+  # depending on the ASG (that would create the policy after instances boot).
+  fs_asg_name = "${var.name_prefix}-fs-asg"
 }
 
 # ------------------------------------------------------------------------------

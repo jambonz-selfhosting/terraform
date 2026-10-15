@@ -82,7 +82,7 @@ Run `terraform output dns_records_required` to see the exact IP mappings.
 
 **SIP/RTP Servers**: Change `sip_count` or `rtp_count` in tfvars and re-apply. Note: adding RTP servers requires re-applying to update SIP server configs with new RTP IPs.
 
-**Feature Servers**: Adjust `feature_server_min_size`, `feature_server_max_size`, and `feature_server_desired_capacity`. Uses SNS lifecycle hooks for graceful scale-in.
+**Feature Servers**: Adjust `feature_server_min_size`, `feature_server_max_size`, and `feature_server_desired_capacity`. A lifecycle hook holds scale-in until calls drain (the instance polls IMDS for its target lifecycle state).
 
 **Database**: Adjust `aurora_min_capacity` and `aurora_max_capacity` for automatic scaling.
 
