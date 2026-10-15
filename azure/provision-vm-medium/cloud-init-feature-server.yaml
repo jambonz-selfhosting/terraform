@@ -188,6 +188,17 @@ write_files:
       echo "JAMBONES_INFLUX_URL=http://$WEB_MONITORING_PRIVATE_IP:8086" | sudo tee -a /etc/default/telegraf > /dev/null
       sudo systemctl restart telegraf
 
+      # Pre-warm the app files before starting node. On a disk created from an
+      # image, the first read of each block takes ~10 ms (vs ~0.2 ms after).
+      # require() reads feature-server's ~30k files one at a time, so a cold
+      # start took 25-30s and the mysql2 pool's 10s connect timer expired
+      # before it had sent a packet (exit 1, pm2 restart). Reading the tree
+      # with many parallel readers overlaps that latency: ~12s instead of
+      # ~2 min serially, and node then starts from cache in ~1s.
+      find $HOME/apps/feature-server /usr/lib/node_modules/pm2 -type f -print0 \
+        | xargs -0 -P 64 -n 64 cat > /dev/null 2>&1 || true
+      cat "$(command -v node)" > /dev/null 2>&1 || true
+
       sudo -u $USER bash -c "pm2 start $HOME/apps/ecosystem.config.js"
       sudo env PATH=$PATH:/usr/bin /usr/lib/node_modules/pm2/bin/pm2 startup systemd -u $USER --hp $HOME
       sudo -u $USER bash -c "pm2 save"

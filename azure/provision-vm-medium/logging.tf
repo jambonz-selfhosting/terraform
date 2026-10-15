@@ -10,7 +10,10 @@
 # boots and the jambonz apps start, so roughly the first minute of each new
 # host's logs is not collected. On the scale sets the rule is attached after
 # the scale set is created, so the first instances of a new deployment wait a
-# few minutes longer. Installing the agent in the image would remove both.
+# few minutes longer. Baking the agent into the image would not change either:
+# it authenticates (user-assigned identity) and fetches its rule only when the
+# extension's enable step runs, and Microsoft does not support cloning a
+# machine with the agent installed.
 
 locals {
   # The agent authenticates with the deployment's user-assigned identity.
