@@ -265,6 +265,8 @@ terraform destroy
 
 `terraform destroy` removes the MySQL delete lock before the server, so it is not blocked. Deleting the resource group any other way (portal, `az group delete`) fails until you remove the lock.
 
+If `terraform destroy` fails with `InUseSubnetCannotBeDeleted` on the MySQL subnet, wait a few minutes and run it again. Azure keeps the deleted server's link on its delegated subnet for a short time after the server is gone.
+
 ## Troubleshooting
 
 ### Check cloud-init logs
