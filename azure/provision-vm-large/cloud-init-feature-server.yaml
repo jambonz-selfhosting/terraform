@@ -188,23 +188,6 @@ write_files:
       echo "JAMBONES_INFLUX_URL=http://$MONITORING_PRIVATE_IP:8086" | sudo tee -a /etc/default/telegraf > /dev/null
       sudo systemctl restart telegraf
 
-      # Wait until MySQL accepts connections before starting the feature server.
-      # On a new deployment the first VMs can boot before the database answers;
-      # feature-server then exits on its first connect timeout and pm2 restarts
-      # it. Fail cloud-init loudly if it never comes up.
-      echo "Waiting for MySQL at $MYSQL_HOST..."
-      for i in $(seq 1 60); do
-        if MYSQL_PWD="$MYSQL_PASSWORD" mysql -h "$MYSQL_HOST" -u "$MYSQL_USER" --connect-timeout=5 -e 'select 1' jambones >/dev/null 2>&1; then
-          echo "MySQL is ready"
-          break
-        fi
-        if [ "$i" = 60 ]; then
-          echo "FATAL: MySQL at $MYSQL_HOST did not accept connections within 5 minutes" >&2
-          exit 1
-        fi
-        sleep 5
-      done
-
       sudo -u $USER bash -c "pm2 start $HOME/apps/ecosystem.config.js"
       sudo env PATH=$PATH:/usr/bin /usr/lib/node_modules/pm2/bin/pm2 startup systemd -u $USER --hp $HOME
       sudo -u $USER bash -c "pm2 save"

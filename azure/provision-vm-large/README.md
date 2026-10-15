@@ -29,6 +29,8 @@ The defaults are built to pass a SOC 2 audit and to survive the loss of one avai
 - **Redis**: public network access is disabled; the VNet reaches it through a private endpoint.
 - **Logs**: the Azure Monitor Agent on every VM and scale set sends syslog (including SSH logins) and the jambonz application logs to Log Analytics, kept for `log_retention_days` (90, 180 or 365).
 
+On a new host's first boot the Azure Monitor Agent extension installs while the jambonz apps are starting. Expect roughly the first minute of that host's logs to be missing from Log Analytics, and the feature server to restart once under pm2 (its first MySQL connections time out while the install loads the box). Both happen before the host takes calls.
+
 Managed disks are encrypted at rest by Azure, and Azure's instance metadata service already requires the `Metadata: true` header, so neither needs configuring.
 
 Not yet done: MySQL still accepts unencrypted connections (`require_secure_transport = OFF`) until drachtio and upload-recordings are confirmed to work over TLS. That traffic stays on the private delegated subnet. Terraform state contains every secret, so keep it in an encrypted remote backend with restricted access.

@@ -6,10 +6,11 @@
 #   auth, so SSH logins are recorded) and the jambonz application logs.
 # - The MySQL audit log (connections, failed logins) goes to the same place.
 #
-# On the scale sets the agent is installed with the scale set, before the rule
-# can be attached, so the first instances of a new deployment start collecting
-# a few minutes after boot. Instances added later find the rule already
-# attached and collect from boot.
+# First boot of a new host: the agent is a VM extension, installed after the OS
+# boots and the jambonz apps start, so roughly the first minute of each new
+# host's logs is not collected. On the scale sets the rule is attached after
+# the scale set is created, so the first instances of a new deployment wait a
+# few minutes longer. Installing the agent in the image would remove both.
 
 locals {
   # The agent authenticates with the deployment's user-assigned identity.
@@ -162,8 +163,8 @@ resource "azurerm_virtual_machine_extension" "ama" {
   settings                   = jsonencode(local.ama_settings)
 
   # Install the agent after the rule is attached, so its first config fetch
-  # already includes the rule and it tails the log files from boot. Otherwise
-  # it picks the rule up minutes later and misses everything logged before.
+  # already includes the rule. Otherwise it picks the rule up minutes later and
+  # misses everything logged before then.
   depends_on = [azurerm_monitor_data_collection_rule_association.vm]
 }
 
