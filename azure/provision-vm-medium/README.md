@@ -11,8 +11,27 @@ The deployment creates:
 - **Feature Servers** (VMSS): drachtio + mediajam media servers for call handling
 - **Recording Servers** (VMSS, optional): Dedicated recording upload cluster
 - **Azure MySQL Flexible Server**: Managed MySQL 8.0 database
-- **Azure Redis Cache**: Managed Redis for session state
-- **Azure Key Vault**: Secure storage for secrets
+- **Azure Managed Redis**: Managed Redis for session state, reached through a private endpoint
+- **Azure Key Vault**: Holds every secret; VMs read them at boot with their managed identity
+- **Log Analytics workspace**: syslog, jambonz application logs and the MySQL audit log, kept for `log_retention_days`
+
+## Availability zones and security
+
+The defaults are built to pass a SOC 2 audit and to survive the loss of one availability zone.
+
+- **Zone redundancy** (`zones`, default `["1","2","3"]`): SBCs are placed round-robin across zones (`sbc_count` defaults to 2), the feature server and recording scale sets are balanced across them, every public IP and the recording load balancer are zone-redundant, and MySQL keeps a standby in a second zone with automatic failover. Redis keeps its replica in another zone. The web-monitoring server is a single VM and is not redundant, and the NAT gateway that gives the recording servers outbound access sits in one zone. Set `zones = []` in a region without availability zones.
+- **SSH is closed unless you open it**: `allowed_ssh_cidr` has no default. Supply your admin IP as a `/32` or your VPN range.
+- **Every port is listed per role**: each NSG allows only that role's ports and ends with a rule that denies all other traffic from inside the VNet. Azure otherwise allows all VNet traffic by default.
+- **No secrets in `custom_data`**: the MySQL password, Redis key, encryption secret and optional apiban/Krisp keys are stored in Key Vault. Each VM reads the ones it needs at boot with its managed identity, which can read secrets by name and has no other Azure permissions. Setup scripts no longer run with `bash -x`, so secrets are not echoed into `/var/log/jambonz-setup.log`.
+- **Database**: encrypted at rest (always on for Flexible Server), 30 days of backups, connection auditing to Log Analytics, and a `CanNotDelete` lock (`mysql_delete_lock`).
+- **Redis**: public network access is disabled; the VNet reaches it through a private endpoint.
+- **Logs**: the Azure Monitor Agent on every VM and scale set sends syslog (including SSH logins) and the jambonz application logs to Log Analytics, kept for `log_retention_days` (90, 180 or 365).
+
+On a new host's first boot the Azure Monitor Agent extension installs while the jambonz apps are starting. Expect roughly the first minute of that host's logs to be missing from Log Analytics, and the feature server to restart once under pm2 (its first MySQL connections time out while the install loads the box). Both happen before the host takes calls.
+
+Managed disks are encrypted at rest by Azure, and Azure's instance metadata service already requires the `Metadata: true` header, so neither needs configuring.
+
+Not yet done: MySQL still accepts unencrypted connections (`require_secure_transport = OFF`) until drachtio and upload-recordings are confirmed to work over TLS. That traffic stays on the private delegated subnet. Terraform state contains every secret, so keep it in an encrypted remote backend with restricted access.
 
 ## Prerequisites
 
@@ -92,6 +111,7 @@ jambonz_version = "11.1.2"
 | `tenant_id` | Azure tenant ID |
 | `ssh_public_key` | SSH public key for VM access |
 | `url_portal` | DNS name for the jambonz portal |
+| `allowed_ssh_cidr` | Source range allowed to SSH: your admin IP as `/32`, or your VPN range |
 
 ### Optional Variables
 
@@ -110,6 +130,11 @@ jambonz_version = "11.1.2"
 | `apiban_key` | `""` | APIBan API key for single-key mode |
 | `apiban_client_id` | `""` | APIBan client ID for multi-key mode |
 | `apiban_client_secret` | `""` | APIBan client secret for multi-key mode |
+| `zones` | `["1","2","3"]` | Availability zones to spread across; `[]` for none |
+| `mysql_sku_name` | `GP_Standard_D2ds_v4` | MySQL SKU; Burstable SKUs need `mysql_high_availability = false` |
+| `mysql_high_availability` | `true` | Zone-redundant MySQL standby with automatic failover |
+| `mysql_delete_lock` | `true` | `CanNotDelete` lock on the MySQL server |
+| `log_retention_days` | `90` | Log Analytics retention: 90, 180 or 365 |
 
 ### Supported Regions
 
@@ -239,6 +264,10 @@ terraform destroy
 ```
 
 **Warning**: This will destroy all resources including the database. Back up data first.
+
+`terraform destroy` removes the MySQL delete lock before the server, so it is not blocked. Deleting the resource group any other way (portal, `az group delete`) fails until you remove the lock.
+
+If `terraform destroy` fails with `InUseSubnetCannotBeDeleted` on the MySQL subnet, wait a few minutes and run it again. Azure keeps the deleted server's link on its delegated subnet for a short time after the server is gone.
 
 ## Troubleshooting
 

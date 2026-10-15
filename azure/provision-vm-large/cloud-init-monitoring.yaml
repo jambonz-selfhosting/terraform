@@ -9,15 +9,12 @@ write_files:
   - path: /tmp/jambonz-setup.sh
     permissions: '0755'
     content: |
-      #!/bin/bash -xe
+      #!/bin/bash -e
 
       # Variables passed from Terraform
       MYSQL_HOST="${mysql_host}"
       MYSQL_USER="${mysql_user}"
-      MYSQL_PASSWORD="${mysql_password}"
-      JWT_SECRET="${jwt_secret}"
       VPC_CIDR="${vpc_cidr}"
-      KEY_VAULT_NAME="${key_vault_name}"
       ENABLE_OTEL="${enable_otel}"
 
       echo "Starting jambonz Monitoring server configuration for Azure large deployment"
