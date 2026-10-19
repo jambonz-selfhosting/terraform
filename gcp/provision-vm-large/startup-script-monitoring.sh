@@ -1,6 +1,8 @@
-#!/bin/bash -xe
+#!/bin/bash -e
 # Startup script for jambonz Monitoring server on GCP (Large deployment)
 # Handles Grafana, Homer, Jaeger, InfluxDB, Cassandra, HEPlify
+
+${common}
 
 # Variables passed from Terraform
 URL_PORTAL="${url_portal}"
@@ -40,5 +42,7 @@ sleep 60
 echo "Restarting jaeger"
 sudo systemctl restart jaeger-collector.service || true
 sudo systemctl restart jaeger-query.service || true
+
+install_ops_agent
 
 echo "Monitoring server setup complete!"

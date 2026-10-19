@@ -1,13 +1,15 @@
-#!/bin/bash -xe
+#!/bin/bash -e
 # Startup script for jambonz Recording Server on GCP (Large deployment)
+
+${common}
 
 # Variables passed from Terraform
 MYSQL_HOST="${mysql_host}"
 MYSQL_USER="${mysql_user}"
-MYSQL_PASSWORD="${mysql_password}"
-JWT_SECRET="${jwt_secret}"
 MONITORING_PRIVATE_IP="${monitoring_private_ip}"
 
+MYSQL_PASSWORD=$(gcp_secret mysql-password)
+JWT_SECRET=$(gcp_secret encryption-secret)
 echo "Starting jambonz Recording Server configuration for GCP large deployment"
 
 # Always use jambonz user for apps
@@ -41,5 +43,7 @@ sudo systemctl start upload_recordings
 # Configure telegraf to send to the monitoring server
 echo "JAMBONES_INFLUX_URL=http://$MONITORING_PRIVATE_IP:8086" | sudo tee -a /etc/default/telegraf > /dev/null
 sudo systemctl restart telegraf
+
+install_ops_agent
 
 echo "Recording Server setup complete!"
