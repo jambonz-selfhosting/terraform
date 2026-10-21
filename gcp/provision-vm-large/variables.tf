@@ -15,9 +15,15 @@ variable "region" {
   type        = string
 }
 
-variable "zone" {
-  description = "GCP zone for zonal resources"
-  type        = string
+variable "zones" {
+  description = "Zones to spread the deployment across. SIP and RTP servers are placed round-robin, the feature server and recording groups are regional across them, Cloud SQL keeps a standby and Redis a replica in another zone. Leave empty to use the region's first three zones. Every zone listed must offer your machine types (arm64 c4a is not in every zone)."
+  type        = list(string)
+  default     = []
+
+  validation {
+    condition     = length(var.zones) != 1
+    error_message = "zones must be empty (use the region's first three) or list two or more zones."
+  }
 }
 
 # ------------------------------------------------------------------------------
@@ -72,9 +78,13 @@ variable "public_subnet_cidr" {
 # ------------------------------------------------------------------------------
 
 variable "allowed_ssh_cidr" {
-  description = "CIDR blocks allowed SSH access"
+  description = "REQUIRED: the source ranges allowed to SSH to any server: your admin IP as x.x.x.x/32, or your VPN range. There is no default on purpose; 0.0.0.0/0 opens SSH to the whole internet."
   type        = list(string)
-  default     = ["0.0.0.0/0"]
+
+  validation {
+    condition     = length(var.allowed_ssh_cidr) > 0 && alltrue([for c in var.allowed_ssh_cidr : can(cidrhost(c, 0))])
+    error_message = "allowed_ssh_cidr must list one or more CIDR ranges, e.g. [\"203.0.113.10/32\"]."
+  }
 }
 
 variable "allowed_http_cidr" {
@@ -370,9 +380,9 @@ variable "recording_disk_size" {
 # ------------------------------------------------------------------------------
 
 variable "sip_count" {
-  description = "Number of SIP server instances to deploy (each gets a static public IP)"
+  description = "Number of SIP server instances to deploy (each gets a static public IP). Two or more are spread across zones."
   type        = number
-  default     = 1
+  default     = 2
 
   validation {
     condition     = var.sip_count >= 1 && var.sip_count <= 10
@@ -381,9 +391,9 @@ variable "sip_count" {
 }
 
 variable "rtp_count" {
-  description = "Number of RTP server instances to deploy (each gets a static public IP)"
+  description = "Number of RTP server instances to deploy (each gets a static public IP). Two or more are spread across zones."
   type        = number
-  default     = 1
+  default     = 2
 
   validation {
     condition     = var.rtp_count >= 1 && var.rtp_count <= 10
@@ -396,9 +406,9 @@ variable "rtp_count" {
 # ------------------------------------------------------------------------------
 
 variable "feature_server_target_size" {
-  description = "Target number of Feature Server instances"
+  description = "Target number of Feature Server instances. Two or more are spread across zones."
   type        = number
-  default     = 1
+  default     = 2
 }
 
 variable "feature_server_min_replicas" {
@@ -498,9 +508,9 @@ variable "redis_memory_size_gb" {
 }
 
 variable "redis_tier" {
-  description = "Redis tier (BASIC or STANDARD_HA)"
+  description = "Redis tier: STANDARD_HA keeps a replica in another zone with automatic failover; BASIC has no replica."
   type        = string
-  default     = "BASIC"
+  default     = "STANDARD_HA"
 
   validation {
     condition     = contains(["BASIC", "STANDARD_HA"], var.redis_tier)
@@ -584,5 +594,32 @@ variable "disk_type" {
   validation {
     condition     = contains(["pd-ssd", "pd-balanced", "pd-standard", "hyperdisk-balanced"], var.disk_type)
     error_message = "disk_type must be one of pd-ssd, pd-balanced, pd-standard, hyperdisk-balanced."
+  }
+}
+
+# ------------------------------------------------------------------------------
+# DATABASE PROTECTION AND LOGGING
+# ------------------------------------------------------------------------------
+
+variable "mysql_high_availability" {
+  description = "Keep a Cloud SQL standby in a second zone with automatic failover (REGIONAL availability)."
+  type        = bool
+  default     = true
+}
+
+variable "mysql_deletion_protection" {
+  description = "Protect the Cloud SQL instance from deletion, by terraform destroy and by the console or gcloud. Set to false and apply before destroying the deployment."
+  type        = bool
+  default     = true
+}
+
+variable "log_retention_days" {
+  description = "Days to keep jambonz logs in the deployment's Cloud Logging bucket. SOC 2 typically expects 90 days or more."
+  type        = number
+  default     = 90
+
+  validation {
+    condition     = contains([90, 180, 365], var.log_retention_days)
+    error_message = "log_retention_days must be 90, 180 or 365."
   }
 }

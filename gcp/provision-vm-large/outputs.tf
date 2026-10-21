@@ -98,7 +98,7 @@ output "rtp_instance_names" {
 
 output "feature_server_mig_name" {
   description = "Feature Server Managed Instance Group name"
-  value       = google_compute_instance_group_manager.feature_server.name
+  value       = google_compute_region_instance_group_manager.feature_server.name
 }
 
 output "list_feature_servers_command" {
@@ -108,7 +108,7 @@ output "list_feature_servers_command" {
 
 output "scale_feature_servers_command" {
   description = "Command to scale Feature Servers (replace N with desired count)"
-  value       = "gcloud compute instance-groups managed resize ${google_compute_instance_group_manager.feature_server.name} --size=N --zone=${var.zone} --project=${var.project_id}"
+  value       = "gcloud compute instance-groups managed resize ${google_compute_region_instance_group_manager.feature_server.name} --size=N --region=${var.region} --project=${var.project_id}"
 }
 
 # ------------------------------------------------------------------------------
@@ -117,7 +117,7 @@ output "scale_feature_servers_command" {
 
 output "recording_mig_name" {
   description = "Recording Server Managed Instance Group name (if deployed)"
-  value       = var.deploy_recording_cluster ? google_compute_instance_group_manager.recording[0].name : "Not deployed"
+  value       = var.deploy_recording_cluster ? google_compute_region_instance_group_manager.recording[0].name : "Not deployed"
 }
 
 output "recording_lb_ip" {

@@ -1,11 +1,16 @@
-#!/bin/bash -xe
+#!/bin/bash -e
 # Startup script for jambonz Mini (all-in-one) server on GCP
 # Runs all services locally: MySQL, Redis, SIP/RTP, Web, Monitoring
 
+${common}
+
 # Variables passed from Terraform
-DB_PASSWORD="${db_password}"
-JWT_SECRET="${jwt_secret}"
 URL_PORTAL="${url_portal}"
+
+# Generated here, on first boot: nothing outside this VM needs them, so they are
+# never in instance metadata or terraform state.
+DB_PASSWORD="$(openssl rand -base64 24 | tr -dc 'A-Za-z0-9' | head -c 16)Aa1_"
+JWT_SECRET=$(openssl rand -base64 48 | tr -dc 'A-Za-z0-9' | head -c 32)
 
 FLAG_FILE="/var/lib/firstboot_completed"
 
@@ -72,7 +77,8 @@ fi
 # "no available feature servers" / 480.
 #
 # mediajam takes no MySQL configuration -- only redis (licensing) and Krisp.
-KRISP_LICENSE_KEY="${krisp_license_key}"
+KRISP_LICENSE_KEY=""
+if [ "${krisp_key_set}" = "true" ]; then KRISP_LICENSE_KEY=$(gcp_secret krisp-license-key); fi
 sudo sed -i -e "s|^#\?JAMBONES_REDIS_HOST=.*|JAMBONES_REDIS_HOST=127.0.0.1|" /etc/default/mediajam
 sudo sed -i -e "s|^#\?JAMBONES_REDIS_PORT=.*|JAMBONES_REDIS_PORT=6379|" /etc/default/mediajam
 if [ -n "$KRISP_LICENSE_KEY" ]; then
@@ -235,9 +241,11 @@ sudo systemctl start upload_recordings
 # Configure APIBan - supports two modes:
 # 1. Client credentials mode: auto-provision unique key per instance (preferred)
 # 2. Single key mode: use customer-provided key
-APIBAN_KEY="${apiban_key}"
+APIBAN_KEY=""
 APIBAN_CLIENT_ID="${apiban_client_id}"
-APIBAN_CLIENT_SECRET="${apiban_client_secret}"
+APIBAN_CLIENT_SECRET=""
+if [ "${apiban_key_set}" = "true" ]; then APIBAN_KEY=$(gcp_secret apiban-key); fi
+if [ "${apiban_client_set}" = "true" ]; then APIBAN_CLIENT_SECRET=$(gcp_secret apiban-client-secret); fi
 
 if [ -n "$APIBAN_CLIENT_ID" ] && [ -n "$APIBAN_CLIENT_SECRET" ]; then
     echo "Provisioning APIBan key via client credentials..."
@@ -257,6 +265,8 @@ elif [ -n "$APIBAN_KEY" ] && [ -f /usr/local/bin/apiban/config.json ]; then
 else
     echo "Skipping APIBan configuration (no credentials provided)"
 fi
+
+install_ops_agent
 
 # Create the flag file to indicate first boot has completed
 touch "$FLAG_FILE"

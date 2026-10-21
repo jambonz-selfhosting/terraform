@@ -28,7 +28,8 @@
 project_id     = ""  # Your GCP project ID (e.g., "my-gcp-project")
 url_portal     = ""  # Your domain name (e.g., "jambonz.example.com")
 region         = ""  # GCP region (e.g., "us-west1", "us-east1", "europe-west1")
-zone           = ""  # GCP zone (e.g., "us-west1-a", "us-east1-b", "europe-west1-c")
+# zones        = []  # Zones to spread across; default: the region's first three.
+#                     # Must be 2+ (or empty). arm64: list only zones with c4a capacity.
 ssh_public_key = ""  # Your SSH public key (e.g., "ssh-rsa AAAAB3Nz... user@host")
 
 # Set to false to disable if not needed
@@ -70,7 +71,7 @@ public_subnet_cidr = "172.20.10.0/24"
 # ------------------------------------------------------------------------------
 
 # IMPORTANT: Restrict these for production use
-allowed_ssh_cidr  = ["0.0.0.0/0"]    # SSH access - consider restricting to your IP
+allowed_ssh_cidr  = ["YOUR_ADMIN_IP/32"]  # REQUIRED: your admin IP or VPN range
 allowed_http_cidr = ["0.0.0.0/0"]    # Web/API access
 allowed_sip_cidr  = ["0.0.0.0/0"]    # SIP signaling access
 allowed_rtp_cidr  = ["0.0.0.0/0"]    # RTP media access
@@ -80,12 +81,12 @@ allowed_rtp_cidr  = ["0.0.0.0/0"]    # RTP media access
 # Public jambonz images from drachtio-cpaas project
 # ------------------------------------------------------------------------------
 
-sip_image            = "projects/drachtio-cpaas/global/images/jambonz-sip-v11-1-4-debian-12-arm64-20260824125301"
-rtp_image            = "projects/drachtio-cpaas/global/images/jambonz-rtp-v11-1-4-debian-12-arm64-20260824125302"
-web_image            = "projects/drachtio-cpaas/global/images/jambonz-web-v11-1-4-debian-12-arm64-20260824130914"
-monitoring_image     = "projects/drachtio-cpaas/global/images/jambonz-monitoring-v11-1-4-debian-12-arm64-20260824130915"
-feature_server_image = "projects/drachtio-cpaas/global/images/jambonz-fs-v11-1-4-debian-12-arm64-20260824125258"
-recording_image      = "projects/drachtio-cpaas/global/images/jambonz-recording-v11-1-4-debian-12-arm64-20260824130917"
+sip_image            = "projects/drachtio-cpaas/global/images/jambonz-sip-v11-1-6-debian-12-arm64-20261016140339"
+rtp_image            = "projects/drachtio-cpaas/global/images/jambonz-rtp-v11-1-6-debian-12-arm64-20261016140341"
+web_image            = "projects/drachtio-cpaas/global/images/jambonz-web-v11-1-6-debian-12-arm64-20261016140343"
+monitoring_image     = "projects/drachtio-cpaas/global/images/jambonz-monitoring-v11-1-6-debian-12-arm64-20261016141402"
+feature_server_image = "projects/drachtio-cpaas/global/images/jambonz-fs-v11-1-6-debian-12-arm64-20261016140335"
+recording_image      = "projects/drachtio-cpaas/global/images/jambonz-recording-v11-1-6-debian-12-arm64-20261016141406"
 
 # ------------------------------------------------------------------------------
 # MACHINE TYPE CONFIGURATION
@@ -114,18 +115,18 @@ recording_disk_size      = 100
 # Each SIP and RTP server gets a static public IP
 # ------------------------------------------------------------------------------
 
-sip_count = 1   # Number of SIP servers (1-10)
-rtp_count = 1   # Number of RTP servers (1-10)
+sip_count = 2   # Number of SIP servers (1-10), spread across zones
+rtp_count = 2   # Number of RTP servers (1-10), spread across zones
 
 # ------------------------------------------------------------------------------
 # MANAGED INSTANCE GROUP CONFIGURATION
 # ------------------------------------------------------------------------------
 
-feature_server_target_size  = 1
+feature_server_target_size  = 2
 feature_server_min_replicas = 1
 feature_server_max_replicas = 8
 
-recording_target_size  = 1
+recording_target_size  = 2
 recording_min_replicas = 1
 recording_max_replicas = 8
 
@@ -144,6 +145,9 @@ ssh_user = "jambonz"
 
 mysql_tier      = "db-custom-2-4096"
 mysql_disk_size = 20
+# mysql_high_availability   = true   # REGIONAL (standby in a second zone)
+# mysql_deletion_protection = true   # set false only for throwaway deployments
+# log_retention_days        = 90     # 90, 180 or 365
 
 # Optionally provide a password (leave empty to auto-generate)
 # mysql_password = ""
@@ -153,7 +157,7 @@ mysql_disk_size = 20
 # ------------------------------------------------------------------------------
 
 redis_memory_size_gb = 1
-redis_tier           = "BASIC"  # or "STANDARD_HA" for high availability
+redis_tier           = "STANDARD_HA"  # or "BASIC" (single zone, no failover)
 
 # ------------------------------------------------------------------------------
 # KRISP (Optional)

@@ -38,18 +38,25 @@ resource "google_compute_instance" "mini" {
     }
   }
 
+  service_account {
+    email  = google_service_account.jambonz.email
+    scopes = ["cloud-platform"]
+  }
+
   metadata = {
     ssh-keys = "${var.ssh_user}:${var.ssh_public_key}"
   }
 
   metadata_startup_script = templatefile("${path.module}/startup-script-mini.sh", {
-    db_password          = random_password.db_password.result
-    jwt_secret           = random_password.jwt_secret.result
-    url_portal           = var.url_portal
-    apiban_key           = var.apiban_key
-    apiban_client_id     = var.apiban_client_id
-    apiban_client_secret = var.apiban_client_secret
-    krisp_license_key    = var.krisp_license_key
+    common = templatefile("${path.module}/startup-common.sh", {
+      project_id    = var.project_id
+      secret_prefix = var.name_prefix
+    })
+    url_portal        = var.url_portal
+    apiban_key_set    = var.apiban_key != ""
+    apiban_client_id  = var.apiban_client_id
+    apiban_client_set = var.apiban_client_secret != ""
+    krisp_key_set     = var.krisp_license_key != ""
   })
 
   labels = {
@@ -59,6 +66,9 @@ resource "google_compute_instance" "mini" {
   }
 
   depends_on = [
+    google_secret_manager_secret_version.jambonz,
+    google_secret_manager_secret_iam_member.jambonz,
+    google_project_iam_member.log_writer,
     google_compute_address.mini,
     google_compute_subnetwork.public
   ]

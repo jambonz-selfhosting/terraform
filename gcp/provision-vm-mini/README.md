@@ -120,6 +120,10 @@ At minimum, you must set:
 - `zone` - GCP zone
 - `ssh_public_key` - Your SSH public key
 
+`allowed_ssh_cidr` has no default: set it to your admin IP or VPN range. Only
+SSH, HTTP/HTTPS and SIP/RTP are open to the internet; the portal, API and
+Grafana are all reached through nginx on port 80/443.
+
 ### 2. Initialize Terraform
 
 ```bash

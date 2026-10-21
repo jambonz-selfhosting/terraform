@@ -48,7 +48,7 @@ public_subnet_cidr = "10.0.0.0/24"
 # ------------------------------------------------------------------------------
 
 # IMPORTANT: Restrict these for production use
-allowed_ssh_cidr = ["0.0.0.0/0"]    # SSH access - consider restricting to your IP
+allowed_ssh_cidr  = ["YOUR_ADMIN_IP/32"]  # REQUIRED: your admin IP or VPN range
 allowed_http_cidr = ["0.0.0.0/0"]   # Web/API access
 allowed_sip_cidr = ["0.0.0.0/0"]    # SIP/RTP access
 
@@ -57,7 +57,7 @@ allowed_sip_cidr = ["0.0.0.0/0"]    # SIP/RTP access
 # Public jambonz images from drachtio-cpaas project
 # ------------------------------------------------------------------------------
 
-mini_image = "projects/drachtio-cpaas/global/images/jambonz-mini-v11-1-4-debian-12-amd64-20260824125221"
+mini_image = "projects/drachtio-cpaas/global/images/jambonz-mini-v11-1-6-debian-12-amd64-20261016140032"
 
 # ------------------------------------------------------------------------------
 # MACHINE TYPE CONFIGURATION
