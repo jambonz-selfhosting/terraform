@@ -2,14 +2,6 @@
 # Fully separated: SIP, RTP as count-based instances; Feature Server ASG; Web + Monitoring as individual EC2s
 
 # ------------------------------------------------------------------------------
-# SNS TOPIC (for Feature Server ASG lifecycle events)
-# ------------------------------------------------------------------------------
-
-resource "aws_sns_topic" "fs_lifecycle" {
-  name = "${var.name_prefix}-fs-lifecycle"
-}
-
-# ------------------------------------------------------------------------------
 # ELASTIC IPS
 # ------------------------------------------------------------------------------
 
@@ -264,7 +256,6 @@ resource "aws_launch_template" "feature_server" {
     vpc_cidr              = var.vpc_cidr
     url_portal            = var.url_portal
     recording_ws_base_url = var.deploy_recording_cluster ? "ws://${aws_lb.recording[0].dns_name}:80" : "ws://${aws_instance.web.private_ip}:3017"
-    sns_topic_arn         = aws_sns_topic.fs_lifecycle.arn
     krisp_license_key     = var.krisp_license_key
   }))
 
@@ -282,7 +273,7 @@ resource "aws_launch_template" "feature_server" {
 }
 
 resource "aws_autoscaling_group" "feature_server" {
-  name                = "${var.name_prefix}-fs-asg"
+  name                = local.fs_asg_name
   min_size            = var.feature_server_min_size
   max_size            = var.feature_server_max_size
   desired_capacity    = var.feature_server_desired_capacity
@@ -305,13 +296,11 @@ resource "aws_autoscaling_group" "feature_server" {
 }
 
 resource "aws_autoscaling_lifecycle_hook" "fs_terminating" {
-  name                    = "${var.name_prefix}-fs-terminating"
-  autoscaling_group_name  = aws_autoscaling_group.feature_server.name
-  lifecycle_transition    = "autoscaling:EC2_INSTANCE_TERMINATING"
-  heartbeat_timeout       = 900
-  default_result          = "CONTINUE"
-  notification_target_arn = aws_sns_topic.fs_lifecycle.arn
-  role_arn                = aws_iam_role.lifecycle_hook.arn
+  name                   = "${var.name_prefix}-fs-terminating"
+  autoscaling_group_name = aws_autoscaling_group.feature_server.name
+  lifecycle_transition   = "autoscaling:EC2_INSTANCE_TERMINATING"
+  heartbeat_timeout      = 900
+  default_result         = "CONTINUE"
 }
 
 # ------------------------------------------------------------------------------
