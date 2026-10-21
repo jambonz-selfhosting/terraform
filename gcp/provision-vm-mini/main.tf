@@ -2,24 +2,84 @@
 # All-in-one deployment with local MySQL, Redis, and monitoring
 
 # ------------------------------------------------------------------------------
-# RANDOM SECRETS
+# SECRETS
+#
+# The database password and the JWT/encryption secret are generated on the VM at
+# first boot (see the startup script). Nothing outside the VM uses them, so they
+# never appear in instance metadata or in terraform state.
+#
+# Secrets you supply (apiban, Krisp) go in Secret Manager, created only when at
+# least one is set, and the VM reads them at boot with its service account.
 # ------------------------------------------------------------------------------
 
-# Generate JWT/Encryption secret
-resource "random_password" "jwt_secret" {
-  length  = 32
-  special = false
+locals {
+  supplied_secret_values = {
+    "apiban-key"           = var.apiban_key
+    "apiban-client-secret" = var.apiban_client_secret
+    "krisp-license-key"    = var.krisp_license_key
+  }
+  # Whether each secret is set is not itself secret.
+  supplied_secret_names = toset([for k, v in local.supplied_secret_values : k if nonsensitive(v != "")])
 }
 
-# Generate database password
-resource "random_password" "db_password" {
-  length           = 16
-  special          = true
-  override_special = "_"
-  min_upper        = 1
-  min_lower        = 1
-  min_numeric      = 1
-  min_special      = 1
+resource "google_project_service" "secretmanager" {
+  count              = length(local.supplied_secret_names) > 0 ? 1 : 0
+  service            = "secretmanager.googleapis.com"
+  disable_on_destroy = false
+}
+
+resource "google_secret_manager_secret" "jambonz" {
+  for_each  = local.supplied_secret_names
+  secret_id = "${var.name_prefix}-${each.key}"
+
+  replication {
+    auto {}
+  }
+
+  labels = {
+    environment = var.environment
+    service     = "jambonz"
+  }
+
+  depends_on = [google_project_service.secretmanager]
+}
+
+resource "google_secret_manager_secret_version" "jambonz" {
+  for_each    = local.supplied_secret_names
+  secret      = google_secret_manager_secret.jambonz[each.key].id
+  secret_data = local.supplied_secret_values[each.key]
+}
+
+resource "google_secret_manager_secret_iam_member" "jambonz" {
+  for_each  = local.supplied_secret_names
+  secret_id = google_secret_manager_secret.jambonz[each.key].id
+  role      = "roles/secretmanager.secretAccessor"
+  member    = "serviceAccount:${google_service_account.jambonz.email}"
+}
+
+# ------------------------------------------------------------------------------
+# SERVICE ACCOUNT
+#
+# Least privilege: the VM writes its logs and metrics (Ops Agent) and reads the
+# secrets above, nothing else.
+# ------------------------------------------------------------------------------
+
+resource "google_service_account" "jambonz" {
+  account_id   = "${var.name_prefix}-sa"
+  display_name = "jambonz Service Account"
+  description  = "Service account for the jambonz mini VM"
+}
+
+resource "google_project_iam_member" "log_writer" {
+  project = var.project_id
+  role    = "roles/logging.logWriter"
+  member  = "serviceAccount:${google_service_account.jambonz.email}"
+}
+
+resource "google_project_iam_member" "metric_writer" {
+  project = var.project_id
+  role    = "roles/monitoring.metricWriter"
+  member  = "serviceAccount:${google_service_account.jambonz.email}"
 }
 
 # ------------------------------------------------------------------------------
@@ -81,37 +141,18 @@ resource "google_compute_firewall" "ssh" {
   target_tags   = ["jambonz"]
 }
 
-# Internal VPC communication
-resource "google_compute_firewall" "internal" {
-  name    = "${var.name_prefix}-allow-internal"
-  network = google_compute_network.jambonz.name
+# No internal rule: the mini is the only VM in the network, and GCP denies any
+# ingress no rule allows.
 
-  allow {
-    protocol = "tcp"
-    ports    = ["0-65535"]
-  }
-
-  allow {
-    protocol = "udp"
-    ports    = ["0-65535"]
-  }
-
-  allow {
-    protocol = "icmp"
-  }
-
-  source_ranges = [var.vpc_cidr]
-  target_tags   = ["jambonz"]
-}
-
-# HTTP/HTTPS (web portal, API, Grafana, Homer)
+# HTTP/HTTPS. The portal, API and Grafana are all served through nginx
+# (<portal>, api.<portal>, grafana.<portal>), so no app port is public.
 resource "google_compute_firewall" "web" {
   name    = "${var.name_prefix}-allow-web"
   network = google_compute_network.jambonz.name
 
   allow {
     protocol = "tcp"
-    ports    = ["80", "443", "3000", "3010", "9080", "16686"]
+    ports    = ["80", "443"]
   }
 
   source_ranges = var.allowed_http_cidr

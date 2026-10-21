@@ -66,7 +66,7 @@ public_subnet_cidr = "10.0.0.0/24"
 # ------------------------------------------------------------------------------
 
 # IMPORTANT: Restrict these for production use
-allowed_ssh_cidr = ["0.0.0.0/0"]    # SSH access - consider restricting to your IP
+allowed_ssh_cidr  = ["YOUR_ADMIN_IP/32"]  # REQUIRED: your admin IP or VPN range
 allowed_http_cidr = ["0.0.0.0/0"]   # Web/API access
 allowed_sip_cidr = ["0.0.0.0/0"]    # SIP/RTP access
 
