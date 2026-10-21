@@ -136,6 +136,13 @@ Two things to check before choosing arm64: `c4a-*` is not offered in every zone,
 and its CPU quota is tracked separately from x86, so an existing x86 quota
 increase does not cover it.
 
+`allowed_ssh_cidr` has no default: set it to your admin IP or VPN range.
+
+Servers are spread across `zones` (default: the region's first three). Cloud SQL
+(REGIONAL) and Memorystore (STANDARD_HA) fail over to a second zone. Cloud SQL has
+deletion protection on: set `mysql_deletion_protection = false` and apply before
+`terraform destroy`.
+
 ### 2. Initialize Terraform
 
 ```bash
@@ -185,6 +192,8 @@ Feature Servers support graceful scale-in with a configurable timeout (default 1
 To manually trigger scale-in for testing:
 ```bash
 # Connect to Redis and set drain flag
+# Redis requires AUTH; the password is in Secret Manager (<name_prefix>-redis-auth)
+export REDISCLI_AUTH=$(gcloud secrets versions access latest --secret=<name_prefix>-redis-auth)
 redis-cli -h <redis-host> SET "drain:<instance-name>" "$(date +%s)" EX 900
 ```
 
@@ -254,13 +263,13 @@ Feature Servers use manual scaling (no CPU-based autoscaler). To resize the clus
 # Scale up or down
 gcloud compute instance-groups managed resize <name-prefix>-fs-mig \
   --size=<desired-count> \
-  --zone=<zone> \
+  --region=<region> \
   --project=<project-id>
 
 # Example: scale to 3 instances
 gcloud compute instance-groups managed resize jambonz-fs-mig \
   --size=3 \
-  --zone=us-west1-a \
+  --region=us-west1 \
   --project=drachtio-cpaas
 ```
 
@@ -273,8 +282,10 @@ To gracefully remove a Feature Server instance:
    gcloud compute instances list --filter="name~-fs-" --project=<project-id>
    ```
 
-2. Set the drain key in Redis (from any instance with Redis access):
+2. Set the drain key in Redis (from any instance with Redis access; Redis
+   requires AUTH, with the password in Secret Manager as `<name_prefix>-redis-auth`):
    ```bash
+   export REDISCLI_AUTH=$(gcloud secrets versions access latest --secret=<name_prefix>-redis-auth)
    redis-cli -h <redis-host> SET "drain:<instance-name>" "$(date +%s)" EX 900
    ```
 
@@ -282,6 +293,16 @@ To gracefully remove a Feature Server instance:
    - Stop accepting new calls (via SIGUSR1 signal)
    - Wait for active calls to complete (up to 15 min timeout)
    - Self-delete via GCP API
+
+   The instance group then starts a replacement, because its target size is
+   unchanged: this recycles a feature server. To remove one for good, first take
+   it out of the group and lower the target size, then set the drain key:
+   ```bash
+   gcloud compute instance-groups managed abandon-instances <name-prefix>-fs-mig \
+     --instances=<instance-name> --region=<region> --project=<project-id>
+   gcloud compute instance-groups managed resize <name-prefix>-fs-mig \
+     --size=<current-size - 1> --region=<region> --project=<project-id>
+   ```
 
 4. Monitor progress:
    ```bash
@@ -441,6 +462,8 @@ sudo -u jambonz pm2 logs
 ### Test Redis connectivity
 
 ```bash
+# Redis requires AUTH; the password is in Secret Manager (<name_prefix>-redis-auth)
+export REDISCLI_AUTH=$(gcloud secrets versions access latest --secret=<name_prefix>-redis-auth)
 redis-cli -h <redis-host> -p 6379 PING
 ```
 

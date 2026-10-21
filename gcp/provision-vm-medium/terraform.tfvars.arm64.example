@@ -25,7 +25,8 @@
 project_id     = ""  # Your GCP project ID (e.g., "my-gcp-project")
 url_portal     = ""  # Your domain name (e.g., "jambonz.example.com")
 region         = ""  # GCP region (e.g., "us-west1", "us-east1", "europe-west1")
-zone           = ""  # GCP zone (e.g., "us-west1-a", "us-east1-b", "europe-west1-c")
+# zones        = []  # Zones to spread across; default: the region's first three.
+#                     # Must be 2+ (or empty). arm64: list only zones with c4a capacity.
 ssh_public_key = ""  # Your SSH public key (e.g., "ssh-rsa AAAAB3Nz... user@host")
 
 # Set to false to disable if not needed
@@ -66,7 +67,7 @@ public_subnet_cidr = "172.20.10.0/24"
 # NETWORK ACCESS CONTROLS
 # ------------------------------------------------------------------------------
 
-allowed_ssh_cidr  = ["0.0.0.0/0"]
+allowed_ssh_cidr  = ["YOUR_ADMIN_IP/32"]  # REQUIRED: your admin IP or VPN range
 allowed_http_cidr = ["0.0.0.0/0"]
 allowed_sbc_cidr  = ["0.0.0.0/0"]
 
@@ -95,17 +96,17 @@ web_monitoring_disk_size = 200
 # SBC CONFIGURATION
 # ------------------------------------------------------------------------------
 
-sbc_count = 1
+sbc_count = 2
 
 # ------------------------------------------------------------------------------
 # MANAGED INSTANCE GROUP CONFIGURATION
 # ------------------------------------------------------------------------------
 
-feature_server_target_size  = 1
+feature_server_target_size  = 2
 feature_server_min_replicas = 1
 feature_server_max_replicas = 3
 
-recording_target_size  = 1
+recording_target_size  = 2
 recording_min_replicas = 1
 recording_max_replicas = 3
 
@@ -124,6 +125,9 @@ ssh_user = "jambonz"
 
 mysql_tier      = "db-custom-2-4096"
 mysql_disk_size = 20
+# mysql_high_availability   = true   # REGIONAL (standby in a second zone)
+# mysql_deletion_protection = true   # set false only for throwaway deployments
+# log_retention_days        = 90     # 90, 180 or 365
 
 # ------------------------------------------------------------------------------
 # REDIS CONFIGURATION (Memorystore)
@@ -131,7 +135,7 @@ mysql_disk_size = 20
 # ------------------------------------------------------------------------------
 
 redis_memory_size_gb = 1
-redis_tier           = "BASIC"
+redis_tier           = "STANDARD_HA"  # or "BASIC" (single zone, no failover)
 
 # ------------------------------------------------------------------------------
 # KRISP (Optional)
