@@ -221,7 +221,7 @@ variable "allowed_smpp_cidr" {
 variable "jambonz_version" {
   description = "jambonz version to deploy (image version in community gallery)"
   type        = string
-  default     = "11.1.6"
+  default     = "11.1.9"
 }
 
 variable "community_gallery_name" {
