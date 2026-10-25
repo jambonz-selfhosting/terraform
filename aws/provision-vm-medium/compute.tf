@@ -2,18 +2,6 @@
 # Web/Monitoring EC2, SBC ASG, Feature Server ASG, optional Recording ASG + ALB
 
 # ------------------------------------------------------------------------------
-# SNS TOPICS (for ASG lifecycle events)
-# ------------------------------------------------------------------------------
-
-resource "aws_sns_topic" "sbc_lifecycle" {
-  name = "${var.name_prefix}-sbc-lifecycle"
-}
-
-resource "aws_sns_topic" "fs_lifecycle" {
-  name = "${var.name_prefix}-fs-lifecycle"
-}
-
-# ------------------------------------------------------------------------------
 # ELASTIC IPS
 # ------------------------------------------------------------------------------
 
@@ -126,7 +114,6 @@ resource "aws_launch_template" "sbc" {
     apiban_client_id          = var.apiban_client_id
     apiban_client_secret      = var.apiban_client_secret
     name_prefix               = var.name_prefix
-    sns_topic_arn             = aws_sns_topic.sbc_lifecycle.arn
   }))
 
   tag_specifications {
@@ -144,7 +131,7 @@ resource "aws_launch_template" "sbc" {
 }
 
 resource "aws_autoscaling_group" "sbc" {
-  name                = "${var.name_prefix}-sbc-asg"
+  name                = local.sbc_asg_name
   min_size            = var.sbc_min_size
   max_size            = var.sbc_max_size
   desired_capacity    = var.sbc_desired_capacity
@@ -167,13 +154,11 @@ resource "aws_autoscaling_group" "sbc" {
 }
 
 resource "aws_autoscaling_lifecycle_hook" "sbc_terminating" {
-  name                    = "${var.name_prefix}-sbc-terminating"
-  autoscaling_group_name  = aws_autoscaling_group.sbc.name
-  lifecycle_transition    = "autoscaling:EC2_INSTANCE_TERMINATING"
-  heartbeat_timeout       = 900
-  default_result          = "CONTINUE"
-  notification_target_arn = aws_sns_topic.sbc_lifecycle.arn
-  role_arn                = aws_iam_role.lifecycle_hook.arn
+  name                   = "${var.name_prefix}-sbc-terminating"
+  autoscaling_group_name = aws_autoscaling_group.sbc.name
+  lifecycle_transition   = "autoscaling:EC2_INSTANCE_TERMINATING"
+  heartbeat_timeout      = 900
+  default_result         = "CONTINUE"
 }
 
 # ------------------------------------------------------------------------------
@@ -215,7 +200,6 @@ resource "aws_launch_template" "feature_server" {
     vpc_cidr                  = var.vpc_cidr
     url_portal                = var.url_portal
     recording_ws_base_url     = var.deploy_recording_cluster ? "ws://${aws_lb.recording[0].dns_name}:80" : "ws://${aws_instance.web_monitoring.private_ip}:3017"
-    sns_topic_arn             = aws_sns_topic.fs_lifecycle.arn
     krisp_license_key         = var.krisp_license_key
   }))
 
@@ -233,7 +217,7 @@ resource "aws_launch_template" "feature_server" {
 }
 
 resource "aws_autoscaling_group" "feature_server" {
-  name                = "${var.name_prefix}-fs-asg"
+  name                = local.fs_asg_name
   min_size            = var.feature_server_min_size
   max_size            = var.feature_server_max_size
   desired_capacity    = var.feature_server_desired_capacity
@@ -256,13 +240,11 @@ resource "aws_autoscaling_group" "feature_server" {
 }
 
 resource "aws_autoscaling_lifecycle_hook" "fs_terminating" {
-  name                    = "${var.name_prefix}-fs-terminating"
-  autoscaling_group_name  = aws_autoscaling_group.feature_server.name
-  lifecycle_transition    = "autoscaling:EC2_INSTANCE_TERMINATING"
-  heartbeat_timeout       = 900
-  default_result          = "CONTINUE"
-  notification_target_arn = aws_sns_topic.fs_lifecycle.arn
-  role_arn                = aws_iam_role.lifecycle_hook.arn
+  name                   = "${var.name_prefix}-fs-terminating"
+  autoscaling_group_name = aws_autoscaling_group.feature_server.name
+  lifecycle_transition   = "autoscaling:EC2_INSTANCE_TERMINATING"
+  heartbeat_timeout      = 900
+  default_result         = "CONTINUE"
 }
 
 # ------------------------------------------------------------------------------
