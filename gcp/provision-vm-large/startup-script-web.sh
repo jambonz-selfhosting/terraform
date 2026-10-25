@@ -101,6 +101,7 @@ module.exports = {
       STATS_TELEGRAF: 1,
       STATS_SAMPLE_RATE: 1,
       HTTP_PORT: 3000,
+      JAMBONES_TRUST_PROXY: 1,
       JAEGER_BASE_URL: 'http://$MONITORING_PRIVATE_IP:16686',
       HOMER_BASE_URL: 'http://$MONITORING_PRIVATE_IP:9080',
       HOMER_USERNAME: 'admin',
@@ -166,10 +167,12 @@ server {
         rewrite ^/api/(.*)$ /\$1 break;
         proxy_pass http://localhost:3000;
         proxy_set_header Host \$host;
+        proxy_set_header X-Forwarded-For \$remote_addr;
     }
     location / {
         proxy_pass http://localhost:3001;
         proxy_set_header Host \$host;
+        proxy_set_header X-Forwarded-For \$remote_addr;
     }
 }
 server {
@@ -178,6 +181,7 @@ server {
     location / {
         proxy_pass http://localhost:3000;
         proxy_set_header Host \$host;
+        proxy_set_header X-Forwarded-For \$remote_addr;
     }
 }
 server {
@@ -189,6 +193,7 @@ server {
     proxy_set_header Upgrade \$http_upgrade;
     proxy_set_header Connection 'upgrade';
     proxy_set_header Host \$host;
+    proxy_set_header X-Forwarded-For \$remote_addr;
     proxy_cache_bypass \$http_upgrade;
   }
 }
@@ -201,6 +206,7 @@ server {
     proxy_set_header Upgrade \$http_upgrade;
     proxy_set_header Connection 'upgrade';
     proxy_set_header Host \$host;
+    proxy_set_header X-Forwarded-For \$remote_addr;
     proxy_cache_bypass \$http_upgrade;
   }
 }
