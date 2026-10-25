@@ -11,13 +11,13 @@ Internet
     │        │
     ├─── RTP Servers (count-based, EIPs) ──── RTPEngine + sidecar
     │
-    ├─── Web Server (EC2 + EIP) ──────────── API, webapp, public-apps, upload_recordings
+    ├─── Web Server (EC2 + EIP) ──────────── API, webapp, public-apps
     │
     ├─── Monitoring Server (EC2 + EIP) ───── Grafana, Homer, Jaeger, InfluxDB
     │
     ├─── Feature Server ASG ──────────────── FreeSWITCH + feature-server app
     │
-    └─── Recording ASG + ALB (optional) ──── upload_recordings
+    └─── Recording ASG + ALB ─────────────── upload_recordings
          │
     VPC Private Subnets
     ├─── Aurora Serverless v2 MySQL
@@ -35,7 +35,7 @@ Internet
 | Monitoring Server | EC2 | Grafana, Homer, Jaeger, InfluxDB, Cassandra |
 | Aurora MySQL | Serverless v2 | Database (0.5–8 ACU) |
 | ElastiCache Redis | Single node | Cache and session store |
-| Recording | ASG + ALB (optional) | Dedicated recording cluster |
+| Recording | ASG + ALB | Dedicated recording cluster |
 
 ## Key Differences from Medium
 
@@ -82,7 +82,7 @@ Run `terraform output dns_records_required` to see the exact IP mappings.
 
 **SIP/RTP Servers**: Change `sip_count` or `rtp_count` in tfvars and re-apply. Note: adding RTP servers requires re-applying to update SIP server configs with new RTP IPs.
 
-**Feature Servers**: Adjust `feature_server_min_size`, `feature_server_max_size`, and `feature_server_desired_capacity`. Uses SNS lifecycle hooks for graceful scale-in.
+**Feature Servers**: Adjust `feature_server_min_size`, `feature_server_max_size`, and `feature_server_desired_capacity`. A lifecycle hook holds scale-in until calls drain (the instance polls IMDS for its target lifecycle state).
 
 **Database**: Adjust `aurora_min_capacity` and `aurora_max_capacity` for automatic scaling.
 

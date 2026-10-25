@@ -130,19 +130,11 @@ resource "aws_security_group" "sbc_sip" {
     cidr_blocks = var.allowed_sbc_cidr
   }
 
-  # Internal HTTP/SNS ports from VPC
+  # Internal HTTP from VPC
   ingress {
     description = "Internal HTTP"
     from_port   = 3000
     to_port     = 3009
-    protocol    = "tcp"
-    cidr_blocks = [var.vpc_cidr]
-  }
-
-  ingress {
-    description = "SNS notification ports"
-    from_port   = 3010
-    to_port     = 3019
     protocol    = "tcp"
     cidr_blocks = [var.vpc_cidr]
   }
@@ -258,14 +250,6 @@ resource "aws_security_group" "feature_server" {
   }
 
   ingress {
-    description = "SNS notification ports"
-    from_port   = 3010
-    to_port     = 3019
-    protocol    = "tcp"
-    cidr_blocks = [var.vpc_cidr]
-  }
-
-  ingress {
     description = "SIP from VPC"
     from_port   = 5060
     to_port     = 5060
@@ -344,15 +328,6 @@ resource "aws_security_group" "web" {
     to_port     = 3000
     protocol    = "tcp"
     cidr_blocks = var.allowed_http_cidr
-  }
-
-  # upload_recordings from feature servers
-  ingress {
-    description = "upload_recordings"
-    from_port   = 3017
-    to_port     = 3017
-    protocol    = "tcp"
-    cidr_blocks = [var.vpc_cidr]
   }
 
   # public-apps
@@ -474,11 +449,10 @@ resource "aws_security_group" "monitoring" {
 }
 
 # ------------------------------------------------------------------------------
-# RECORDING SECURITY GROUPS (conditional)
+# RECORDING SECURITY GROUPS
 # ------------------------------------------------------------------------------
 
 resource "aws_security_group" "recording_alb" {
-  count       = var.deploy_recording_cluster ? 1 : 0
   name_prefix = "${var.name_prefix}-recording-alb-"
   vpc_id      = aws_vpc.jambonz.id
 
@@ -507,7 +481,6 @@ resource "aws_security_group" "recording_alb" {
 }
 
 resource "aws_security_group" "recording" {
-  count       = var.deploy_recording_cluster ? 1 : 0
   name_prefix = "${var.name_prefix}-recording-"
   vpc_id      = aws_vpc.jambonz.id
 
@@ -516,7 +489,7 @@ resource "aws_security_group" "recording" {
     from_port       = 3000
     to_port         = 3000
     protocol        = "tcp"
-    security_groups = [aws_security_group.recording_alb[0].id]
+    security_groups = [aws_security_group.recording_alb.id]
   }
 
   egress {

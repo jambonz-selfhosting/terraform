@@ -1,19 +1,21 @@
-#!/bin/bash -xe
+#!/bin/bash -e
 # Startup script for jambonz Web server on GCP (Large deployment)
 # Handles API server, webapp, and public-apps only (no monitoring)
+
+${common}
 
 # Variables passed from Terraform
 MYSQL_HOST="${mysql_host}"
 MYSQL_USER="${mysql_user}"
-MYSQL_PASSWORD="${mysql_password}"
 REDIS_HOST="${redis_host}"
 REDIS_PORT="${redis_port}"
-JWT_SECRET="${jwt_secret}"
 URL_PORTAL="${url_portal}"
 VPC_CIDR="${vpc_cidr}"
 MONITORING_PRIVATE_IP="${monitoring_private_ip}"
-DEPLOY_RECORDING_CLUSTER="${deploy_recording_cluster}"
 
+MYSQL_PASSWORD=$(gcp_secret mysql-password)
+REDIS_PASSWORD=$(gcp_secret redis-auth)
+JWT_SECRET=$(gcp_secret encryption-secret)
 echo "Starting jambonz Web server configuration for GCP large deployment"
 
 # Always use jambonz user for apps
@@ -45,6 +47,11 @@ mysql -h $MYSQL_HOST -u $MYSQL_USER -D jambones -p$MYSQL_PASSWORD < $HOME/apps/a
 SCHEMA_VERSION=$(node -p "require('$HOME/apps/api-server/package.json').version")
 echo "Setting schema_version to $SCHEMA_VERSION"
 mysql -h $MYSQL_HOST -u $MYSQL_USER -D jambones -p$MYSQL_PASSWORD -e "INSERT INTO schema_version (version) VALUES ('$SCHEMA_VERSION')" || true
+
+# Audit every connection (logins, logouts and failed logins) with the Cloud SQL
+# audit plugin (enabled by the cloudsql_mysql_audit flag). Events go to Cloud
+# Logging as Data Access audit logs, kept by logging.tf.
+mysql -h $MYSQL_HOST -u $MYSQL_USER -p$MYSQL_PASSWORD -e "CALL mysql.cloudsql_create_audit_rule('*','*','*','connect,disconnect','B',1,@outval,@outmsg); SELECT @outval, @outmsg" || true
 
 # Reset admin password
 JAMBONES_ADMIN_INITIAL_PASSWORD=$INSTANCE_ID \
@@ -92,6 +99,7 @@ module.exports = {
       JAMBONES_MYSQL_CONNECTION_LIMIT: 10,
       JAMBONES_REDIS_HOST: '$REDIS_HOST',
       JAMBONES_REDIS_PORT: $REDIS_PORT,
+      JAMBONES_REDIS_PASSWORD: '$REDIS_PASSWORD',
       JAMBONE_API_VERSION: 'v1',
       JAMBONES_TIME_SERIES_HOST: '$MONITORING_PRIVATE_IP',
       ENABLE_METRICS: 1,
@@ -214,24 +222,6 @@ EOF
 
 sudo systemctl restart nginx
 
-# Configure upload_recordings service (only if not using recording cluster)
-sudo sed -i -e "s/MYSQL_HOST=/MYSQL_HOST=$MYSQL_HOST/g" /etc/systemd/system/upload_recordings.service
-sudo sed -i -e "s/MYSQL_USER=/MYSQL_USER=$MYSQL_USER/g" /etc/systemd/system/upload_recordings.service
-sudo sed -i -e "s/MYSQL_PASSWORD=/MYSQL_PASSWORD=$MYSQL_PASSWORD/g" /etc/systemd/system/upload_recordings.service
-sudo sed -i -e "s/MYSQL_DATABASE=/MYSQL_DATABASE=jambones/g" /etc/systemd/system/upload_recordings.service
-sudo sed -i -e "s/BASIC_AUTH_USERNAME=/BASIC_AUTH_USERNAME=jambonz/g" /etc/systemd/system/upload_recordings.service
-sudo sed -i -e "s/BASIC_AUTH_PASSWORD=/BASIC_AUTH_PASSWORD=$JWT_SECRET/g" /etc/systemd/system/upload_recordings.service
-sudo sed -i -e "s/ENCRYPTION_SECRET=/ENCRYPTION_SECRET=$JWT_SECRET/g" /etc/systemd/system/upload_recordings.service
-
-sudo systemctl daemon-reload
-sudo systemctl enable upload_recordings
-sudo systemctl start upload_recordings
-
-# Check if recording cluster is deployed
-if [[ "$DEPLOY_RECORDING_CLUSTER" == "true" ]]; then
-  echo "Recording cluster is deployed, disabling local upload_recordings service"
-  sudo systemctl stop upload_recordings 2>/dev/null || true
-  sudo systemctl disable upload_recordings 2>/dev/null || true
-fi
+install_ops_agent
 
 echo "Web server setup complete!"

@@ -1,17 +1,5 @@
 # Compute resources for jambonz medium deployment on AWS
-# Web/Monitoring EC2, SBC ASG, Feature Server ASG, optional Recording ASG + ALB
-
-# ------------------------------------------------------------------------------
-# SNS TOPICS (for ASG lifecycle events)
-# ------------------------------------------------------------------------------
-
-resource "aws_sns_topic" "sbc_lifecycle" {
-  name = "${var.name_prefix}-sbc-lifecycle"
-}
-
-resource "aws_sns_topic" "fs_lifecycle" {
-  name = "${var.name_prefix}-fs-lifecycle"
-}
+# Web/Monitoring EC2, SBC ASG, Feature Server ASG, Recording ASG + ALB
 
 # ------------------------------------------------------------------------------
 # ELASTIC IPS
@@ -55,15 +43,14 @@ resource "aws_instance" "web_monitoring" {
   }
 
   user_data = templatefile("${path.module}/cloud-init-web-monitoring.sh", {
-    mysql_host               = aws_rds_cluster.jambonz.endpoint
-    mysql_user               = var.mysql_username
-    mysql_password           = local.db_password
-    redis_host               = aws_elasticache_replication_group.jambonz.primary_endpoint_address
-    redis_port               = 6379
-    jwt_secret               = random_password.jwt_secret.result
-    url_portal               = var.url_portal
-    vpc_cidr                 = var.vpc_cidr
-    deploy_recording_cluster = var.deploy_recording_cluster
+    mysql_host     = aws_rds_cluster.jambonz.endpoint
+    mysql_user     = var.mysql_username
+    mysql_password = local.db_password
+    redis_host     = aws_elasticache_replication_group.jambonz.primary_endpoint_address
+    redis_port     = 6379
+    jwt_secret     = random_password.jwt_secret.result
+    url_portal     = var.url_portal
+    vpc_cidr       = var.vpc_cidr
   })
 
   tags = {
@@ -126,7 +113,6 @@ resource "aws_launch_template" "sbc" {
     apiban_client_id          = var.apiban_client_id
     apiban_client_secret      = var.apiban_client_secret
     name_prefix               = var.name_prefix
-    sns_topic_arn             = aws_sns_topic.sbc_lifecycle.arn
   }))
 
   tag_specifications {
@@ -144,7 +130,7 @@ resource "aws_launch_template" "sbc" {
 }
 
 resource "aws_autoscaling_group" "sbc" {
-  name                = "${var.name_prefix}-sbc-asg"
+  name                = local.sbc_asg_name
   min_size            = var.sbc_min_size
   max_size            = var.sbc_max_size
   desired_capacity    = var.sbc_desired_capacity
@@ -167,13 +153,11 @@ resource "aws_autoscaling_group" "sbc" {
 }
 
 resource "aws_autoscaling_lifecycle_hook" "sbc_terminating" {
-  name                    = "${var.name_prefix}-sbc-terminating"
-  autoscaling_group_name  = aws_autoscaling_group.sbc.name
-  lifecycle_transition    = "autoscaling:EC2_INSTANCE_TERMINATING"
-  heartbeat_timeout       = 900
-  default_result          = "CONTINUE"
-  notification_target_arn = aws_sns_topic.sbc_lifecycle.arn
-  role_arn                = aws_iam_role.lifecycle_hook.arn
+  name                   = "${var.name_prefix}-sbc-terminating"
+  autoscaling_group_name = aws_autoscaling_group.sbc.name
+  lifecycle_transition   = "autoscaling:EC2_INSTANCE_TERMINATING"
+  heartbeat_timeout      = 900
+  default_result         = "CONTINUE"
 }
 
 # ------------------------------------------------------------------------------
@@ -214,8 +198,7 @@ resource "aws_launch_template" "feature_server" {
     web_monitoring_private_ip = aws_instance.web_monitoring.private_ip
     vpc_cidr                  = var.vpc_cidr
     url_portal                = var.url_portal
-    recording_ws_base_url     = var.deploy_recording_cluster ? "ws://${aws_lb.recording[0].dns_name}:80" : "ws://${aws_instance.web_monitoring.private_ip}:3017"
-    sns_topic_arn             = aws_sns_topic.fs_lifecycle.arn
+    recording_ws_base_url     = "ws://${aws_lb.recording.dns_name}:80"
     krisp_license_key         = var.krisp_license_key
   }))
 
@@ -233,7 +216,7 @@ resource "aws_launch_template" "feature_server" {
 }
 
 resource "aws_autoscaling_group" "feature_server" {
-  name                = "${var.name_prefix}-fs-asg"
+  name                = local.fs_asg_name
   min_size            = var.feature_server_min_size
   max_size            = var.feature_server_max_size
   desired_capacity    = var.feature_server_desired_capacity
@@ -256,26 +239,23 @@ resource "aws_autoscaling_group" "feature_server" {
 }
 
 resource "aws_autoscaling_lifecycle_hook" "fs_terminating" {
-  name                    = "${var.name_prefix}-fs-terminating"
-  autoscaling_group_name  = aws_autoscaling_group.feature_server.name
-  lifecycle_transition    = "autoscaling:EC2_INSTANCE_TERMINATING"
-  heartbeat_timeout       = 900
-  default_result          = "CONTINUE"
-  notification_target_arn = aws_sns_topic.fs_lifecycle.arn
-  role_arn                = aws_iam_role.lifecycle_hook.arn
+  name                   = "${var.name_prefix}-fs-terminating"
+  autoscaling_group_name = aws_autoscaling_group.feature_server.name
+  lifecycle_transition   = "autoscaling:EC2_INSTANCE_TERMINATING"
+  heartbeat_timeout      = 900
+  default_result         = "CONTINUE"
 }
 
 # ------------------------------------------------------------------------------
-# RECORDING CLUSTER (conditional)
+# RECORDING CLUSTER
 # ------------------------------------------------------------------------------
 
 # Application Load Balancer
 resource "aws_lb" "recording" {
-  count              = var.deploy_recording_cluster ? 1 : 0
   name               = "${var.name_prefix}-recording-alb"
   internal           = false
   load_balancer_type = "application"
-  security_groups    = [aws_security_group.recording_alb[0].id]
+  security_groups    = [aws_security_group.recording_alb.id]
   subnets            = aws_subnet.public[*].id
 
   idle_timeout = 4000
@@ -286,7 +266,6 @@ resource "aws_lb" "recording" {
 }
 
 resource "aws_lb_target_group" "recording" {
-  count    = var.deploy_recording_cluster ? 1 : 0
   name     = "${var.name_prefix}-recording-tg"
   port     = 3000
   protocol = "HTTP"
@@ -304,22 +283,20 @@ resource "aws_lb_target_group" "recording" {
 }
 
 resource "aws_lb_listener" "recording" {
-  count             = var.deploy_recording_cluster ? 1 : 0
-  load_balancer_arn = aws_lb.recording[0].arn
+  load_balancer_arn = aws_lb.recording.arn
   port              = 80
   protocol          = "HTTP"
 
   default_action {
     type             = "forward"
-    target_group_arn = aws_lb_target_group.recording[0].arn
+    target_group_arn = aws_lb_target_group.recording.arn
   }
 }
 
 # Recording Launch Template
 resource "aws_launch_template" "recording" {
-  count         = var.deploy_recording_cluster ? 1 : 0
   name_prefix   = "${var.name_prefix}-recording-"
-  image_id      = aws_ami_copy.recording[0].id
+  image_id      = aws_ami_copy.recording.id
   instance_type = var.recording_instance_type
   key_name      = aws_key_pair.jambonz.key_name
 
@@ -329,7 +306,7 @@ resource "aws_launch_template" "recording" {
 
   network_interfaces {
     associate_public_ip_address = true
-    security_groups             = [aws_security_group.ssh.id, aws_security_group.recording[0].id]
+    security_groups             = [aws_security_group.ssh.id, aws_security_group.recording.id]
   }
 
   block_device_mappings {
@@ -364,16 +341,15 @@ resource "aws_launch_template" "recording" {
 
 # Recording ASG
 resource "aws_autoscaling_group" "recording" {
-  count               = var.deploy_recording_cluster ? 1 : 0
   name                = "${var.name_prefix}-recording-asg"
   min_size            = var.recording_min_size
   max_size            = var.recording_max_size
   desired_capacity    = var.recording_desired_capacity
   vpc_zone_identifier = aws_subnet.public[*].id
-  target_group_arns   = [aws_lb_target_group.recording[0].arn]
+  target_group_arns   = [aws_lb_target_group.recording.arn]
 
   launch_template {
-    id      = aws_launch_template.recording[0].id
+    id      = aws_launch_template.recording.id
     version = "$Latest"
   }
 

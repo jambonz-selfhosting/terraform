@@ -9,7 +9,7 @@
 # - SIP (drachtio signaling)
 # - RTP (rtpengine media)
 # - Feature Server (FreeSWITCH)
-# - Recording (optional)
+# - Recording
 # ------------------------------------------------------------------------------
 
 locals {
@@ -22,5 +22,5 @@ locals {
   sip_image_id            = "/communityGalleries/${var.community_gallery_name}/images/jambonz-sip${local.image_arch_suffix}/versions/${var.jambonz_version}"
   rtp_image_id            = "/communityGalleries/${var.community_gallery_name}/images/jambonz-rtp${local.image_arch_suffix}/versions/${var.jambonz_version}"
   feature_server_image_id = "/communityGalleries/${var.community_gallery_name}/images/jambonz-fs${local.image_arch_suffix}/versions/${var.jambonz_version}"
-  recording_image_id      = var.deploy_recording_cluster ? "/communityGalleries/${var.community_gallery_name}/images/jambonz-recording${local.image_arch_suffix}/versions/${var.jambonz_version}" : ""
+  recording_image_id      = "/communityGalleries/${var.community_gallery_name}/images/jambonz-recording${local.image_arch_suffix}/versions/${var.jambonz_version}"
 }

@@ -8,22 +8,42 @@ write_files:
   - path: /tmp/jambonz-setup.sh
     permissions: '0755'
     content: |
-      #!/bin/bash -xe
+      #!/bin/bash -e
 
       # Variables passed from Terraform
       MYSQL_HOST="${mysql_host}"
       MYSQL_USER="${mysql_user}"
-      MYSQL_PASSWORD="${mysql_password}"
       REDIS_HOST="${redis_host}"
       REDIS_PORT="${redis_port}"
-      REDIS_PASSWORD="${redis_password}"
-      JWT_SECRET="${jwt_secret}"
       MONITORING_PRIVATE_IP="${monitoring_private_ip}"
       VPC_CIDR="${vpc_cidr}"
       URL_PORTAL="${url_portal}"
+      # Secrets are read from Key Vault with this VM's managed identity, not
+      # passed in custom_data. The script runs without xtrace (-x) so that no
+      # secret is echoed into /var/log/jambonz-setup.log.
       KEY_VAULT_NAME="${key_vault_name}"
+      IDENTITY_CLIENT_ID="${identity_client_id}"
+      kv_secret() {
+        local token value i
+        for i in $(seq 1 30); do
+          token=$(curl -sf -H Metadata:true --noproxy "*" \
+            "http://169.254.169.254/metadata/identity/oauth2/token?api-version=2018-02-01&resource=https%3A%2F%2Fvault.azure.net&client_id=$IDENTITY_CLIENT_ID" \
+            | python3 -c 'import sys, json; print(json.load(sys.stdin)["access_token"])') &&
+          value=$(curl -sf -H "Authorization: Bearer $token" \
+            "https://$KEY_VAULT_NAME.vault.azure.net/secrets/$1?api-version=7.4" \
+            | python3 -c 'import sys, json; print(json.load(sys.stdin)["value"])') &&
+          { printf '%s' "$value"; return 0; }
+          sleep 10
+        done
+        echo "FATAL: could not read secret $1 from Key Vault $KEY_VAULT_NAME" >&2
+        return 1
+      }
+      MYSQL_PASSWORD=$(kv_secret mysql-password)
+      REDIS_PASSWORD=$(kv_secret redis-password)
+      JWT_SECRET=$(kv_secret encryption-secret)
+      KRISP_LICENSE_KEY=""
+      if [ "${krisp_key_set}" = "true" ]; then KRISP_LICENSE_KEY=$(kv_secret krisp-license-key); fi
       RECORDING_WS_BASE_URL="${recording_ws_base_url}"
-      KRISP_LICENSE_KEY="${krisp_license_key}"
       ENABLE_OTEL="${enable_otel}"
 
       echo "Starting jambonz Feature Server configuration for Azure large deployment"
@@ -167,6 +187,17 @@ write_files:
       # Configure telegraf to send to the monitoring server
       echo "JAMBONES_INFLUX_URL=http://$MONITORING_PRIVATE_IP:8086" | sudo tee -a /etc/default/telegraf > /dev/null
       sudo systemctl restart telegraf
+
+      # Pre-warm the app files before starting node. On a disk created from an
+      # image, the first read of each block takes ~10 ms (vs ~0.2 ms after).
+      # require() reads feature-server's ~30k files one at a time, so a cold
+      # start took 25-30s and the mysql2 pool's 10s connect timer expired
+      # before it had sent a packet (exit 1, pm2 restart). Reading the tree
+      # with many parallel readers overlaps that latency: ~12s instead of
+      # ~2 min serially, and node then starts from cache in ~1s.
+      find $HOME/apps/feature-server /usr/lib/node_modules/pm2 -type f -print0 \
+        | xargs -0 -P 64 -n 64 cat > /dev/null 2>&1 || true
+      cat "$(command -v node)" > /dev/null 2>&1 || true
 
       sudo -u $USER bash -c "pm2 start $HOME/apps/ecosystem.config.js"
       sudo env PATH=$PATH:/usr/bin /usr/lib/node_modules/pm2/bin/pm2 startup systemd -u $USER --hp $HOME

@@ -58,25 +58,24 @@ resource "aws_iam_role_policy" "jambonz_ec2" {
         Resource = "*"
       },
       {
+        # DescribeAutoScalingInstances + DescribeLifecycleHooks: the scale-in drain finds its ASG and hook at startup
         Effect = "Allow"
         Action = [
-          "autoscaling:CompleteLifecycleAction",
           "autoscaling:RecordLifecycleActionHeartbeat",
           "autoscaling:DescribeAutoScalingInstances",
           "autoscaling:DescribeAutoScalingGroups",
+          "autoscaling:DescribeLifecycleHooks",
           "autoscaling:SetInstanceHealth"
         ]
         Resource = "*"
       },
       {
         Effect = "Allow"
-        Action = [
-          "sns:Publish",
-          "sns:Subscribe",
-          "sns:Unsubscribe",
-          "sns:ConfirmSubscription"
+        Action = ["autoscaling:CompleteLifecycleAction"]
+        Resource = [
+          "arn:aws:autoscaling:${var.region}:*:autoScalingGroup:*:autoScalingGroupName/${local.sbc_asg_name}",
+          "arn:aws:autoscaling:${var.region}:*:autoScalingGroup:*:autoScalingGroupName/${local.fs_asg_name}"
         ]
-        Resource = "*"
       },
       {
         Effect   = "Allow"
@@ -90,37 +89,4 @@ resource "aws_iam_role_policy" "jambonz_ec2" {
 resource "aws_iam_instance_profile" "jambonz" {
   name = "${var.name_prefix}-instance-profile"
   role = aws_iam_role.jambonz_ec2.name
-}
-
-# ------------------------------------------------------------------------------
-# LIFECYCLE HOOK IAM ROLE (for ASG -> SNS notifications)
-# ------------------------------------------------------------------------------
-
-resource "aws_iam_role" "lifecycle_hook" {
-  name = "${var.name_prefix}-lifecycle-role"
-
-  assume_role_policy = jsonencode({
-    Version = "2012-10-17"
-    Statement = [{
-      Action = "sts:AssumeRole"
-      Effect = "Allow"
-      Principal = {
-        Service = "autoscaling.amazonaws.com"
-      }
-    }]
-  })
-}
-
-resource "aws_iam_role_policy" "lifecycle_hook_sns" {
-  name = "${var.name_prefix}-lifecycle-sns"
-  role = aws_iam_role.lifecycle_hook.id
-
-  policy = jsonencode({
-    Version = "2012-10-17"
-    Statement = [{
-      Effect   = "Allow"
-      Action   = "sns:Publish"
-      Resource = [aws_sns_topic.sbc_lifecycle.arn, aws_sns_topic.fs_lifecycle.arn]
-    }]
-  })
 }

@@ -47,7 +47,7 @@ This Terraform configuration deploys a jambonz large cluster on Google Cloud Pla
 | SIP | Compute Instance (VM) | drachtio SIP signaling with static IP |
 | RTP | Compute Instance (VM) | rtpengine media with static IP |
 | Feature Server | Managed Instance Group | Scalable call processing |
-| Recording | Managed Instance Group | Optional recording cluster |
+| Recording | Managed Instance Group | Recording cluster |
 | MySQL | Cloud SQL | Private IP, no SSL |
 | Redis | Memorystore | No AUTH, no TLS |
 
@@ -143,7 +143,12 @@ At minimum, you must set:
 - `project_id` - Your GCP project ID
 - `url_portal` - Your domain name
 - `region` - GCP region
-- `zone` - GCP zone
+- `allowed_ssh_cidr` - your admin IP or VPN range (no default)
+
+Servers are spread across `zones` (default: the region's first three). Cloud SQL
+(REGIONAL) and Memorystore (STANDARD_HA) fail over to a second zone. Cloud SQL has
+deletion protection on: set `mysql_deletion_protection = false` and apply before
+`terraform destroy`.
 
 ### 2. Initialize Terraform
 
@@ -272,7 +277,9 @@ sudo -u jambonz pm2 logs
 ### Test Redis connectivity
 
 ```bash
-redis-cli -h <redis-host> -p 6379 PING
+# Redis requires AUTH; the password is in Secret Manager (<name_prefix>-redis-auth)
+REDISCLI_AUTH=$(gcloud secrets versions access latest --secret=<name_prefix>-redis-auth) \
+  redis-cli -h <redis-host> -p 6379 PING
 ```
 
 ### Test MySQL connectivity

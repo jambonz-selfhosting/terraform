@@ -50,7 +50,6 @@ This Terraform configuration deploys a single-instance jambonz server on Azure.
    - `jambonz.example.com` → `<server_ip>`
    - `api.jambonz.example.com` → `<server_ip>`
    - `grafana.jambonz.example.com` → `<server_ip>`
-   - `homer.jambonz.example.com` → `<server_ip>`
    - `sip.jambonz.example.com` → `<server_ip>`
 
    Note: Azure Static Public IPs are stable across reboots.
@@ -79,6 +78,7 @@ jambonz_version = "11.1.2"
 | `tenant_id` | Azure tenant ID |
 | `ssh_public_key` | SSH public key for VM access |
 | `url_portal` | DNS name for the jambonz portal |
+| `allowed_ssh_cidr` | Source range allowed to SSH: your admin IP as `/32`, or your VPN range |
 
 ### Optional Variables
 
@@ -88,13 +88,24 @@ jambonz_version = "11.1.2"
 | `location` | `eastus` | Azure region (see supported regions below) |
 | `vm_size` | `Standard_D2s_v3` | VM size |
 | `disk_size` | `100` | OS disk size in GB |
-| `allowed_ssh_cidr` | `0.0.0.0/0` | CIDR for SSH access |
 | `allowed_http_cidr` | `0.0.0.0/0` | CIDR for HTTP access |
 | `allowed_sip_cidr` | `0.0.0.0/0` | CIDR for SIP access |
 | `allowed_rtp_cidr` | `0.0.0.0/0` | CIDR for RTP access |
 | `apiban_key` | `""` | APIBan API key for single-key mode |
 | `apiban_client_id` | `""` | APIBan client ID for multi-key mode |
 | `apiban_client_secret` | `""` | APIBan client secret for multi-key mode |
+| `log_retention_days` | `90` | Log Analytics retention: 90, 180 or 365 |
+
+### Security
+
+The defaults are built to pass a SOC 2 audit.
+
+- **SSH is closed unless you open it**: `allowed_ssh_cidr` has no default.
+- **Only the public ports are open**: HTTP/HTTPS, SIP (5060 UDP/TCP, 5061 TLS, 8443 WSS) and RTP (40000-60000). Grafana is served through nginx at `grafana.<url_portal>`; Homer and the internal service ports are not reachable from outside.
+- **No secrets in `custom_data` or terraform state**: the JWT/encryption secret and the MySQL password are generated on the VM at first boot, replacing the image's default database password. Secrets you supply (apiban, Krisp) are kept in a Key Vault, created only if you set one, and the VM reads them at boot with its managed identity. The setup script does not run with `bash -x`, so no secret is echoed into `/var/log/jambonz-setup.log`.
+- **Logs**: the Azure Monitor Agent sends syslog (including SSH logins) and the jambonz application logs to a Log Analytics workspace, kept for `log_retention_days`. On first boot the agent installs while jambonz is starting, so roughly the first minute of logs is not collected.
+
+Managed disks are encrypted at rest by Azure, and Azure's instance metadata service already requires the `Metadata: true` header, so neither needs configuring. MySQL and Redis run on the VM, and the NSG keeps them unreachable from outside.
 
 ### Supported Regions
 
@@ -165,7 +176,6 @@ After deployment, Terraform will output:
 
 - **portal_url**: URL for the jambonz web portal
 - **grafana_url**: URL for Grafana monitoring
-- **homer_url**: URL for Homer SIP capture
 - **server_ip**: Public IP address for DNS records (stable across reboots)
 - **resource_group_name**: Azure resource group name
 - **vm_name**: Azure VM name

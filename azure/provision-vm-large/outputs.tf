@@ -6,7 +6,7 @@
 # - SIP (drachtio signaling)
 # - RTP (rtpengine media)
 # - Feature Server (VMSS)
-# - Recording (optional VMSS)
+# - Recording (VMSS)
 
 # ------------------------------------------------------------------------------
 # WEB SERVER OUTPUTS
@@ -94,13 +94,13 @@ output "feature_server_vmss_name" {
 }
 
 output "recording_vmss_name" {
-  description = "Name of the Recording Server VMSS (if deployed)"
-  value       = var.deploy_recording_cluster ? azurerm_linux_virtual_machine_scale_set.recording[0].name : null
+  description = "Name of the Recording Server VMSS"
+  value       = azurerm_linux_virtual_machine_scale_set.recording.name
 }
 
 output "recording_lb_ip" {
-  description = "Private IP of the Recording load balancer (if deployed)"
-  value       = var.deploy_recording_cluster ? azurerm_lb.recording[0].private_ip_address : null
+  description = "Private IP of the Recording load balancer"
+  value       = azurerm_lb.recording.private_ip_address
 }
 
 # ------------------------------------------------------------------------------

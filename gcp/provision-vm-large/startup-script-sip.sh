@@ -1,19 +1,21 @@
-#!/bin/bash -xe
+#!/bin/bash -e
 # Startup script for jambonz SIP server on GCP (Large deployment)
 # Handles Drachtio and SIP-related applications only (no RTPEngine)
+
+${common}
 
 # Variables passed from Terraform
 MYSQL_HOST="${mysql_host}"
 MYSQL_USER="${mysql_user}"
-MYSQL_PASSWORD="${mysql_password}"
 REDIS_HOST="${redis_host}"
 REDIS_PORT="${redis_port}"
-JWT_SECRET="${jwt_secret}"
 MONITORING_PRIVATE_IP="${monitoring_private_ip}"
 VPC_CIDR="${vpc_cidr}"
 ENABLE_PCAPS="${enable_pcaps}"
-RTP_PRIVATE_IPS="${rtp_private_ips}"
 
+MYSQL_PASSWORD=$(gcp_secret mysql-password)
+REDIS_PASSWORD=$(gcp_secret redis-auth)
+JWT_SECRET=$(gcp_secret encryption-secret)
 echo "Starting jambonz SIP server configuration for GCP large deployment"
 
 # Always use jambonz user for apps
@@ -33,24 +35,11 @@ PUBLIC_IP=$(curl -s -H "Metadata-Flavor: Google" http://169.254.169.254/computeM
 echo "Private IP: $PRIVATE_IP"
 echo "Public IP: $PUBLIC_IP"
 echo "Instance ID: $INSTANCE_ID"
-echo "RTP Private IPs: $RTP_PRIVATE_IPS"
 
-# Build RTP engines connection string (IP:port format)
-# Convert comma-separated IPs to comma-separated IP:22222 format
-RTPENGINES=""
-IFS=',' read -ra RTP_IPS <<< "$RTP_PRIVATE_IPS"
-for i in "$${!RTP_IPS[@]}"; do
-    IP="$(echo "$${RTP_IPS[$i]}" | tr -d ' ')"
-    if [ -n "$IP" ]; then
-        if [ -n "$RTPENGINES" ]; then
-            RTPENGINES="$RTPENGINES,$IP:22222"
-        else
-            RTPENGINES="$IP:22222"
-        fi
-    fi
-done
-
-echo "RTPEngines connection string: $RTPENGINES"
+# No JAMBONES_RTPENGINES: inbound/outbound take a static list as a single
+# host:port, so a comma-separated list of RTP servers broke every call. Without
+# it they discover the RTP servers from Redis, where each sbc-rtpengine-sidecar
+# registers itself, as on AWS.
 
 # Configure drachtio service
 sudo sed -i -e "s/MYSQL_HOST=/MYSQL_HOST=$MYSQL_HOST/g" /etc/systemd/system/drachtio.service
@@ -59,6 +48,7 @@ sudo sed -i -e "s/MYSQL_PASSWORD=/MYSQL_PASSWORD=$MYSQL_PASSWORD/g" /etc/systemd
 sudo sed -i -e "s/MYSQL_DATABASE=/MYSQL_DATABASE=jambones/g" /etc/systemd/system/drachtio.service
 sudo sed -i -e "s/JAMBONES_REDIS_HOST=/JAMBONES_REDIS_HOST=$REDIS_HOST/g" /etc/systemd/system/drachtio.service
 sudo sed -i -e "s/JAMBONES_REDIS_PORT=/JAMBONES_REDIS_PORT=$REDIS_PORT/g" /etc/systemd/system/drachtio.service
+sudo sed -i -e "s|JAMBONES_REDIS_PASSWORD=\"|JAMBONES_REDIS_PASSWORD=$REDIS_PASSWORD\"|" /etc/systemd/system/drachtio.service
 
 echo "Writing $HOME/apps/ecosystem.config.js..."
 cat << EOF > $HOME/apps/ecosystem.config.js
@@ -91,6 +81,7 @@ module.exports = {
       JAMBONES_MYSQL_CONNECTION_LIMIT: 10,
       JAMBONES_REDIS_HOST: '$REDIS_HOST',
       JAMBONES_REDIS_PORT: $REDIS_PORT,
+      JAMBONES_REDIS_PASSWORD: '$REDIS_PASSWORD',
       JAMBONES_TIME_SERIES_HOST: '$MONITORING_PRIVATE_IP',
       ENABLE_METRICS: 1,
       STATS_HOST: '127.0.0.1',
@@ -146,7 +137,6 @@ module.exports = {
       JAMBONES_NETWORK_CIDR: '$VPC_CIDR',
       JAMBONES_RTPENGINE_INJECT_DTMF_ALWAYS: 0,
       JAMBONES_RTPENGINE_UDP_PORT: 6000,
-      JAMBONES_RTPENGINES: '$RTPENGINES',
       MIN_CALL_LIMIT: 9999,
       RTPENGINE_PING_INTERVAL: 30000,
       DRACHTIO_HOST: '127.0.0.1',
@@ -159,6 +149,7 @@ module.exports = {
       JAMBONES_MYSQL_CONNECTION_LIMIT: 10,
       JAMBONES_REDIS_HOST: '$REDIS_HOST',
       JAMBONES_REDIS_PORT: $REDIS_PORT,
+      JAMBONES_REDIS_PASSWORD: '$REDIS_PASSWORD',
       JAMBONES_TIME_SERIES_HOST: '$MONITORING_PRIVATE_IP',
       JAMBONES_TRACK_ACCOUNT_CALLS: 0,
       JAMBONES_TRACK_SP_CALLS: 0,
@@ -190,7 +181,6 @@ module.exports = {
       JAMBONES_NETWORK_CIDR: '$VPC_CIDR',
       JAMBONES_RTPENGINE_INJECT_DTMF_ALWAYS: 0,
       JAMBONES_RTPENGINE_UDP_PORT: 7000,
-      JAMBONES_RTPENGINES: '$RTPENGINES',
       DRACHTIO_HOST: '127.0.0.1',
       DRACHTIO_PORT: 9022,
       DRACHTIO_SECRET: 'cymru',
@@ -203,6 +193,7 @@ module.exports = {
       JAMBONES_MYSQL_CONNECTION_LIMIT: 10,
       JAMBONES_REDIS_HOST: '$REDIS_HOST',
       JAMBONES_REDIS_PORT: $REDIS_PORT,
+      JAMBONES_REDIS_PASSWORD: '$REDIS_PASSWORD',
       JAMBONES_TIME_SERIES_HOST: '$MONITORING_PRIVATE_IP',
       ENABLE_METRICS: 1,
       JAMBONES_TRACK_ACCOUNT_CALLS: 0,
@@ -247,9 +238,11 @@ sudo systemctl enable pm2-$USER.service
 # Configure APIBan - supports two modes:
 # 1. Client credentials mode: auto-provision unique key per instance (preferred)
 # 2. Single key mode: use customer-provided key
-APIBAN_KEY="${apiban_key}"
+APIBAN_KEY=""
 APIBAN_CLIENT_ID="${apiban_client_id}"
-APIBAN_CLIENT_SECRET="${apiban_client_secret}"
+APIBAN_CLIENT_SECRET=""
+if [ "${apiban_key_set}" = "true" ]; then APIBAN_KEY=$(gcp_secret apiban-key); fi
+if [ "${apiban_client_set}" = "true" ]; then APIBAN_CLIENT_SECRET=$(gcp_secret apiban-client-secret); fi
 
 if [ -n "$APIBAN_CLIENT_ID" ] && [ -n "$APIBAN_CLIENT_SECRET" ]; then
     echo "Provisioning APIBan key via client credentials..."
@@ -269,5 +262,7 @@ elif [ -n "$APIBAN_KEY" ] && [ -f /usr/local/bin/apiban/config.json ]; then
 else
     echo "Skipping APIBan configuration (no credentials provided)"
 fi
+
+install_ops_agent
 
 echo "SIP server setup complete!"

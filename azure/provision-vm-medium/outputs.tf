@@ -46,8 +46,8 @@ output "feature_server_vmss_name" {
 }
 
 output "recording_vmss_name" {
-  description = "Recording Server Virtual Machine Scale Set name (if deployed)"
-  value       = var.deploy_recording_cluster ? azurerm_linux_virtual_machine_scale_set.recording[0].name : "Not deployed"
+  description = "Recording Server Virtual Machine Scale Set name"
+  value       = azurerm_linux_virtual_machine_scale_set.recording.name
 }
 
 output "mysql_server_fqdn" {
@@ -100,8 +100,8 @@ output "dns_records_required" {
 }
 
 output "recording_lb_ip" {
-  description = "Recording Server Load Balancer IP (if deployed)"
-  value       = var.deploy_recording_cluster ? azurerm_lb.recording[0].private_ip_address : "Not deployed"
+  description = "Recording Server Load Balancer IP"
+  value       = azurerm_lb.recording.private_ip_address
 }
 
 output "key_vault_name" {

@@ -1,6 +1,8 @@
-#!/bin/bash -xe
+#!/bin/bash -e
 # Startup script for jambonz RTP server on GCP (Large deployment)
 # Handles RTPEngine and RTP-related sidecars
+
+${common}
 
 # Variables passed from Terraform
 MONITORING_PRIVATE_IP="${monitoring_private_ip}"
@@ -9,6 +11,7 @@ ENABLE_PCAPS="${enable_pcaps}"
 REDIS_HOST="${redis_host}"
 REDIS_PORT="${redis_port}"
 
+REDIS_PASSWORD=$(gcp_secret redis-auth)
 echo "Starting jambonz RTP server configuration for GCP large deployment"
 
 # Always use jambonz user for apps
@@ -55,7 +58,8 @@ module.exports = {
       STATS_SAMPLE_RATE:1,
       STATS_TELEGRAF: 1,
       JAMBONES_REDIS_HOST: '$REDIS_HOST',
-      JAMBONES_REDIS_PORT: $REDIS_PORT
+      JAMBONES_REDIS_PORT: $REDIS_PORT,
+      JAMBONES_REDIS_PASSWORD: '$REDIS_PASSWORD'
     }
   }
   ]
@@ -82,5 +86,7 @@ sudo -u $USER bash -c "pm2 restart $HOME/apps/ecosystem.config.js"
 sudo env PATH=$PATH:/usr/bin /usr/lib/node_modules/pm2/bin/pm2 startup systemd -u $USER --hp $HOME
 sudo -u $USER bash -c "pm2 save"
 sudo systemctl enable pm2-$USER.service
+
+install_ops_agent
 
 echo "RTP server setup complete!"

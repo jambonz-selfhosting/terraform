@@ -1,17 +1,20 @@
-#!/bin/bash -xe
+#!/bin/bash -e
 # Startup script for jambonz SBC server on GCP
+
+${common}
 
 # Variables passed from Terraform
 MYSQL_HOST="${mysql_host}"
 MYSQL_USER="${mysql_user}"
-MYSQL_PASSWORD="${mysql_password}"
 REDIS_HOST="${redis_host}"
 REDIS_PORT="${redis_port}"
-JWT_SECRET="${jwt_secret}"
 WEB_MONITORING_PRIVATE_IP="${web_monitoring_private_ip}"
 VPC_CIDR="${vpc_cidr}"
 ENABLE_PCAPS="${enable_pcaps}"
 
+MYSQL_PASSWORD=$(gcp_secret mysql-password)
+REDIS_PASSWORD=$(gcp_secret redis-auth)
+JWT_SECRET=$(gcp_secret encryption-secret)
 echo "Starting jambonz SBC server configuration for GCP deployment"
 
 # Always use jambonz user for apps
@@ -40,6 +43,7 @@ sudo sed -i -e "s/MYSQL_PASSWORD=/MYSQL_PASSWORD=$MYSQL_PASSWORD/g" /etc/systemd
 sudo sed -i -e "s/MYSQL_DATABASE=/MYSQL_DATABASE=jambones/g" /etc/systemd/system/drachtio.service
 sudo sed -i -e "s/JAMBONES_REDIS_HOST=/JAMBONES_REDIS_HOST=$REDIS_HOST/g" /etc/systemd/system/drachtio.service
 sudo sed -i -e "s/JAMBONES_REDIS_PORT=/JAMBONES_REDIS_PORT=$REDIS_PORT/g" /etc/systemd/system/drachtio.service
+sudo sed -i -e "s|JAMBONES_REDIS_PASSWORD=\"|JAMBONES_REDIS_PASSWORD=$REDIS_PASSWORD\"|" /etc/systemd/system/drachtio.service
 
 echo "Writing $HOME/apps/ecosystem.config.js..."
 cat << EOF > $HOME/apps/ecosystem.config.js
@@ -72,6 +76,7 @@ module.exports = {
       JAMBONES_MYSQL_CONNECTION_LIMIT: 10,
       JAMBONES_REDIS_HOST: '$REDIS_HOST',
       JAMBONES_REDIS_PORT: $REDIS_PORT,
+      JAMBONES_REDIS_PASSWORD: '$REDIS_PASSWORD',
       JAMBONES_TIME_SERIES_HOST: '$WEB_MONITORING_PRIVATE_IP',
       ENABLE_METRICS: 1,
       STATS_HOST: '127.0.0.1',
@@ -164,6 +169,7 @@ module.exports = {
       JAMBONES_MYSQL_CONNECTION_LIMIT: 10,
       JAMBONES_REDIS_HOST: '$REDIS_HOST',
       JAMBONES_REDIS_PORT: $REDIS_PORT,
+      JAMBONES_REDIS_PASSWORD: '$REDIS_PASSWORD',
       JAMBONES_TIME_SERIES_HOST: '$WEB_MONITORING_PRIVATE_IP',
       JAMBONES_TRACK_ACCOUNT_CALLS: 0,
       JAMBONES_TRACK_SP_CALLS: 0,
@@ -208,6 +214,7 @@ module.exports = {
       JAMBONES_MYSQL_CONNECTION_LIMIT: 10,
       JAMBONES_REDIS_HOST: '$REDIS_HOST',
       JAMBONES_REDIS_PORT: $REDIS_PORT,
+      JAMBONES_REDIS_PASSWORD: '$REDIS_PASSWORD',
       JAMBONES_TIME_SERIES_HOST: '$WEB_MONITORING_PRIVATE_IP',
       ENABLE_METRICS: 1,
       JAMBONES_TRACK_ACCOUNT_CALLS: 0,
@@ -254,9 +261,11 @@ sudo systemctl enable pm2-$USER.service
 # Configure APIBan - supports two modes:
 # 1. Client credentials mode: auto-provision unique key per instance (preferred)
 # 2. Single key mode: use customer-provided key
-APIBAN_KEY="${apiban_key}"
+APIBAN_KEY=""
 APIBAN_CLIENT_ID="${apiban_client_id}"
-APIBAN_CLIENT_SECRET="${apiban_client_secret}"
+APIBAN_CLIENT_SECRET=""
+if [ "${apiban_key_set}" = "true" ]; then APIBAN_KEY=$(gcp_secret apiban-key); fi
+if [ "${apiban_client_set}" = "true" ]; then APIBAN_CLIENT_SECRET=$(gcp_secret apiban-client-secret); fi
 
 if [ -n "$APIBAN_CLIENT_ID" ] && [ -n "$APIBAN_CLIENT_SECRET" ]; then
     echo "Provisioning APIBan key via client credentials..."
@@ -276,5 +285,7 @@ elif [ -n "$APIBAN_KEY" ] && [ -f /usr/local/bin/apiban/config.json ]; then
 else
     echo "Skipping APIBan configuration (no credentials provided)"
 fi
+
+install_ops_agent
 
 echo "SBC server setup complete!"

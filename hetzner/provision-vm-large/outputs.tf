@@ -52,8 +52,8 @@ output "feature_server_public_ips" {
 }
 
 output "recording_server_public_ips" {
-  description = "Recording server public IPs (if deployed)"
-  value       = var.deploy_recording_cluster ? [for s in hcloud_server.recording : s.ipv4_address] : []
+  description = "Recording server public IPs"
+  value       = [for s in hcloud_server.recording : s.ipv4_address]
 }
 
 # =============================================================================
@@ -71,8 +71,8 @@ output "monitoring_private_ip" {
 }
 
 output "recording_lb_ip" {
-  description = "Recording load balancer IP (if deployed)"
-  value       = var.deploy_recording_cluster ? hcloud_load_balancer.recording[0].ipv4 : null
+  description = "Recording load balancer IP"
+  value       = hcloud_load_balancer.recording.ipv4
 }
 
 # =============================================================================
@@ -151,8 +151,8 @@ output "ssh_feature_servers" {
 }
 
 output "ssh_recording_servers" {
-  description = "SSH commands for recording servers (if deployed)"
-  value       = var.deploy_recording_cluster ? [for i, s in hcloud_server.recording : "ssh jambonz@${s.ipv4_address}  # REC-${i + 1}"] : []
+  description = "SSH commands for recording servers"
+  value       = [for i, s in hcloud_server.recording : "ssh jambonz@${s.ipv4_address}  # REC-${i + 1}"]
 }
 
 output "ssh_config_snippet" {
@@ -198,13 +198,11 @@ output "ssh_config_snippet" {
     %{endfor~}
 
     # Recording Servers
-    %{if var.deploy_recording_cluster~}
     %{for i, s in hcloud_server.recording~}
     Host jambonz-rec-${i + 1}
       HostName ${s.ipv4_address}
       User jambonz
     %{endfor~}
-    %{endif~}
   EOT
 }
 
@@ -270,7 +268,7 @@ output "deployment_summary" {
     RTP Servers:    ${join(", ", [for s in hcloud_server.rtp : s.ipv4_address])}
 
     Feature Servers: ${join(", ", [for s in hcloud_server.feature_server : s.ipv4_address])}
-    Recording Cluster: ${var.deploy_recording_cluster ? join(", ", [for s in hcloud_server.recording : s.ipv4_address]) : "Not deployed"}
+    Recording Cluster: ${join(", ", [for s in hcloud_server.recording : s.ipv4_address])}
 
     MySQL:  ${local.db_private_ip}:3306 (dedicated DB VM)
     Redis:  ${local.db_private_ip}:6379 (on dedicated DB VM)

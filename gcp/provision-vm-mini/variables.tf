@@ -72,9 +72,13 @@ variable "public_subnet_cidr" {
 # ------------------------------------------------------------------------------
 
 variable "allowed_ssh_cidr" {
-  description = "CIDR blocks allowed SSH access"
+  description = "REQUIRED: the source ranges allowed to SSH to any server: your admin IP as x.x.x.x/32, or your VPN range. There is no default on purpose; 0.0.0.0/0 opens SSH to the whole internet."
   type        = list(string)
-  default     = ["0.0.0.0/0"]
+
+  validation {
+    condition     = length(var.allowed_ssh_cidr) > 0 && alltrue([for c in var.allowed_ssh_cidr : can(cidrhost(c, 0))])
+    error_message = "allowed_ssh_cidr must list one or more CIDR ranges, e.g. [\"203.0.113.10/32\"]."
+  }
 }
 
 variable "allowed_http_cidr" {
@@ -215,5 +219,20 @@ variable "disk_type" {
   validation {
     condition     = contains(["pd-ssd", "pd-balanced", "pd-standard", "hyperdisk-balanced"], var.disk_type)
     error_message = "disk_type must be one of pd-ssd, pd-balanced, pd-standard, hyperdisk-balanced."
+  }
+}
+
+# ------------------------------------------------------------------------------
+# LOGGING
+# ------------------------------------------------------------------------------
+
+variable "log_retention_days" {
+  description = "Days to keep jambonz logs in the deployment's Cloud Logging bucket. SOC 2 typically expects 90 days or more."
+  type        = number
+  default     = 90
+
+  validation {
+    condition     = contains([90, 180, 365], var.log_retention_days)
+    error_message = "log_retention_days must be 90, 180 or 365."
   }
 }

@@ -42,7 +42,7 @@ output "sbc_instance_names" {
 
 output "feature_server_mig_name" {
   description = "Feature Server Managed Instance Group name"
-  value       = google_compute_instance_group_manager.feature_server.name
+  value       = google_compute_region_instance_group_manager.feature_server.name
 }
 
 output "list_feature_servers_command" {
@@ -52,12 +52,12 @@ output "list_feature_servers_command" {
 
 output "scale_feature_servers_command" {
   description = "Command to scale Feature Servers (replace N with desired count)"
-  value       = "gcloud compute instance-groups managed resize ${google_compute_instance_group_manager.feature_server.name} --size=N --zone=${var.zone} --project=${var.project_id}"
+  value       = "gcloud compute instance-groups managed resize ${google_compute_region_instance_group_manager.feature_server.name} --size=N --region=${var.region} --project=${var.project_id}"
 }
 
 output "recording_mig_name" {
-  description = "Recording Server Managed Instance Group name (if deployed)"
-  value       = var.deploy_recording_cluster ? google_compute_instance_group_manager.recording[0].name : "Not deployed"
+  description = "Recording Server Managed Instance Group name"
+  value       = google_compute_region_instance_group_manager.recording.name
 }
 
 output "mysql_private_ip" {
@@ -115,8 +115,8 @@ output "dns_records_required" {
 }
 
 output "recording_lb_ip" {
-  description = "Recording Server Load Balancer IP (if deployed)"
-  value       = var.deploy_recording_cluster ? google_compute_forwarding_rule.recording[0].ip_address : "Not deployed"
+  description = "Recording Server Load Balancer IP"
+  value       = google_compute_forwarding_rule.recording.ip_address
 }
 
 output "service_account_email" {

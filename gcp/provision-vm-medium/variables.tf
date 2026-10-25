@@ -14,9 +14,15 @@ variable "region" {
   type        = string
 }
 
-variable "zone" {
-  description = "GCP zone for zonal resources"
-  type        = string
+variable "zones" {
+  description = "Zones to spread the deployment across. SBCs are placed round-robin, the feature server and recording groups are regional across them, Cloud SQL keeps a standby and Redis a replica in another zone. Leave empty to use the region's first three zones. Every zone listed must offer your machine types (arm64 c4a is not in every zone)."
+  type        = list(string)
+  default     = []
+
+  validation {
+    condition     = length(var.zones) != 1
+    error_message = "zones must be empty (use the region's first three) or list two or more zones."
+  }
 }
 
 # ------------------------------------------------------------------------------
@@ -71,9 +77,13 @@ variable "public_subnet_cidr" {
 # ------------------------------------------------------------------------------
 
 variable "allowed_ssh_cidr" {
-  description = "CIDR blocks allowed SSH access"
+  description = "REQUIRED: the source ranges allowed to SSH to any server: your admin IP as x.x.x.x/32, or your VPN range. There is no default on purpose; 0.0.0.0/0 opens SSH to the whole internet."
   type        = list(string)
-  default     = ["0.0.0.0/0"]
+
+  validation {
+    condition     = length(var.allowed_ssh_cidr) > 0 && alltrue([for c in var.allowed_ssh_cidr : can(cidrhost(c, 0))])
+    error_message = "allowed_ssh_cidr must list one or more CIDR ranges, e.g. [\"203.0.113.10/32\"]."
+  }
 }
 
 variable "allowed_http_cidr" {
@@ -169,15 +179,15 @@ variable "recording_image" {
   type        = string
   default     = ""
 
-  # deploy_recording_cluster defaults to true, so a deployment that never sets
+  # The recording cluster is always deployed, so a deployment that never sets
   # recording_image reaches `terraform apply` with source_image = "". plan
   # SUCCEEDS in that state -- it is a valid empty string -- and the failure only
   # lands mid-apply when the GCP API rejects an image with no source, by which
   # point ~35 other resources exist and have to be torn down by hand. Fail here
   # instead, at plan time, with a message that says what to do.
   validation {
-    condition     = !var.deploy_recording_cluster || length(trimspace(var.recording_image)) > 0
-    error_message = "recording_image must be set when deploy_recording_cluster is true (the default). Supply the jambonz recording image, e.g. projects/drachtio-cpaas/global/images/jambonz-recording-<version>-debian-12-amd64-<ts>, or set deploy_recording_cluster = false to skip the recording cluster."
+    condition     = length(trimspace(var.recording_image)) > 0
+    error_message = "recording_image must be set. Supply the jambonz recording image, e.g. projects/drachtio-cpaas/global/images/jambonz-recording-<version>-debian-12-amd64-<ts>."
   }
   # An arm64 deployment needs arm64 images, an arm machine family and (for c4a)
   # a hyperdisk boot disk to agree. GCP images declare their own architecture, so
@@ -277,9 +287,9 @@ variable "recording_disk_size" {
 # ------------------------------------------------------------------------------
 
 variable "sbc_count" {
-  description = "Number of SBC instances to deploy (each gets a static public IP)"
+  description = "Number of SBC instances to deploy (each gets a static public IP). Two or more are spread across zones."
   type        = number
-  default     = 1
+  default     = 2
 
   validation {
     condition     = var.sbc_count >= 1 && var.sbc_count <= 10
@@ -292,9 +302,9 @@ variable "sbc_count" {
 # ------------------------------------------------------------------------------
 
 variable "feature_server_target_size" {
-  description = "Target number of Feature Server instances"
+  description = "Target number of Feature Server instances. Two or more are spread across zones."
   type        = number
-  default     = 1
+  default     = 2
 }
 
 variable "feature_server_min_replicas" {
@@ -394,9 +404,9 @@ variable "redis_memory_size_gb" {
 }
 
 variable "redis_tier" {
-  description = "Redis tier (BASIC or STANDARD_HA)"
+  description = "Redis tier: STANDARD_HA keeps a replica in another zone with automatic failover; BASIC has no replica."
   type        = string
-  default     = "BASIC"
+  default     = "STANDARD_HA"
 
   validation {
     condition     = contains(["BASIC", "STANDARD_HA"], var.redis_tier)
@@ -445,12 +455,6 @@ variable "enable_pcaps" {
   default     = true
 }
 
-variable "deploy_recording_cluster" {
-  description = "Deploy the recording server cluster"
-  type        = bool
-  default     = true
-}
-
 variable "feature_server_public_ip" {
   description = "Assign public IPs to Feature Server instances (false = use Cloud NAT for outbound)"
   type        = bool
@@ -480,5 +484,32 @@ variable "disk_type" {
   validation {
     condition     = contains(["pd-ssd", "pd-balanced", "pd-standard", "hyperdisk-balanced"], var.disk_type)
     error_message = "disk_type must be one of pd-ssd, pd-balanced, pd-standard, hyperdisk-balanced."
+  }
+}
+
+# ------------------------------------------------------------------------------
+# DATABASE PROTECTION AND LOGGING
+# ------------------------------------------------------------------------------
+
+variable "mysql_high_availability" {
+  description = "Keep a Cloud SQL standby in a second zone with automatic failover (REGIONAL availability)."
+  type        = bool
+  default     = true
+}
+
+variable "mysql_deletion_protection" {
+  description = "Protect the Cloud SQL instance from deletion, by terraform destroy and by the console or gcloud. Set to false and apply before destroying the deployment."
+  type        = bool
+  default     = true
+}
+
+variable "log_retention_days" {
+  description = "Days to keep jambonz logs in the deployment's Cloud Logging bucket. SOC 2 typically expects 90 days or more."
+  type        = number
+  default     = 90
+
+  validation {
+    condition     = contains([90, 180, 365], var.log_retention_days)
+    error_message = "log_retention_days must be 90, 180 or 365."
   }
 }

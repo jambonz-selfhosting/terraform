@@ -1,6 +1,14 @@
 # Compute resources for jambonz medium cluster on GCP
 # Web/Monitoring VM, SBC VMs, Feature Server MIG, Recording MIG
 
+locals {
+  # Prepended to every startup script: Secret Manager access and the Ops Agent.
+  startup_common = templatefile("${path.module}/startup-common.sh", {
+    project_id    = var.project_id
+    secret_prefix = var.name_prefix
+  })
+}
+
 # ------------------------------------------------------------------------------
 # WEB/MONITORING SERVER
 # ------------------------------------------------------------------------------
@@ -14,7 +22,7 @@ resource "google_compute_address" "web_monitoring" {
 resource "google_compute_instance" "web_monitoring" {
   name         = "${var.name_prefix}-web-monitoring"
   machine_type = var.web_monitoring_machine_type
-  zone         = var.zone
+  zone         = local.zones[0]
 
   tags = ["jambonz", "jambonz-web"]
 
@@ -45,15 +53,13 @@ resource "google_compute_instance" "web_monitoring" {
   }
 
   metadata_startup_script = templatefile("${path.module}/startup-script-web-monitoring.sh", {
-    mysql_host               = google_sql_database_instance.jambonz.private_ip_address
-    mysql_user               = var.mysql_username
-    mysql_password           = local.db_password
-    redis_host               = google_redis_instance.jambonz.host
-    redis_port               = google_redis_instance.jambonz.port
-    jwt_secret               = random_password.encryption_secret.result
-    url_portal               = var.url_portal
-    vpc_cidr                 = var.vpc_cidr
-    deploy_recording_cluster = var.deploy_recording_cluster
+    common     = local.startup_common
+    mysql_host = google_sql_database_instance.jambonz.private_ip_address
+    mysql_user = var.mysql_username
+    redis_host = google_redis_instance.jambonz.host
+    redis_port = google_redis_instance.jambonz.port
+    url_portal = var.url_portal
+    vpc_cidr   = var.vpc_cidr
   })
 
   labels = {
@@ -63,6 +69,8 @@ resource "google_compute_instance" "web_monitoring" {
   }
 
   depends_on = [
+    google_secret_manager_secret_version.jambonz,
+    google_secret_manager_secret_iam_member.jambonz,
     google_sql_database_instance.jambonz,
     google_redis_instance.jambonz
   ]
@@ -83,7 +91,8 @@ resource "google_compute_instance" "sbc" {
   count        = var.sbc_count
   name         = "${var.name_prefix}-sbc-${count.index}"
   machine_type = var.sbc_machine_type
-  zone         = var.zone
+  # Round-robin across zones, so two or more SBCs survive a zone outage.
+  zone = local.zones[count.index % length(local.zones)]
 
   tags = ["jambonz", "jambonz-sbc"]
 
@@ -114,18 +123,17 @@ resource "google_compute_instance" "sbc" {
   }
 
   metadata_startup_script = templatefile("${path.module}/startup-script-sbc.sh", {
+    common                    = local.startup_common
     mysql_host                = google_sql_database_instance.jambonz.private_ip_address
     mysql_user                = var.mysql_username
-    mysql_password            = local.db_password
     redis_host                = google_redis_instance.jambonz.host
     redis_port                = google_redis_instance.jambonz.port
-    jwt_secret                = random_password.encryption_secret.result
     web_monitoring_private_ip = google_compute_instance.web_monitoring.network_interface[0].network_ip
     vpc_cidr                  = var.vpc_cidr
     enable_pcaps              = var.enable_pcaps
-    apiban_key                = var.apiban_key
+    apiban_key_set            = var.apiban_key != ""
     apiban_client_id          = var.apiban_client_id
-    apiban_client_secret      = var.apiban_client_secret
+    apiban_client_set         = var.apiban_client_secret != ""
   })
 
   labels = {
@@ -135,6 +143,8 @@ resource "google_compute_instance" "sbc" {
   }
 
   depends_on = [
+    google_secret_manager_secret_version.jambonz,
+    google_secret_manager_secret_iam_member.jambonz,
     google_compute_instance.web_monitoring
   ]
 }
@@ -182,20 +192,17 @@ resource "google_compute_instance_template" "feature_server" {
   }
 
   metadata_startup_script = templatefile("${path.module}/startup-script-feature-server.sh", {
+    common                    = local.startup_common
     mysql_host                = google_sql_database_instance.jambonz.private_ip_address
     mysql_user                = var.mysql_username
-    mysql_password            = local.db_password
     redis_host                = google_redis_instance.jambonz.host
     redis_port                = google_redis_instance.jambonz.port
-    jwt_secret                = random_password.encryption_secret.result
     web_monitoring_private_ip = google_compute_instance.web_monitoring.network_interface[0].network_ip
     vpc_cidr                  = var.vpc_cidr
     url_portal                = var.url_portal
-    recording_ws_base_url     = var.deploy_recording_cluster ? "ws://${google_compute_forwarding_rule.recording[0].ip_address}:3000" : "ws://${google_compute_instance.web_monitoring.network_interface[0].network_ip}:3017"
+    recording_ws_base_url     = "ws://${google_compute_forwarding_rule.recording.ip_address}:3000"
     scale_in_timeout_seconds  = var.scale_in_timeout_seconds
-    project_id                = var.project_id
-    zone                      = var.zone
-    krisp_license_key         = var.krisp_license_key
+    krisp_key_set             = var.krisp_license_key != ""
   })
 
   labels = {
@@ -224,11 +231,13 @@ resource "google_compute_health_check" "feature_server" {
 }
 
 # Managed Instance Group for Feature Servers
-resource "google_compute_instance_group_manager" "feature_server" {
-  name               = "${var.name_prefix}-fs-mig"
-  base_instance_name = "${var.name_prefix}-fs"
-  zone               = var.zone
-  target_size        = var.feature_server_target_size
+# Regional: instances are spread across local.zones and survive a zone outage.
+resource "google_compute_region_instance_group_manager" "feature_server" {
+  name                      = "${var.name_prefix}-fs-mig"
+  base_instance_name        = "${var.name_prefix}-fs"
+  region                    = var.region
+  distribution_policy_zones = local.zones
+  target_size               = var.feature_server_target_size
 
   version {
     instance_template = google_compute_instance_template.feature_server.id
@@ -243,8 +252,8 @@ resource "google_compute_instance_group_manager" "feature_server" {
     type                           = "PROACTIVE"
     minimal_action                 = "REPLACE"
     most_disruptive_allowed_action = "REPLACE"
-    max_unavailable_fixed          = 1
-    max_surge_fixed                = 1
+    max_unavailable_fixed          = length(local.zones)
+    max_surge_fixed                = length(local.zones)
   }
 
   named_port {
@@ -253,43 +262,42 @@ resource "google_compute_instance_group_manager" "feature_server" {
   }
 
   depends_on = [
+    google_secret_manager_secret_version.jambonz,
+    google_secret_manager_secret_iam_member.jambonz,
     google_compute_instance.web_monitoring
   ]
 }
 
 # ------------------------------------------------------------------------------
-# RECORDING SERVER CLUSTER (CONDITIONAL)
+# RECORDING SERVER CLUSTER
 # ------------------------------------------------------------------------------
 
 # Internal Load Balancer for Recording Servers
 resource "google_compute_forwarding_rule" "recording" {
-  count                 = var.deploy_recording_cluster ? 1 : 0
   name                  = "${var.name_prefix}-recording-lb"
   region                = var.region
   load_balancing_scheme = "INTERNAL"
-  backend_service       = google_compute_region_backend_service.recording[0].id
+  backend_service       = google_compute_region_backend_service.recording.id
   ports                 = ["3000"]
   network               = google_compute_network.jambonz.id
   subnetwork            = google_compute_subnetwork.public.id
 }
 
 resource "google_compute_region_backend_service" "recording" {
-  count                 = var.deploy_recording_cluster ? 1 : 0
   name                  = "${var.name_prefix}-recording-backend"
   region                = var.region
   load_balancing_scheme = "INTERNAL"
   protocol              = "TCP"
 
   backend {
-    group          = google_compute_instance_group_manager.recording[0].instance_group
+    group          = google_compute_region_instance_group_manager.recording.instance_group
     balancing_mode = "CONNECTION"
   }
 
-  health_checks = [google_compute_health_check.recording[0].id]
+  health_checks = [google_compute_health_check.recording.id]
 }
 
 resource "google_compute_health_check" "recording" {
-  count               = var.deploy_recording_cluster ? 1 : 0
   name                = "${var.name_prefix}-recording-health"
   check_interval_sec  = 15
   timeout_sec         = 5
@@ -304,7 +312,6 @@ resource "google_compute_health_check" "recording" {
 
 # Instance template for Recording Servers
 resource "google_compute_instance_template" "recording" {
-  count        = var.deploy_recording_cluster ? 1 : 0
   name_prefix  = "${var.name_prefix}-recording-"
   machine_type = var.recording_machine_type
   region       = var.region
@@ -312,7 +319,7 @@ resource "google_compute_instance_template" "recording" {
   tags = ["jambonz", "jambonz-recording"]
 
   disk {
-    source_image = google_compute_image.recording[0].self_link
+    source_image = google_compute_image.recording.self_link
     auto_delete  = true
     boot         = true
     disk_type    = var.disk_type
@@ -335,10 +342,9 @@ resource "google_compute_instance_template" "recording" {
   }
 
   metadata_startup_script = templatefile("${path.module}/startup-script-recording.sh", {
+    common                    = local.startup_common
     mysql_host                = google_sql_database_instance.jambonz.private_ip_address
     mysql_user                = var.mysql_username
-    mysql_password            = local.db_password
-    jwt_secret                = random_password.encryption_secret.result
     web_monitoring_private_ip = google_compute_instance.web_monitoring.network_interface[0].network_ip
   })
 
@@ -354,19 +360,19 @@ resource "google_compute_instance_template" "recording" {
 }
 
 # Managed Instance Group for Recording Servers
-resource "google_compute_instance_group_manager" "recording" {
-  count              = var.deploy_recording_cluster ? 1 : 0
-  name               = "${var.name_prefix}-recording-mig"
-  base_instance_name = "${var.name_prefix}-recording"
-  zone               = var.zone
-  target_size        = var.recording_target_size
+resource "google_compute_region_instance_group_manager" "recording" {
+  name                      = "${var.name_prefix}-recording-mig"
+  base_instance_name        = "${var.name_prefix}-recording"
+  region                    = var.region
+  distribution_policy_zones = local.zones
+  target_size               = var.recording_target_size
 
   version {
-    instance_template = google_compute_instance_template.recording[0].id
+    instance_template = google_compute_instance_template.recording.id
   }
 
   auto_healing_policies {
-    health_check      = google_compute_health_check.recording[0].id
+    health_check      = google_compute_health_check.recording.id
     initial_delay_sec = 300
   }
 
@@ -374,8 +380,8 @@ resource "google_compute_instance_group_manager" "recording" {
     type                           = "PROACTIVE"
     minimal_action                 = "REPLACE"
     most_disruptive_allowed_action = "REPLACE"
-    max_unavailable_fixed          = 1
-    max_surge_fixed                = 1
+    max_unavailable_fixed          = length(local.zones)
+    max_surge_fixed                = length(local.zones)
   }
 
   named_port {
@@ -384,16 +390,17 @@ resource "google_compute_instance_group_manager" "recording" {
   }
 
   depends_on = [
+    google_secret_manager_secret_version.jambonz,
+    google_secret_manager_secret_iam_member.jambonz,
     google_compute_instance.web_monitoring
   ]
 }
 
 # Autoscaler for Recording Servers
-resource "google_compute_autoscaler" "recording" {
-  count  = var.deploy_recording_cluster ? 1 : 0
+resource "google_compute_region_autoscaler" "recording" {
   name   = "${var.name_prefix}-recording-autoscaler"
-  zone   = var.zone
-  target = google_compute_instance_group_manager.recording[0].id
+  region = var.region
+  target = google_compute_region_instance_group_manager.recording.id
 
   autoscaling_policy {
     min_replicas    = var.recording_min_replicas

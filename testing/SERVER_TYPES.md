@@ -95,14 +95,14 @@ Handles call recording.
 - 1x web-monitoring server (combined)
 - 1-5x SBC servers (scalable)
 - 1-10x Feature servers (MIG, scalable)
-- 1-5x Recording servers (MIG, scalable, optional)
+- 1-5x Recording servers (MIG, scalable)
 
 ### Large Deployment
 - 1-2x Web servers
 - 1x Monitoring server
 - 2-20x SBC servers (scalable)
 - 2-50x Feature servers (MIG, scalable)
-- 1-10x Recording servers (MIG, scalable, optional)
+- 1-10x Recording servers (MIG, scalable)
 
 ## Service Checks
 

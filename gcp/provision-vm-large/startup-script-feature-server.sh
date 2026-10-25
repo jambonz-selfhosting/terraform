@@ -1,22 +1,23 @@
-#!/bin/bash -xe
+#!/bin/bash -e
 # Startup script for jambonz Feature Server on GCP (Large deployment)
 # Includes graceful scale-in support via Redis polling
+
+${common}
 
 # Variables passed from Terraform
 MYSQL_HOST="${mysql_host}"
 MYSQL_USER="${mysql_user}"
-MYSQL_PASSWORD="${mysql_password}"
 REDIS_HOST="${redis_host}"
 REDIS_PORT="${redis_port}"
-JWT_SECRET="${jwt_secret}"
 MONITORING_PRIVATE_IP="${monitoring_private_ip}"
 VPC_CIDR="${vpc_cidr}"
 URL_PORTAL="${url_portal}"
 RECORDING_WS_BASE_URL="${recording_ws_base_url}"
 SCALE_IN_TIMEOUT_SECONDS="${scale_in_timeout_seconds}"
-PROJECT_ID="${project_id}"
-ZONE="${zone}"
 
+MYSQL_PASSWORD=$(gcp_secret mysql-password)
+REDIS_PASSWORD=$(gcp_secret redis-auth)
+JWT_SECRET=$(gcp_secret encryption-secret)
 echo "Starting jambonz Feature Server configuration for GCP large deployment"
 
 # Always use jambonz user for apps
@@ -75,6 +76,7 @@ apps : [
       JAMBONES_MYSQL_CONNECTION_LIMIT: 10,
       JAMBONES_REDIS_HOST: '$REDIS_HOST',
       JAMBONES_REDIS_PORT: $REDIS_PORT,
+      JAMBONES_REDIS_PASSWORD: '$REDIS_PASSWORD',
       JAMBONES_TIME_SERIES_HOST: '$MONITORING_PRIVATE_IP',
       HTTP_PORT: 3000,
       HTTP_PORT_MAX: 3009,
@@ -103,9 +105,12 @@ echo "Finished writing config file"
 # "no available feature servers" / 480.
 #
 # mediajam takes no MySQL configuration -- only redis (licensing) and Krisp.
-KRISP_LICENSE_KEY="${krisp_license_key}"
+KRISP_LICENSE_KEY=""
+if [ "${krisp_key_set}" = "true" ]; then KRISP_LICENSE_KEY=$(gcp_secret krisp-license-key); fi
 sudo sed -i -e "s|^#\?JAMBONES_REDIS_HOST=.*|JAMBONES_REDIS_HOST=$REDIS_HOST|" /etc/default/mediajam
 sudo sed -i -e "s|^#\?JAMBONES_REDIS_PORT=.*|JAMBONES_REDIS_PORT=$REDIS_PORT|" /etc/default/mediajam
+sudo sed -i -e "/^#\?JAMBONES_REDIS_PASSWORD=/d" /etc/default/mediajam
+echo "JAMBONES_REDIS_PASSWORD=$REDIS_PASSWORD" | sudo tee -a /etc/default/mediajam > /dev/null
 if [ -n "$KRISP_LICENSE_KEY" ]; then
     sudo sed -i -e "s|^KRISP_API_KEY=.*|KRISP_API_KEY=$KRISP_LICENSE_KEY|" /etc/default/mediajam
 fi
@@ -138,6 +143,7 @@ cat << 'SCRIPT' > /usr/local/bin/check-scale-in.sh
 
 REDIS_HOST="__REDIS_HOST__"
 REDIS_PORT="__REDIS_PORT__"
+export REDISCLI_AUTH="__REDIS_PASSWORD__"
 INSTANCE_NAME="__INSTANCE_NAME__"
 SCALE_IN_TIMEOUT="__SCALE_IN_TIMEOUT__"
 PROJECT_ID="__PROJECT_ID__"
@@ -221,9 +227,14 @@ sed -i "s/__REDIS_PORT__/$REDIS_PORT/g" /usr/local/bin/check-scale-in.sh
 sed -i "s/__INSTANCE_NAME__/$INSTANCE_NAME/g" /usr/local/bin/check-scale-in.sh
 sed -i "s/__SCALE_IN_TIMEOUT__/$SCALE_IN_TIMEOUT_SECONDS/g" /usr/local/bin/check-scale-in.sh
 sed -i "s/__PROJECT_ID__/$PROJECT_ID/g" /usr/local/bin/check-scale-in.sh
+# The instance group is regional, so this instance's zone comes from the metadata
+# server, not from terraform.
+ZONE=$(curl -s -H "Metadata-Flavor: Google" http://169.254.169.254/computeMetadata/v1/instance/zone | awk -F/ '{print $NF}')
 sed -i "s/__ZONE__/$ZONE/g" /usr/local/bin/check-scale-in.sh
+sed -i "s|__REDIS_PASSWORD__|$REDIS_PASSWORD|g" /usr/local/bin/check-scale-in.sh
 
-chmod +x /usr/local/bin/check-scale-in.sh
+# root-only: the script holds the Redis password
+chmod 700 /usr/local/bin/check-scale-in.sh
 
 # Add cron job to poll every 10 seconds
 echo "* * * * * root /usr/local/bin/check-scale-in.sh" >> /etc/crontab
@@ -232,5 +243,7 @@ echo "* * * * * root sleep 20 && /usr/local/bin/check-scale-in.sh" >> /etc/cront
 echo "* * * * * root sleep 30 && /usr/local/bin/check-scale-in.sh" >> /etc/crontab
 echo "* * * * * root sleep 40 && /usr/local/bin/check-scale-in.sh" >> /etc/crontab
 echo "* * * * * root sleep 50 && /usr/local/bin/check-scale-in.sh" >> /etc/crontab
+
+install_ops_agent
 
 echo "Feature Server setup complete!"

@@ -151,15 +151,6 @@ resource "aws_security_group" "sbc" {
     cidr_blocks = [var.vpc_cidr]
   }
 
-  # SNS callbacks
-  ingress {
-    description = "SNS callbacks"
-    from_port   = 3010
-    to_port     = 3019
-    protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"]
-  }
-
   # Prometheus scrape
   ingress {
     description = "Prometheus"
@@ -205,15 +196,6 @@ resource "aws_security_group" "sbc" {
     cidr_blocks = [var.vpc_cidr]
   }
 
-  # SNS HTTP access
-  ingress {
-    description = "SNS HTTP"
-    from_port   = 3001
-    to_port     = 3001
-    protocol    = "tcp"
-    cidr_blocks = var.allowed_http_cidr
-  }
-
   egress {
     from_port   = 0
     to_port     = 0
@@ -242,15 +224,6 @@ resource "aws_security_group" "feature_server" {
     to_port     = 3009
     protocol    = "tcp"
     cidr_blocks = [var.vpc_cidr]
-  }
-
-  # SNS callbacks
-  ingress {
-    description = "SNS callbacks"
-    from_port   = 3010
-    to_port     = 3019
-    protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"]
   }
 
   # SIP from VPC
@@ -343,15 +316,6 @@ resource "aws_security_group" "web_monitoring" {
     cidr_blocks = var.allowed_http_cidr
   }
 
-  # upload_recordings from feature servers
-  ingress {
-    description = "upload_recordings from feature servers"
-    from_port   = 3017
-    to_port     = 3017
-    protocol    = "tcp"
-    security_groups = [aws_security_group.feature_server.id]
-  }
-
   # Grafana from VPC
   ingress {
     description = "Grafana"
@@ -425,11 +389,10 @@ resource "aws_security_group" "web_monitoring" {
 }
 
 # ------------------------------------------------------------------------------
-# RECORDING ALB SECURITY GROUP (conditional)
+# RECORDING ALB SECURITY GROUP
 # ------------------------------------------------------------------------------
 
 resource "aws_security_group" "recording_alb" {
-  count       = var.deploy_recording_cluster ? 1 : 0
   name        = "${var.name_prefix}-recording-alb-sg"
   description = "Recording Server ALB security group"
   vpc_id      = aws_vpc.jambonz.id
@@ -455,11 +418,10 @@ resource "aws_security_group" "recording_alb" {
 }
 
 # ------------------------------------------------------------------------------
-# RECORDING INSTANCE SECURITY GROUP (conditional)
+# RECORDING INSTANCE SECURITY GROUP
 # ------------------------------------------------------------------------------
 
 resource "aws_security_group" "recording" {
-  count       = var.deploy_recording_cluster ? 1 : 0
   name        = "${var.name_prefix}-recording-sg"
   description = "Recording Server instance security group"
   vpc_id      = aws_vpc.jambonz.id
@@ -469,7 +431,7 @@ resource "aws_security_group" "recording" {
     from_port       = 3000
     to_port         = 3000
     protocol        = "tcp"
-    security_groups = [aws_security_group.recording_alb[0].id]
+    security_groups = [aws_security_group.recording_alb.id]
   }
 
   egress {
