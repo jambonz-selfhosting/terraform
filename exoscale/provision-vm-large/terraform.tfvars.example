@@ -176,3 +176,11 @@ scale_in_timeout_seconds = 900  # 15 minutes
 
 # krisp_license_key = ""
 
+# ------------------------------------------------------------------------------
+# AI-COUSTICS (Optional)
+# aicoustics noise isolation and VAD vendors
+# Obtain an SDK license key from ai-coustics (https://ai-coustics.com)
+# ------------------------------------------------------------------------------
+
+# aic_sdk_license = ""
+

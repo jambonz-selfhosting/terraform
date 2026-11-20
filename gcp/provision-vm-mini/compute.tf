@@ -57,6 +57,7 @@ resource "google_compute_instance" "mini" {
     apiban_client_id  = var.apiban_client_id
     apiban_client_set = var.apiban_client_secret != ""
     krisp_key_set     = var.krisp_license_key != ""
+    aic_key_set       = var.aic_sdk_license != ""
   })
 
   labels = {

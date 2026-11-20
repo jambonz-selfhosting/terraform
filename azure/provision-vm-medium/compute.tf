@@ -97,6 +97,7 @@ resource "azurerm_linux_virtual_machine" "web_monitoring" {
     azurerm_key_vault_secret.apiban_key,
     azurerm_key_vault_secret.apiban_client_secret,
     azurerm_key_vault_secret.krisp_license_key,
+    azurerm_key_vault_secret.aic_sdk_license,
     azurerm_private_endpoint.redis,
     azurerm_mysql_flexible_server.jambonz,
     azurerm_managed_redis.jambonz
@@ -213,6 +214,7 @@ resource "azurerm_linux_virtual_machine" "sbc" {
     azurerm_key_vault_secret.apiban_key,
     azurerm_key_vault_secret.apiban_client_secret,
     azurerm_key_vault_secret.krisp_license_key,
+    azurerm_key_vault_secret.aic_sdk_license,
     azurerm_private_endpoint.redis,
     azurerm_linux_virtual_machine.web_monitoring
   ]
@@ -302,6 +304,7 @@ resource "azurerm_linux_virtual_machine_scale_set" "feature_server" {
     identity_client_id        = azurerm_user_assigned_identity.jambonz.client_id
     recording_ws_base_url     = var.deploy_recording_cluster ? "ws://${azurerm_lb.recording[0].private_ip_address}" : "ws://${azurerm_network_interface.web_monitoring.private_ip_address}:3017"
     krisp_key_set             = var.krisp_license_key != ""
+    aic_key_set               = var.aic_sdk_license != ""
     enable_otel               = var.enable_otel
   }))
 
@@ -312,6 +315,7 @@ resource "azurerm_linux_virtual_machine_scale_set" "feature_server" {
     azurerm_key_vault_secret.apiban_key,
     azurerm_key_vault_secret.apiban_client_secret,
     azurerm_key_vault_secret.krisp_license_key,
+    azurerm_key_vault_secret.aic_sdk_license,
     azurerm_private_endpoint.redis,
     azurerm_linux_virtual_machine.web_monitoring
   ]
@@ -450,6 +454,7 @@ resource "azurerm_linux_virtual_machine_scale_set" "recording" {
     azurerm_key_vault_secret.apiban_key,
     azurerm_key_vault_secret.apiban_client_secret,
     azurerm_key_vault_secret.krisp_license_key,
+    azurerm_key_vault_secret.aic_sdk_license,
     azurerm_private_endpoint.redis,
     azurerm_linux_virtual_machine.web_monitoring,
     azurerm_lb_rule.recording
