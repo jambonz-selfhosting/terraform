@@ -132,10 +132,14 @@ echo "Finished writing config file"
 # exits 1 at startup, systemd restarts it forever, feature-server never reaches
 # it, and every call fails 480. mediajam takes no MySQL configuration.
 KRISP_LICENSE_KEY="${krisp_license_key}"
+AIC_SDK_LICENSE="${aic_sdk_license}"
 sudo sed -i -e "s|^#\?JAMBONES_REDIS_HOST=.*|JAMBONES_REDIS_HOST=$REDIS_HOST|" /etc/default/mediajam
 sudo sed -i -e "s|^#\?JAMBONES_REDIS_PORT=.*|JAMBONES_REDIS_PORT=$REDIS_PORT|" /etc/default/mediajam
 if [ -n "$KRISP_LICENSE_KEY" ]; then
     sudo sed -i -e "s|^KRISP_API_KEY=.*|KRISP_API_KEY=$KRISP_LICENSE_KEY|" /etc/default/mediajam
+fi
+if [ -n "$AIC_SDK_LICENSE" ]; then
+    sudo sed -i -e "s|^AIC_SDK_LICENSE=.*|AIC_SDK_LICENSE=$AIC_SDK_LICENSE|" /etc/default/mediajam
 fi
 
 sudo systemctl daemon-reload

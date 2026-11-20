@@ -53,6 +53,7 @@ locals {
     "apiban-key"           = var.apiban_key
     "apiban-client-secret" = var.apiban_client_secret
     "krisp-license-key"    = var.krisp_license_key
+    "aic-sdk-license"      = var.aic_sdk_license
   }
   # Optional secrets are created only when set. Whether one is set is not secret.
   secret_names = toset([for k, v in local.secret_values : k

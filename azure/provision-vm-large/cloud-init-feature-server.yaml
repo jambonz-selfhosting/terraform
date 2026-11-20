@@ -42,7 +42,9 @@ write_files:
       REDIS_PASSWORD=$(kv_secret redis-password)
       JWT_SECRET=$(kv_secret encryption-secret)
       KRISP_LICENSE_KEY=""
+      AIC_SDK_LICENSE=""
       if [ "${krisp_key_set}" = "true" ]; then KRISP_LICENSE_KEY=$(kv_secret krisp-license-key); fi
+      if [ "${aic_key_set}" = "true" ]; then AIC_SDK_LICENSE=$(kv_secret aic-sdk-license); fi
       RECORDING_WS_BASE_URL="${recording_ws_base_url}"
       ENABLE_OTEL="${enable_otel}"
 
@@ -176,6 +178,9 @@ write_files:
         "$REDIS_HOST" "$REDIS_PORT" "$REDIS_PASSWORD" | sudo tee -a /etc/default/mediajam > /dev/null
       if [ -n "$KRISP_LICENSE_KEY" ]; then
           sudo sed -i -e "s|^KRISP_API_KEY=.*|KRISP_API_KEY=$KRISP_LICENSE_KEY|" /etc/default/mediajam
+      fi
+      if [ -n "$AIC_SDK_LICENSE" ]; then
+          sudo sed -i -e "s|^AIC_SDK_LICENSE=.*|AIC_SDK_LICENSE=$AIC_SDK_LICENSE|" /etc/default/mediajam
       fi
 
       sudo systemctl daemon-reload

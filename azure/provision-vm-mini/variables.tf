@@ -278,6 +278,13 @@ variable "krisp_license_key" {
   sensitive   = true
 }
 
+variable "aic_sdk_license" {
+  description = "ai-coustics SDK license key for the aicoustics noise isolation and VAD vendors (optional)"
+  type        = string
+  default     = ""
+  sensitive   = true
+}
+
 variable "log_retention_days" {
   description = "Days to keep logs in Log Analytics. SOC 2 typically expects 90 days or more."
   type        = number

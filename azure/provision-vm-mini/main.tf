@@ -51,6 +51,7 @@ locals {
     "apiban-key"           = var.apiban_key
     "apiban-client-secret" = var.apiban_client_secret
     "krisp-license-key"    = var.krisp_license_key
+    "aic-sdk-license"      = var.aic_sdk_license
   }
   # Whether each secret is set is not itself secret.
   supplied_secret_names = toset([for k, v in local.supplied_secret_values : k if nonsensitive(v != "")])
@@ -351,6 +352,7 @@ resource "azurerm_linux_virtual_machine" "jambonz" {
     apiban_client_id   = var.apiban_client_id
     apiban_client_set  = var.apiban_client_secret != ""
     krisp_key_set      = var.krisp_license_key != ""
+    aic_key_set        = var.aic_sdk_license != ""
   }))
 
   depends_on = [azurerm_key_vault_secret.supplied]

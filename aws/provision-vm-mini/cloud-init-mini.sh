@@ -104,10 +104,14 @@ fi
 # default is already 127.0.0.1, but set it explicitly so the deployment does not
 # depend on a package default staying put.
 KRISP_LICENSE_KEY="${krisp_license_key}"
+AIC_SDK_LICENSE="${aic_sdk_license}"
 sudo sed -i -e "s|^#\?JAMBONES_REDIS_HOST=.*|JAMBONES_REDIS_HOST=127.0.0.1|" /etc/default/mediajam
 sudo sed -i -e "s|^#\?JAMBONES_REDIS_PORT=.*|JAMBONES_REDIS_PORT=6379|" /etc/default/mediajam
 if [ -n "$KRISP_LICENSE_KEY" ]; then
     sudo sed -i -e "s|^KRISP_API_KEY=.*|KRISP_API_KEY=$KRISP_LICENSE_KEY|" /etc/default/mediajam
+fi
+if [ -n "$AIC_SDK_LICENSE" ]; then
+    sudo sed -i -e "s|^AIC_SDK_LICENSE=.*|AIC_SDK_LICENSE=$AIC_SDK_LICENSE|" /etc/default/mediajam
 fi
 
 sudo systemctl daemon-reload

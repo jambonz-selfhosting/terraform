@@ -105,6 +105,14 @@ ssh_user = "jambonz"
 
 # krisp_license_key = ""
 
+# ------------------------------------------------------------------------------
+# AI-COUSTICS (Optional)
+# aicoustics noise isolation and VAD vendors
+# Obtain an SDK license key from ai-coustics (https://ai-coustics.com)
+# ------------------------------------------------------------------------------
+
+# aic_sdk_license = ""
+
 
 # arm64 REQUIRES hyperdisk; c4a does not support pd-* disks.
 disk_type = "hyperdisk-balanced"

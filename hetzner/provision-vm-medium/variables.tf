@@ -283,3 +283,10 @@ variable "krisp_license_key" {
   default     = ""
   sensitive   = true
 }
+
+variable "aic_sdk_license" {
+  description = "ai-coustics SDK license key for the aicoustics noise isolation and VAD vendors (optional)"
+  type        = string
+  default     = ""
+  sensitive   = true
+}
