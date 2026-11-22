@@ -63,12 +63,12 @@ allowed_rtp_cidr  = ["0.0.0.0/0"]    # RTP media access
 # Public jambonz images from drachtio-cpaas project
 # ------------------------------------------------------------------------------
 
-sip_image            = "projects/drachtio-cpaas/global/images/jambonz-sip-v11-1-11-debian-12-amd64-20261103022333"
-rtp_image            = "projects/drachtio-cpaas/global/images/jambonz-rtp-v11-1-11-debian-12-amd64-20261103022334"
-web_image            = "projects/drachtio-cpaas/global/images/jambonz-web-v11-1-11-debian-12-amd64-20261103022335"
-monitoring_image     = "projects/drachtio-cpaas/global/images/jambonz-monitoring-v11-1-11-debian-12-amd64-20261103022336"
-feature_server_image = "projects/drachtio-cpaas/global/images/jambonz-fs-v11-1-11-debian-12-amd64-20261103022331"
-recording_image      = "projects/drachtio-cpaas/global/images/jambonz-recording-v11-1-11-debian-12-amd64-20261103022338"
+sip_image            = "projects/drachtio-cpaas/global/images/jambonz-sip-v11-1-16-debian-12-amd64-20261122203256"
+rtp_image            = "projects/drachtio-cpaas/global/images/jambonz-rtp-v11-1-16-debian-12-amd64-20261122203256"
+web_image            = "projects/drachtio-cpaas/global/images/jambonz-web-v11-1-16-debian-12-amd64-20261122203256"
+monitoring_image     = "projects/drachtio-cpaas/global/images/jambonz-monitoring-v11-1-16-debian-12-amd64-20261122203256"
+feature_server_image = "projects/drachtio-cpaas/global/images/jambonz-fs-v11-1-16-debian-12-amd64-20261122203256"
+recording_image      = "projects/drachtio-cpaas/global/images/jambonz-recording-v11-1-16-debian-12-amd64-20261122203256"
 
 # ------------------------------------------------------------------------------
 # MACHINE TYPE CONFIGURATION
