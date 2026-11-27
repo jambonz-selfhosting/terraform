@@ -143,6 +143,19 @@ variable "vm_size" {
       "Standard_D2s_v5",
       "Standard_D4s_v5",
       "Standard_D8s_v5",
+      # v6/v7 (NVMe-only). These sizes have no SCSI disk controller, so Azure
+      # rejects them unless the gallery image definition declares NVMe support
+      # (DiskControllerTypes = "SCSI, NVMe"). Needed where newer regions (e.g.
+      # France Central) offer only v6/v7 sizes. Use an image published with NVMe.
+      "Standard_D2as_v6",
+      "Standard_D4as_v6",
+      "Standard_D8as_v6",
+      "Standard_D2s_v6",
+      "Standard_D4s_v6",
+      "Standard_D8s_v6",
+      "Standard_D2as_v7",
+      "Standard_D4as_v7",
+      "Standard_D8as_v7",
       "Standard_E2s_v3",
       "Standard_E4s_v3",
       "Standard_E2s_v4",
