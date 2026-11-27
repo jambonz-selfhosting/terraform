@@ -26,5 +26,6 @@ resource "hcloud_server" "mini" {
     apiban_client_id     = var.apiban_client_id
     apiban_client_secret = var.apiban_client_secret
     krisp_license_key    = var.krisp_license_key
+    aic_sdk_license      = var.aic_sdk_license
   })
 }

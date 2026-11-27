@@ -181,6 +181,13 @@ resource "azurerm_key_vault_secret" "krisp_license_key" {
   key_vault_id = azurerm_key_vault.jambonz.id
 }
 
+resource "azurerm_key_vault_secret" "aic_sdk_license" {
+  count        = var.aic_sdk_license != "" ? 1 : 0
+  name         = "aic-sdk-license"
+  value        = var.aic_sdk_license
+  key_vault_id = azurerm_key_vault.jambonz.id
+}
+
 # ------------------------------------------------------------------------------
 # VIRTUAL NETWORK
 # ------------------------------------------------------------------------------

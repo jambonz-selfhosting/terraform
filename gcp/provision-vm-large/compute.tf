@@ -331,6 +331,7 @@ resource "google_compute_instance_template" "feature_server" {
     recording_ws_base_url    = var.deploy_recording_cluster ? "ws://${google_compute_forwarding_rule.recording[0].ip_address}:3000" : "ws://${google_compute_instance.web.network_interface[0].network_ip}:3017"
     scale_in_timeout_seconds = var.scale_in_timeout_seconds
     krisp_key_set            = var.krisp_license_key != ""
+    aic_key_set              = var.aic_sdk_license != ""
   })
 
   labels = {

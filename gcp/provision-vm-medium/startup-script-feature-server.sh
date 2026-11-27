@@ -106,13 +106,18 @@ echo "Finished writing config file"
 #
 # mediajam takes no MySQL configuration -- only redis (licensing) and Krisp.
 KRISP_LICENSE_KEY=""
+AIC_SDK_LICENSE=""
 if [ "${krisp_key_set}" = "true" ]; then KRISP_LICENSE_KEY=$(gcp_secret krisp-license-key); fi
+if [ "${aic_key_set}" = "true" ]; then AIC_SDK_LICENSE=$(gcp_secret aic-sdk-license); fi
 sudo sed -i -e "s|^#\?JAMBONES_REDIS_HOST=.*|JAMBONES_REDIS_HOST=$REDIS_HOST|" /etc/default/mediajam
 sudo sed -i -e "s|^#\?JAMBONES_REDIS_PORT=.*|JAMBONES_REDIS_PORT=$REDIS_PORT|" /etc/default/mediajam
 sudo sed -i -e "/^#\?JAMBONES_REDIS_PASSWORD=/d" /etc/default/mediajam
 echo "JAMBONES_REDIS_PASSWORD=$REDIS_PASSWORD" | sudo tee -a /etc/default/mediajam > /dev/null
 if [ -n "$KRISP_LICENSE_KEY" ]; then
     sudo sed -i -e "s|^KRISP_API_KEY=.*|KRISP_API_KEY=$KRISP_LICENSE_KEY|" /etc/default/mediajam
+fi
+if [ -n "$AIC_SDK_LICENSE" ]; then
+    sudo sed -i -e "s|^AIC_SDK_LICENSE=.*|AIC_SDK_LICENSE=$AIC_SDK_LICENSE|" /etc/default/mediajam
 fi
 
 sudo systemctl daemon-reload

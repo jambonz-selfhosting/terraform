@@ -203,6 +203,13 @@ variable "krisp_license_key" {
   sensitive   = true
 }
 
+variable "aic_sdk_license" {
+  description = "ai-coustics SDK license key for the aicoustics noise isolation and VAD vendors (optional)"
+  type        = string
+  default     = ""
+  sensitive   = true
+}
+
 variable "disk_type" {
   description = <<-EOT
     Boot disk type for every jambonz VM in this deployment.
